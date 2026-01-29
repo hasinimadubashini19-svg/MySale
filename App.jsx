@@ -4,7 +4,7 @@ import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, on
 import { getFirestore, doc, collection, onSnapshot, addDoc, deleteDoc, query, orderBy, where, enableIndexedDbPersistence } from 'firebase/firestore';
 import { LayoutDashboard, Store, FileText, Plus, X, Trash2, Crown, Settings, LogOut, Search, Send, MapPin, Receipt, Package, Wallet, CheckCircle2, History, Calendar } from 'lucide-react';
 
-// --- FIREBASE CONFIG (ඔයාගේ කලින් Config එකම මෙතනට දාන්න) ---
+// --- FIREBASE CONFIG ---
 const firebaseConfig = {
   apiKey: "AIzaSyA7vsja2a74dFZj1qdItzq2k6kWocXBvTU",
   authDomain: "monarch-sales.firebaseapp.com",
@@ -18,7 +18,7 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// OFFLINE SYNC සක්‍රීය කිරීම
+// OFFLINE SYNC
 try {
   enableIndexedDbPersistence(db);
 } catch (err) {
@@ -40,9 +40,9 @@ export default function App() {
 
   // 1. AUTH & INITIAL LOAD
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (u) => { 
-      setUser(u); 
-      setLoading(false); 
+    const unsub = onAuthStateChanged(auth, (u) => {
+      setUser(u);
+      setLoading(false);
     });
     return unsub;
   }, []);
@@ -62,17 +62,23 @@ export default function App() {
 
   // 3. ACTIONS
   const addItem = async (col, payload) => {
-    await addDoc(collection(db, col), { 
-      ...payload, 
-      userId: user.uid, 
-      timestamp: Date.now(), 
-      date: new Date().toLocaleDateString() 
+    await addDoc(collection(db, col), {
+      ...payload,
+      userId: user.uid,
+      timestamp: Date.now(),
+      date: new Date().toLocaleDateString()
     });
     setShowModal(null);
   };
 
   const deleteItem = async (col, id) => {
-    if (window.confirm("මෙය මකා දැමීමට අවශ්‍යද?")) await deleteDoc(doc(db, col, id));
+    if (window.confirm("Delete?")) {
+      try {
+        await deleteDoc(doc(db, col, id));
+      } catch (err) {
+        alert("Error deleting: " + err.message);
+      }
+    }
   };
 
   const submitOrder = async () => {
@@ -81,21 +87,21 @@ export default function App() {
       return { name: b.name, size: b.size, price: b.price, qty: Number(q), subtotal: b.price * Number(q) };
     });
     if (items.length === 0) return alert("Items තෝරන්න!");
-    
+
     const total = items.reduce((s, i) => s + i.subtotal, 0);
     const orderData = {
-      shopName: selectedShop.name, 
-      items, 
-      total, 
+      shopName: selectedShop.name,
+      items,
+      total,
       status: payStatus,
-      timestamp: Date.now(), 
+      timestamp: Date.now(),
       date: new Date().toLocaleDateString(),
       monthYear: new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
     };
 
     const docRef = await addDoc(collection(db, 'orders'), { ...orderData, userId: user.uid });
     setLastOrder({ id: docRef.id, ...orderData });
-    setCart({}); 
+    setCart({});
     setShowModal('receipt');
   };
 
@@ -109,7 +115,7 @@ export default function App() {
   // 4. CALCULATIONS
   const todayOrders = data.orders.filter(o => o.date === new Date().toLocaleDateString());
   const monthOrders = data.orders.filter(o => o.monthYear === new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }));
-  
+
   const dailyBrandSummary = useMemo(() => {
     const summary = {};
     todayOrders.forEach(o => o.items.forEach(i => {
@@ -145,10 +151,8 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-black text-white pb-32">
-      {/* Viewport fix for iOS/Android Zoom */}
       <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0"/>
-      
-      {/* TOP HEADER */}
+
       <header className="p-6 flex justify-between items-center sticky top-0 bg-black/90 backdrop-blur-xl z-40 border-b border-white/5">
         <div className="flex items-center gap-2"><Crown className="text-[#d4af37]" size={24}/><h1 className="text-lg font-black italic tracking-tighter uppercase">Monarch <span className="text-[#d4af37]">Pro</span></h1></div>
         <div className="flex items-center gap-4">
@@ -158,10 +162,9 @@ export default function App() {
       </header>
 
       <main className="p-5 space-y-6 max-w-lg mx-auto">
-        
+
         {activeTab === 'dashboard' && (
           <div className="space-y-6 animate-in fade-in duration-500">
-            {/* QUICK STATS */}
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-[#0f0f0f] p-5 rounded-[2.5rem] border border-white/5">
                 <p className="text-[9px] font-black text-white/30 uppercase mb-1">Today Sales</p>
@@ -173,7 +176,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* DAILY BOTTLE SUMMARY */}
             <div className="bg-[#0f0f0f] p-6 rounded-[2.5rem] border border-white/5 shadow-xl">
               <h3 className="text-[10px] font-black text-[#d4af37] uppercase mb-5 tracking-[0.2em] flex items-center gap-2"><Package size={14}/> Daily Unit Summary</h3>
               <div className="space-y-3">
@@ -187,17 +189,20 @@ export default function App() {
               </div>
             </div>
 
-            {/* RECENT LOGS */}
             <div className="space-y-4">
               <div className="flex justify-between items-center px-2">
                 <h3 className="text-[10px] font-black text-white/30 uppercase tracking-widest">Recent Orders</h3>
                 <button onClick={()=>setActiveTab('history')} className="text-[10px] font-black text-[#d4af37] uppercase">View History</button>
               </div>
-              {data.orders.slice().reverse().slice(0, 5).map((o, idx) => (
-                <div key={idx} className="bg-[#0f0f0f] p-5 rounded-[2rem] border border-white/5">
-                  <div className="flex justify-between items-start mb-2">
-                    <div><h4 className="text-xs font-black uppercase text-white/90">{o.shopName}</h4><p className="text-[9px] text-white/20">{o.date} • <span className={o.status === 'PAID' ? 'text-green-500' : 'text-red-500'}>{o.status}</span></p></div>
+              {data.orders.slice().reverse().slice(0, 5).map((o) => (
+                <div key={o.id} className="bg-[#0f0f0f] p-5 rounded-[2rem] border border-white/5 flex justify-between items-center">
+                  <div>
+                    <h4 className="text-xs font-black uppercase text-white/90">{o.shopName}</h4>
+                    <p className="text-[9px] text-white/20">{o.date} • <span className={o.status === 'PAID' ? 'text-green-500' : 'text-red-500'}>{o.status}</span></p>
+                  </div>
+                  <div className="flex items-center gap-3">
                     <span className="text-xs font-black text-[#d4af37]">Rs.{o.total}</span>
+                    <button onClick={() => deleteItem('orders', o.id)} className="text-white/10 hover:text-red-500 transition-colors"><Trash2 size={14}/></button>
                   </div>
                 </div>
               ))}
@@ -207,7 +212,6 @@ export default function App() {
 
         {activeTab === 'shops' && (
           <div className="space-y-4 animate-in slide-in-from-right duration-500">
-            {/* ROUTE SELECTOR */}
             <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2">
               <button onClick={()=>setSelectedRouteId('all')} className={`px-6 py-3 rounded-full text-[10px] font-black uppercase border transition-all ${selectedRouteId==='all' ? 'bg-[#d4af37] text-black border-[#d4af37]' : 'border-white/10 text-white/40'}`}>All Routes</button>
               {data.routes.map(r => (
@@ -239,11 +243,14 @@ export default function App() {
              </div>
              <p className="text-[10px] font-black text-white/20 uppercase px-2">Orders for: {searchDate}</p>
              {data.orders.filter(o => o.date === searchDate).length === 0 && <p className="text-center py-10 text-white/10 text-xs uppercase font-black">No Records Found</p>}
-             {data.orders.filter(o => o.date === searchDate).map((o, idx) => (
-                <div key={idx} className="bg-[#0f0f0f] p-5 rounded-[2rem] border border-white/5">
+             {data.orders.filter(o => o.date === searchDate).map((o) => (
+                <div key={o.id} className="bg-[#0f0f0f] p-5 rounded-[2rem] border border-white/5">
                   <div className="flex justify-between items-center mb-3">
                     <h4 className="text-xs font-black uppercase text-[#d4af37]">{o.shopName}</h4>
-                    <button onClick={() => shareWhatsApp(o)} className="text-green-500 p-2 bg-green-500/10 rounded-full"><Send size={14}/></button>
+                    <div className="flex gap-2">
+                      <button onClick={() => deleteItem('orders', o.id)} className="text-red-500/20 p-2"><Trash2 size={14}/></button>
+                      <button onClick={() => shareWhatsApp(o)} className="text-green-500 p-2 bg-green-500/10 rounded-full"><Send size={14}/></button>
+                    </div>
                   </div>
                   <div className="space-y-1">
                     {o.items.map((i, k) => <p key={k} className="text-[10px] text-white/40 uppercase">▪ {i.name} x {i.qty} = {i.subtotal}</p>)}
@@ -266,11 +273,38 @@ export default function App() {
 
             <div className="grid grid-cols-1 gap-3">
               <button onClick={()=>setShowModal('route')} className="w-full py-5 bg-[#0f0f0f] rounded-2xl border border-white/5 text-[10px] font-black uppercase flex items-center justify-center gap-2 text-[#d4af37] active:bg-[#d4af37] active:text-black transition-all"><MapPin size={16}/> Territory / Routes</button>
+
+              {/* ROUTES LIST */}
+              <div className="space-y-2 mb-4">
+                {data.routes.map(r => (
+                  <div key={r.id} className="bg-[#0f0f0f] p-4 rounded-2xl border border-white/5 flex justify-between items-center">
+                    <div className="flex items-center gap-3">
+                      <MapPin size={14} className="text-[#d4af37]/40"/>
+                      <span className="text-xs font-black uppercase text-white/80">{r.name}</span>
+                    </div>
+                    <button onClick={() => deleteItem('routes', r.id)} className="p-2 text-white/5 hover:text-red-500 transition-colors"><Trash2 size={14}/></button>
+                  </div>
+                ))}
+              </div>
+
               <button onClick={()=>setShowModal('brand')} className="w-full py-5 bg-[#0f0f0f] rounded-2xl border border-white/5 text-[10px] font-black uppercase flex items-center justify-center gap-2 text-[#d4af37] active:bg-[#d4af37] active:text-black transition-all"><Package size={16}/> Product Brands</button>
+
+              {/* BRANDS LIST */}
+              <div className="space-y-2 mb-4">
+                {data.brands.map(b => (
+                  <div key={b.id} className="bg-[#0f0f0f] p-4 rounded-2xl border border-white/5 flex justify-between items-center shadow-lg">
+                    <div>
+                      <h4 className="text-xs font-black uppercase text-white/90">{b.name}</h4>
+                      <p className="text-[9px] text-[#d4af37] font-black">{b.size} — Rs.{b.price}</p>
+                    </div>
+                    <button onClick={() => deleteItem('brands', b.id)} className="p-2 text-white/10 hover:text-red-500 transition-colors"><Trash2 size={14}/></button>
+                  </div>
+                ))}
+              </div>
+
               <button onClick={()=>setShowModal('expense')} className="w-full py-5 bg-red-500/5 rounded-2xl border border-red-500/10 text-[10px] font-black uppercase flex items-center justify-center gap-2 text-red-500 active:bg-red-500 active:text-white transition-all"><Wallet size={16}/> Daily Expenses</button>
             </div>
 
-            {/* EXPENSES LIST */}
             <div className="space-y-3">
               <h3 className="text-[10px] font-black text-white/20 uppercase px-2">Today Expenses</h3>
               {data.expenses.filter(e=>e.date === new Date().toLocaleDateString()).map(e => (
@@ -287,7 +321,6 @@ export default function App() {
         )}
       </main>
 
-      {/* BILLING SYSTEM */}
       {showModal === 'invoice' && (
         <div className="fixed inset-0 bg-black z-50 p-6 overflow-y-auto animate-in slide-in-from-bottom duration-500">
           <div className="flex justify-between items-center mb-8 sticky top-0 bg-black/90 py-4 z-10">
@@ -320,7 +353,6 @@ export default function App() {
         </div>
       )}
 
-      {/* FINAL RECEIPT */}
       {showModal === 'receipt' && lastOrder && (
         <div className="fixed inset-0 bg-black/95 z-50 flex items-center justify-center p-6 backdrop-blur-md">
           <div className="bg-[#0f0f0f] w-full max-w-sm p-10 rounded-[3.5rem] border border-[#d4af37]/30 text-center shadow-2xl animate-in zoom-in duration-300">
@@ -340,7 +372,6 @@ export default function App() {
         </div>
       )}
 
-      {/* SHARED INPUT MODALS */}
       {['route', 'shop', 'brand', 'expense'].includes(showModal) && (
         <div className="fixed inset-0 bg-black/95 z-50 flex items-center justify-center p-8 backdrop-blur-md">
           <div className="bg-[#0f0f0f] w-full max-w-sm p-10 rounded-[3rem] border border-white/5 shadow-2xl">
@@ -369,7 +400,6 @@ export default function App() {
         </div>
       )}
 
-      {/* BOTTOM NAV BAR */}
       <nav className="fixed bottom-8 inset-x-8 h-20 bg-[#0a0a0a]/90 backdrop-blur-3xl rounded-[2.5rem] border border-white/5 flex items-center justify-around z-40 shadow-2xl">
         {[
           { id: 'dashboard', icon: LayoutDashboard, label: 'Dash' },
@@ -383,7 +413,6 @@ export default function App() {
         ))}
       </nav>
 
-      {/* NO SCROLLBAR STYLE */}
       <style>{`.no-scrollbar::-webkit-scrollbar { display: none; }`}</style>
     </div>
   );
