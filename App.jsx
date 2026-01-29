@@ -19,14 +19,12 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// 1. OFFLINE SUPPORT (Signal nathi thanwala wada karanna)
+// 1. OFFLINE SUPPORT
 try {
   enableIndexedDbPersistence(db);
 } catch (err) {
   console.warn("Offline persistence error:", err.code);
 }
-
-const appId = 'monarch-v4-pro';
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -42,37 +40,55 @@ export default function App() {
   const [lastOrder, setLastOrder] = useState(null);
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (u) => { setUser(u); setTimeout(() => setLoading(false), 1000); });
+    const unsub = onAuthStateChanged(auth, (u) => {
+      setUser(u);
+      setTimeout(() => setLoading(false), 1000);
+    });
     return unsub;
   }, []);
 
-  // 2. PRIVACY & SORTING (User id anuwa saha dāpu piliwalata data gannawa)
+  // 2. DATA LISTENING (Path simplified to avoid 'Odd Segments' error)
   useEffect(() => {
     if (!user) return;
     const collections = ['routes', 'shops', 'orders', 'expenses', 'brands', 'settings'];
     const unsubs = collections.map(c => {
       const q = query(
-        collection(db, 'artifacts', appId, 'data', c),
+        collection(db, c),
         where("userId", "==", user.uid),
         orderBy("timestamp", "asc")
       );
-      return onSnapshot(q, s => setData(prev => ({ ...prev, [c]: s.docs.map(d => ({ id: d.id, ...d.data() })) })));
+      return onSnapshot(q, s => {
+        setData(prev => ({
+          ...prev,
+          [c]: s.docs.map(d => ({ id: d.id, ...d.data() }))
+        }));
+      }, (error) => {
+        console.error(`Error in ${c}:`, error);
+      });
     });
     return () => unsubs.forEach(f => f());
   }, [user]);
 
   const addItem = async (col, payload) => {
-    await addDoc(collection(db, 'artifacts', appId, 'data', col), {
-      ...payload,
-      userId: user.uid,
-      date: new Date().toLocaleDateString(),
-      timestamp: Date.now()
-    });
-    setShowModal(null);
+    try {
+      await addDoc(collection(db, col), {
+        ...payload,
+        userId: user.uid,
+        date: new Date().toLocaleDateString(),
+        timestamp: Date.now()
+      });
+      setShowModal(null);
+    } catch (err) {
+      alert("Error adding: " + err.message);
+    }
   };
 
   const deleteItem = async (col, id) => {
-    if (confirm("Mēka ain karannada?")) await deleteDoc(doc(db, 'artifacts', appId, 'data', col, id));
+    try {
+      if (confirm("Mēka ain karannada?")) await deleteDoc(doc(db, col, id));
+    } catch (err) {
+      alert("Error deleting: " + err.message);
+    }
   };
 
   const submitOrder = async () => {
@@ -80,7 +96,9 @@ export default function App() {
       const b = data.brands.find(x => x.id === id);
       return { name: b.name, size: b.size, price: b.price, qty, subtotal: b.price * qty };
     });
+
     if (items.length === 0) return alert("Cart eka فاضියි!");
+
     const total = items.reduce((s, i) => s + i.subtotal, 0);
     const orderData = {
       userId: user.uid,
@@ -91,9 +109,15 @@ export default function App() {
       date: new Date().toLocaleDateString(),
       timestamp: Date.now()
     };
-    const docRef = await addDoc(collection(db, 'artifacts', appId, 'data', 'orders'), orderData);
-    setLastOrder({ id: docRef.id, ...orderData });
-    setCart({}); setShowModal('receipt');
+
+    try {
+      const docRef = await addDoc(collection(db, 'orders'), orderData);
+      setLastOrder({ id: docRef.id, ...orderData });
+      setCart({});
+      setShowModal('receipt');
+    } catch (err) {
+      alert("Order error: " + err.message);
+    }
   };
 
   const shareWhatsApp = (order) => {
@@ -103,9 +127,9 @@ export default function App() {
     window.open(`https://wa.me/?text=${msg}`, '_blank');
   };
 
-  // Logic Calculations
   const repProfile = data.settings.find(s => s.type === 'rep') || { name: 'New Rep' };
   const todayOrders = useMemo(() => data.orders.filter(o => o.date === new Date().toLocaleDateString()), [data.orders]);
+
   const brandSummary = useMemo(() => {
     const summary = {};
     todayOrders.forEach(order => order.items.forEach(item => {
@@ -293,7 +317,7 @@ export default function App() {
         ))}
       </nav>
 
-      {/* BILLING MODAL */}
+      {/* MODALS SECTION */}
       {showModal === 'invoice' && (
         <div className="fixed inset-0 bg-black z-[100] p-6 overflow-y-auto animate-in slide-in-from-bottom duration-500">
           <div className="flex justify-between items-center mb-8 sticky top-0 bg-black/90 backdrop-blur pb-4 z-10">
@@ -301,7 +325,6 @@ export default function App() {
             <button onClick={()=>setShowModal(null)} className="p-3 bg-white/5 rounded-full"><X/></button>
           </div>
           <div className="space-y-3 pb-44">
-            {data.brands.length === 0 && <p className="text-center text-[10px] text-white/20 py-10">No brands found. Go to Setup.</p>}
             {data.brands.map(brand => (
               <div key={brand.id} className="bg-[#0f0f0f] p-5 rounded-[2rem] border border-white/5 flex items-center justify-between">
                 <div><p className="text-[11px] font-black uppercase tracking-tight text-white/80">{brand.name}</p><p className="text-[9px] text-white/20 font-bold">Rs.{brand.price.toFixed(2)} | {brand.size}</p></div>
@@ -315,19 +338,17 @@ export default function App() {
           </div>
           <div className="fixed bottom-0 inset-x-0 p-8 bg-black/95 backdrop-blur-xl border-t border-white/5">
             <div className="flex justify-between items-center mb-6"><span className="text-[10px] font-black text-white/20 uppercase tracking-widest">Grand Total</span><span className="text-2xl font-black text-[#d4af37]">Rs.{Object.entries(cart).reduce((sum, [id, qty]) => sum + (data.brands.find(b=>b.id===id)?.price||0)*qty, 0).toFixed(2)}</span></div>
-            <button onClick={submitOrder} className="w-full py-5 bg-[#d4af37] text-black font-black rounded-[1.5rem] uppercase text-[10px] tracking-widest shadow-xl shadow-[#d4af37]/20 active:scale-95 transition-all">Submit Order</button>
+            <button onClick={submitOrder} className="w-full py-5 bg-[#d4af37] text-black font-black rounded-[1.5rem] uppercase text-[10px] tracking-widest shadow-xl shadow-[#d4af37]/20">Submit Order</button>
           </div>
         </div>
       )}
 
-      {/* RECEIPT MODAL */}
       {showModal === 'receipt' && lastOrder && (
-        <div className="fixed inset-0 bg-black/95 z-[110] flex items-center justify-center p-6 backdrop-blur-md animate-in zoom-in duration-300">
-          <div className="bg-[#0f0f0f] w-full max-w-sm p-8 rounded-[3rem] border border-[#d4af37]/30 shadow-2xl relative text-center">
+        <div className="fixed inset-0 bg-black/95 z-[110] flex items-center justify-center p-6 backdrop-blur-md">
+          <div className="bg-[#0f0f0f] w-full max-w-sm p-8 rounded-[3rem] border border-[#d4af37]/30 text-center">
             <Crown className="text-[#d4af37] mx-auto mb-2" size={32}/>
             <h3 className="font-black italic text-[#d4af37] uppercase tracking-tighter">SUCCESSFUL!</h3>
-            <p className="text-[8px] text-white/20 uppercase font-black mt-1 mb-6">ID: {lastOrder.id.slice(-8)}</p>
-            <div className="space-y-4 max-h-[35vh] overflow-y-auto no-scrollbar border-y border-white/5 py-6 mb-6">
+            <div className="space-y-4 max-h-[35vh] overflow-y-auto py-6 mb-6 border-y border-white/5">
               {lastOrder.items.map((i, idx) => (
                 <div key={idx} className="flex justify-between text-[10px] uppercase font-bold px-2">
                   <span className="text-white/40">{i.name} x {i.qty}</span>
@@ -336,20 +357,19 @@ export default function App() {
               ))}
             </div>
             <div className="flex justify-between items-center mb-8 px-2">
-              <span className="text-[9px] font-black uppercase text-white/20">Net Payable</span>
+              <span className="text-[9px] font-black text-white/20 uppercase">Total</span>
               <span className="text-xl font-black text-[#d4af37]">Rs.{lastOrder.total.toFixed(2)}</span>
             </div>
             <div className="flex gap-2">
-              <button onClick={() => shareWhatsApp(lastOrder)} className="flex-1 py-4 bg-[#25D366] text-white font-black rounded-2xl text-[9px] uppercase flex items-center justify-center gap-2 shadow-lg shadow-[#25D366]/20"><Send size={14}/> Share</button>
+              <button onClick={() => shareWhatsApp(lastOrder)} className="flex-1 py-4 bg-[#25D366] text-white font-black rounded-2xl text-[9px] uppercase flex items-center justify-center gap-2"><Send size={14}/> Share</button>
               <button onClick={()=>setShowModal(null)} className="flex-1 py-4 bg-white/5 text-white font-black rounded-2xl text-[9px] uppercase">Close</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* SYSTEM MODALS */}
       {['route', 'shop', 'brand', 'expense'].includes(showModal) && (
-        <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-8 backdrop-blur-md animate-in zoom-in duration-300">
+        <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-8 backdrop-blur-md">
           <div className="bg-[#0f0f0f] w-full max-w-xs p-8 rounded-[3rem] border border-white/5 shadow-2xl">
             <h3 className="text-center font-black text-[10px] mb-8 uppercase text-[#d4af37] tracking-widest">
               {showModal === 'route' ? 'New Route' : showModal === 'shop' ? 'New Shop' : showModal === 'brand' ? 'New Brand' : 'New Expense'}
@@ -358,10 +378,7 @@ export default function App() {
               e.preventDefault();
               const f = e.target;
               if(showModal === 'route') addItem('routes', { name: f.name.value.toUpperCase() });
-              if(showModal === 'shop') {
-                 if(data.routes.length === 0) return alert("Hadinama Route ekak hadanna!");
-                 addItem('shops', { name: f.name.value.toUpperCase(), area: f.area.value.toUpperCase(), routeId: f.routeId.value });
-              }
+              if(showModal === 'shop') addItem('shops', { name: f.name.value.toUpperCase(), area: f.area.value.toUpperCase(), routeId: f.routeId.value });
               if(showModal === 'brand') addItem('brands', { name: f.name.value.toUpperCase(), size: f.size.value.toUpperCase(), price: parseFloat(f.price.value) });
               if(showModal === 'expense') addItem('expenses', { reason: f.reason.value.toUpperCase(), amount: parseFloat(f.amount.value) });
             }}>
@@ -388,7 +405,7 @@ export default function App() {
                   <input name="amount" type="number" step="any" placeholder="Amount" className="w-full bg-black p-4 rounded-2xl mb-6 border border-white/5 text-xs font-bold uppercase outline-none" required />
                 </>
               )}
-              <button className="w-full py-4 bg-[#d4af37] text-black font-black rounded-2xl text-[10px] uppercase shadow-lg shadow-[#d4af37]/20 active:scale-95 transition-all">Save Record</button>
+              <button className="w-full py-4 bg-[#d4af37] text-black font-black rounded-2xl text-[10px] uppercase">Save Record</button>
               <button type="button" onClick={()=>setShowModal(null)} className="text-center block w-full mt-6 text-[8px] text-white/10 uppercase tracking-widest font-black">Cancel</button>
             </form>
           </div>
