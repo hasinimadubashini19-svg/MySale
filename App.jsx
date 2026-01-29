@@ -85,7 +85,7 @@ export default function App() {
 
   const deleteItem = async (col, id) => {
     try {
-      if (confirm("Mēka ain karannada?")) await deleteDoc(doc(db, col, id));
+      if (confirm("Do you Want to delete this item?")) await deleteDoc(doc(db, col, id));
     } catch (err) {
       alert("Error deleting: " + err.message);
     }
