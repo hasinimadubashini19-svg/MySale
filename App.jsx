@@ -470,7 +470,7 @@ export default function App() {
               if(showModal==='brand') await addDoc(collection(db, 'brands'), { ...payload, name: f.name.value.toUpperCase(), size: f.size.value.toUpperCase(), price: parseFloat(f.price.value) });
               setShowModal(null);
             }} className="space-y-5">
-              <input name="name" placeholder="ROUTE NAME" className="w-full bg-black/40 p-6 rounded-3xl border border-white/5 text-white font-bold uppercase outline-none focus:border-[#d4af37]" required />
+              <input name="name" placeholder="Enter" className="w-full bg-black/40 p-6 rounded-3xl border border-white/5 text-white font-bold uppercase outline-none focus:border-[#d4af37]" required />
               {showModal==='shop' && (
                 <div className="relative">
                     <select name="area" className="w-full bg-black/40 p-6 rounded-3xl border border-white/5 text-white font-bold uppercase outline-none appearance-none" required>
