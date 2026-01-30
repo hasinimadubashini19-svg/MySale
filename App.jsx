@@ -36,9 +36,7 @@ export default function App() {
   const [searchDate, setSearchDate] = useState(new Date().toISOString().split('T')[0]);
   const [lastOrder, setLastOrder] = useState(null);
 
-  // New State for Auth Toggle
   const [isRegisterMode, setIsRegisterMode] = useState(false);
-
   const [shopSearch, setShopSearch] = useState('');
   const [selectedRouteFilter, setSelectedRouteFilter] = useState('ALL');
 
@@ -334,7 +332,7 @@ export default function App() {
                     <div className="grid gap-2">
                     {data.brands.map(b => (
                         <div key={b.id} className="flex justify-between items-center p-4 bg-white/5 rounded-2xl border border-white/5">
-                        <span className="text-[11px] font-black uppercase">{b.name} @ {b.price}</span>
+                        <span className="text-[11px] font-black uppercase">{b.name} ({b.size}) @ {b.price}</span>
                         <button onClick={async () => { if(window.confirm('Delete Brand?')) await deleteDoc(doc(db, 'brands', b.id)) }} className="text-red-500/40 p-2"><Trash2 size={16}/></button>
                         </div>
                     ))}
@@ -381,7 +379,7 @@ export default function App() {
                 {data.brands.map(b => (
                   <div key={b.id} className="bg-[#0f0f0f] p-6 rounded-[2.5rem] border border-white/5 flex items-center justify-between">
                     <div className="flex-1">
-                      <h4 className="text-base font-black uppercase text-white">{b.name}</h4>
+                      <h4 className="text-base font-black uppercase text-white">{b.name} ({b.size})</h4>
                       <p className="text-xs text-[#d4af37] font-bold">Rs.{b.price.toLocaleString()}</p>
                     </div>
                     <div className="flex items-center gap-4">
@@ -400,7 +398,7 @@ export default function App() {
                  <button onClick={async () => {
                    const items = Object.entries(cart).filter(([_, q]) => q > 0).map(([id, q]) => {
                      const b = data.brands.find(x => x.id === id);
-                     return { name: b.name, qty: Number(q), price: b.price, subtotal: b.price * Number(q) };
+                     return { name: `${b.name} ${b.size}`, qty: Number(q), price: b.price, subtotal: b.price * Number(q) };
                    });
                    if (!items.length) return alert("Empty Cart!");
                    const orderData = {
@@ -469,10 +467,10 @@ export default function App() {
               const payload = { userId: user.uid, timestamp: Date.now() };
               if(showModal==='route') await addDoc(collection(db, 'routes'), { ...payload, name: f.name.value.toUpperCase() });
               if(showModal==='shop') await addDoc(collection(db, 'shops'), { ...payload, name: f.name.value.toUpperCase(), area: f.area.value });
-              if(showModal==='brand') await addDoc(collection(db, 'brands'), { ...payload, name: f.name.value.toUpperCase(), price: Number(f.price.value) });
+              if(showModal==='brand') await addDoc(collection(db, 'brands'), { ...payload, name: f.name.value.toUpperCase(), size: f.size.value.toUpperCase(), price: parseFloat(f.price.value) });
               setShowModal(null);
             }} className="space-y-5">
-              <input name="name" placeholder="NAME" className="w-full bg-black/40 p-6 rounded-3xl border border-white/5 text-white font-bold uppercase outline-none focus:border-[#d4af37]" required />
+              <input name="name" placeholder="BRAND NAME" className="w-full bg-black/40 p-6 rounded-3xl border border-white/5 text-white font-bold uppercase outline-none focus:border-[#d4af37]" required />
               {showModal==='shop' && (
                 <div className="relative">
                     <select name="area" className="w-full bg-black/40 p-6 rounded-3xl border border-white/5 text-white font-bold uppercase outline-none appearance-none" required>
@@ -482,7 +480,12 @@ export default function App() {
                     <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 opacity-30" size={18}/>
                 </div>
               )}
-              {showModal==='brand' && <input name="price" type="number" placeholder="UNIT PRICE" className="w-full bg-black/40 p-6 rounded-3xl border border-white/5 text-white font-bold outline-none" required />}
+              {showModal==='brand' && (
+                <>
+                  <input name="size" placeholder="SIZE (E.G. 500ML, 1KG)" className="w-full bg-black/40 p-6 rounded-3xl border border-white/5 text-white font-bold uppercase outline-none focus:border-[#d4af37]" required />
+                  <input name="price" type="number" step="0.01" placeholder="UNIT PRICE" className="w-full bg-black/40 p-6 rounded-3xl border border-white/5 text-white font-bold outline-none focus:border-[#d4af37]" required />
+                </>
+              )}
               <button className="w-full py-6 bg-[#d4af37] text-black font-black rounded-3xl uppercase text-[10px] tracking-widest">Save Entry</button>
             </form>
           </div>
