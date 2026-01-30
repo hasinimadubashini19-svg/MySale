@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { initializeApp } from 'firebase/app';
-import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from 'firebase/auth';
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from 'firebase/auth';
 import { getFirestore, doc, collection, onSnapshot, addDoc, deleteDoc, query, orderBy, where, enableIndexedDbPersistence, setDoc } from 'firebase/firestore';
 import {
   LayoutDashboard, Store, Plus, X, Trash2, Crown, Settings, LogOut,
@@ -35,6 +35,9 @@ export default function App() {
   const [showModal, setShowModal] = useState(null);
   const [searchDate, setSearchDate] = useState(new Date().toISOString().split('T')[0]);
   const [lastOrder, setLastOrder] = useState(null);
+
+  // New State for Auth Toggle
+  const [isRegisterMode, setIsRegisterMode] = useState(false);
 
   const [shopSearch, setShopSearch] = useState('');
   const [selectedRouteFilter, setSelectedRouteFilter] = useState('ALL');
@@ -133,14 +136,27 @@ export default function App() {
     <div className="h-screen bg-black flex items-center justify-center p-8">
       <div className="w-full max-sm space-y-8 text-center">
         <Crown size={70} className="text-[#d4af37] mx-auto" />
+        <h2 className="text-white font-black text-xl tracking-widest uppercase">{isRegisterMode ? "Create Account" : "Welcome Back"}</h2>
         <form onSubmit={async (e) => {
           e.preventDefault();
-          try { await signInWithEmailAndPassword(auth, e.target.email.value, e.target.password.value); }
-          catch { alert("Invalid Access!"); }
+          const email = e.target.email.value;
+          const password = e.target.password.value;
+          try {
+            if(isRegisterMode) {
+              await createUserWithEmailAndPassword(auth, email, password);
+            } else {
+              await signInWithEmailAndPassword(auth, email, password);
+            }
+          }
+          catch (err) { alert(err.message); }
         }} className="space-y-4">
           <input name="email" type="email" placeholder="EMAIL" className="w-full bg-[#111] p-5 rounded-3xl border border-white/10 text-white font-bold outline-none focus:border-[#d4af37]" required />
           <input name="password" type="password" placeholder="PASSWORD" className="w-full bg-[#111] p-5 rounded-3xl border border-white/10 text-white font-bold outline-none focus:border-[#d4af37]" required />
-          <button className="w-full py-5 bg-[#d4af37] text-black font-black rounded-3xl shadow-lg">LOGIN</button>
+          <button className="w-full py-5 bg-[#d4af37] text-black font-black rounded-3xl shadow-lg uppercase">{isRegisterMode ? "Sign Up" : "Login"}</button>
+
+          <button type="button" onClick={() => setIsRegisterMode(!isRegisterMode)} className="text-[#d4af37] text-[10px] font-black uppercase tracking-widest opacity-60">
+            {isRegisterMode ? "Already have an account? Login" : "New User? Create Account"}
+          </button>
         </form>
       </div>
     </div>
@@ -167,7 +183,6 @@ export default function App() {
       <main className="p-5 max-w-lg mx-auto space-y-8">
         {activeTab === 'dashboard' && (
           <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
-            {/* Today's Section */}
             <div className="bg-gradient-to-br from-[#d4af37] to-[#b8860b] p-8 rounded-[3rem] text-black shadow-2xl relative overflow-hidden">
                 <Star className="absolute -right-4 -top-4 opacity-10" size={140} />
                 <p className="text-[11px] font-black uppercase opacity-60 mb-1 tracking-widest">Today's Revenue</p>
@@ -177,7 +192,6 @@ export default function App() {
                 </div>
             </div>
 
-            {/* Monthly Summary Section - NEWLY ADDED */}
             <div className={`p-8 rounded-[3rem] border ${isDarkMode ? "bg-[#0f0f0f] border-white/10 shadow-xl" : "bg-white border-black/5 shadow-md"}`}>
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-[10px] font-black text-[#d4af37] uppercase tracking-[0.3em]">Monthly Performance</h3>
@@ -208,7 +222,6 @@ export default function App() {
                 </div>
             </div>
 
-            {/* Daily Itemized List */}
             <div className={`p-8 rounded-[3rem] border ${isDarkMode ? "bg-[#0f0f0f] border-white/10 shadow-xl" : "bg-white border-black/5 shadow-md"}`}>
                 <h3 className="text-[10px] font-black text-[#d4af37] uppercase tracking-[0.3em] mb-6">Today's Breakdown</h3>
                 <div className="space-y-4">
@@ -227,7 +240,6 @@ export default function App() {
           </div>
         )}
 
-        {/* --- ALL OTHER SECTIONS (shops, history, settings, modals) REMAIN UNTOUCHED --- */}
         {activeTab === 'shops' && (
           <div className="space-y-4 animate-in slide-in-from-right-4 duration-500">
             <div className="space-y-3">
