@@ -651,7 +651,7 @@ export default function App() {
     <div className="h-screen bg-gradient-to-br from-black to-gray-900 flex flex-col items-center justify-center">
       <Crown size={70} className="text-[#d4af37] animate-pulse" />
       <h1 className="mt-6 text-[#d4af37] text-3xl font-black tracking-widest italic uppercase">Monarch Pro</h1>
-      <p className="mt-2 text-white/50 text-sm uppercase tracking-widest">Sales Management System</p>
+      <p className="mt-2 text-white/50 text-sm uppercase tracking-widest">For My Love</p>
       <div className="mt-6 w-56 h-1.5 bg-white/10 rounded-full overflow-hidden">
         <div className="h-full bg-gradient-to-r from-[#d4af37] to-[#b8860b] animate-progress shadow-[0_0_15px_#d4af37]"></div>
       </div>
@@ -922,7 +922,7 @@ export default function App() {
                     <div className="text-right">
                       <p className="text-xs opacity-50 mb-1">Revenue Share</p>
                       <p className="text-lg font-black text-[#d4af37]">
-                        {stats.monthly.totalSales > 0 ? 
+                        {stats.monthly.totalSales > 0 ?
                           ((stats.monthly.topBrandRevenue / stats.monthly.totalSales) * 100).toFixed(1) : 0}%
                       </p>
                     </div>
@@ -958,7 +958,7 @@ export default function App() {
                         <div className="text-right">
                           <p className="text-sm font-black text-[#d4af37]">Rs.{brand.revenue.toLocaleString()}</p>
                           <p className="text-xs opacity-50 mt-1">
-                            {stats.monthly.totalSales > 0 ? 
+                            {stats.monthly.totalSales > 0 ?
                               ((brand.revenue / stats.monthly.totalSales) * 100).toFixed(1) : 0}%
                           </p>
                         </div>
@@ -1106,7 +1106,12 @@ export default function App() {
                   onChange={(e) => setShopSearch(e.target.value)}
                   placeholder="SEARCH SHOP BY NAME OR AREA..."
                   className="bg-transparent text-sm font-black uppercase outline-none w-full placeholder:opacity-30"
-                  style={{ color: isDarkMode ? 'white' : 'black' }}
+                  style={{ 
+                    color: isDarkMode ? 'white' : 'black',
+                    fontFamily: "'Roboto', 'Segoe UI', sans-serif",
+                    fontWeight: '900',
+                    letterSpacing: '1px'
+                  }}
                 />
               </div>
 
@@ -2293,166 +2298,165 @@ export default function App() {
         </div>
       )}
 
-      {/* Custom Styles */}
-      {/* Custom Styles */}
-<style>{`
-  @keyframes progress {
-    0% { width: 0%; }
-    100% { width: 100%; }
-  }
+      {/* Custom Styles - FIXED FONT ISSUES */}
+      <style>{`
+        @keyframes progress {
+          0% { width: 0%; }
+          100% { width: 100%; }
+        }
 
-  .animate-progress {
-    animation: progress 2.5s ease-in-out;
-  }
+        .animate-progress {
+          animation: progress 2.5s ease-in-out;
+        }
 
-  /* Font Family Fix - NEW */
-  * {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif !important;
-  }
+        /* Font Family Fix - NEW */
+        * {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif !important;
+        }
 
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-  }
+        body {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+          -webkit-font-smoothing: antialiased;
+          -moz-osx-font-smoothing: grayscale;
+        }
 
-  input, button, select, textarea {
-    font-family: inherit !important;
-  }
+        input, button, select, textarea {
+          font-family: inherit !important;
+        }
 
-  /* Search input specific fix */
-  input[type="text"], input[type="search"], input::placeholder {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif !important;
-    font-weight: 800 !important;
-    letter-spacing: 0.5px !important;
-  }
+        /* Search input specific fix */
+        input[type="text"], input[type="search"], input::placeholder {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif !important;
+          font-weight: 800 !important;
+          letter-spacing: 0.5px !important;
+        }
 
-  /* Fix for uppercase text */
-  .uppercase {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif !important;
-    font-weight: 900 !important;
-    letter-spacing: 1px !important;
-  }
+        /* Fix for uppercase text */
+        .uppercase {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif !important;
+          font-weight: 900 !important;
+          letter-spacing: 1px !important;
+        }
 
-  /* Custom scrollbar */
-  ::-webkit-scrollbar {
-    width: 4px;
-  }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+          width: 4px;
+        }
 
-  ::-webkit-scrollbar-track {
-    background: rgba(255,255,255,0.05);
-    border-radius: 10px;
-  }
+        ::-webkit-scrollbar-track {
+          background: rgba(255,255,255,0.05);
+          border-radius: 10px;
+        }
 
-  ::-webkit-scrollbar-thumb {
-    background: rgba(212, 175, 55, 0.5);
-    border-radius: 10px;
-  }
+        ::-webkit-scrollbar-thumb {
+          background: rgba(212, 175, 55, 0.5);
+          border-radius: 10px;
+        }
 
-  ::-webkit-scrollbar-thumb:hover {
-    background: rgba(212, 175, 55, 0.8);
-  }
+        ::-webkit-scrollbar-thumb:hover {
+          background: rgba(212, 175, 55, 0.8);
+        }
 
-  /* Mobile Optimizations */
-  @media (max-width: 640px) {
-    main {
-      padding: 0.75rem !important;
-    }
+        /* Mobile Optimizations */
+        @media (max-width: 640px) {
+          main {
+            padding: 0.75rem !important;
+          }
 
-    header {
-      padding: 0.75rem !important;
-    }
+          header {
+            padding: 0.75rem !important;
+          }
 
-    nav {
-      bottom: 1rem !important;
-      inset-x: 1rem !important;
-      height: 4.5rem !important;
-      border-radius: 1.5rem !important;
-    }
+          nav {
+            bottom: 1rem !important;
+            inset-x: 1rem !important;
+            height: 4.5rem !important;
+            border-radius: 1.5rem !important;
+          }
 
-    h1 {
-      font-size: 1.2rem !important;
-    }
+          h1 {
+            font-size: 1.2rem !important;
+          }
 
-    h2 {
-      font-size: 1.5rem !important;
-    }
+          h2 {
+            font-size: 1.5rem !important;
+          }
 
-    h3 {
-      font-size: 1.1rem !important;
-    }
+          h3 {
+            font-size: 1.1rem !important;
+          }
 
-    .text-xs {
-      font-size: 0.7rem !important;
-    }
+          .text-xs {
+            font-size: 0.7rem !important;
+          }
 
-    .text-sm {
-      font-size: 0.8rem !important;
-    }
+          .text-sm {
+            font-size: 0.8rem !important;
+          }
 
-    .text-base {
-      font-size: 0.9rem !important;
-    }
+          .text-base {
+            font-size: 0.9rem !important;
+          }
 
-    .fixed.inset-0 {
-      padding: 0.5rem !important;
-    }
+          .fixed.inset-0 {
+            padding: 0.5rem !important;
+          }
 
-    .rounded-3xl {
-      border-radius: 1.5rem !important;
-    }
+          .rounded-3xl {
+            border-radius: 1.5rem !important;
+          }
 
-    .p-8 {
-      padding: 1.5rem !important;
-    }
-  }
+          .p-8 {
+            padding: 1.5rem !important;
+          }
+        }
 
-  @media (max-width: 400px) {
-    nav {
-      bottom: 0.5rem !important;
-      inset-x: 0.5rem !important;
-      height: 4rem !important;
-    }
+        @media (max-width: 400px) {
+          nav {
+            bottom: 0.5rem !important;
+            inset-x: 0.5rem !important;
+            height: 4rem !important;
+          }
 
-    .grid-cols-4 {
-      grid-template-columns: repeat(2, 1fr) !important;
-    }
+          .grid-cols-4 {
+            grid-template-columns: repeat(2, 1fr) !important;
+          }
 
-    .grid-cols-2 {
-      grid-template-columns: 1fr !important;
-    }
+          .grid-cols-2 {
+            grid-template-columns: 1fr !important;
+          }
 
-    button, input, select, textarea {
-      font-size: 0.8rem !important;
-    }
-  }
+          button, input, select, textarea {
+            font-size: 0.8rem !important;
+          }
+        }
 
-  /* Touch-friendly buttons */
-  button, input[type="button"], input[type="submit"] {
-    min-height: 44px;
-    min-width: 44px;
-  }
+        /* Touch-friendly buttons */
+        button, input[type="button"], input[type="submit"] {
+          min-height: 44px;
+          min-width: 44px;
+        }
 
-  /* Prevent text selection on buttons */
-  button {
-    user-select: none;
-    -webkit-user-select: none;
-  }
+        /* Prevent text selection on buttons */
+        button {
+          user-select: none;
+          -webkit-user-select: none;
+        }
 
-  /* Better touch feedback */
-  .transition-all {
-    transition: all 0.2s ease;
-  }
+        /* Better touch feedback */
+        .transition-all {
+          transition: all 0.2s ease;
+        }
 
-  /* Prevent zoom on input focus on iOS */
-  @media screen and (-webkit-min-device-pixel-ratio:0) {
-    select,
-    textarea,
-    input {
-      font-size: 16px !important;
-    }
-  }
-`}</style>
+        /* Prevent zoom on input focus on iOS */
+        @media screen and (-webkit-min-device-pixel-ratio:0) {
+          select,
+          textarea,
+          input {
+            font-size: 16px !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }
