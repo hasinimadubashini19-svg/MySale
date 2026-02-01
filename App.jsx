@@ -6,8 +6,8 @@ import {
   LayoutDashboard, Store, Plus, X, Trash2, Crown, Settings, LogOut,
   MapPin, Package, History, Calendar, Sun, Moon, Save, Star, Search,
   CheckCircle2, ChevronDown, Share2, TrendingUp, Edit2, Calculator,
-  ShoppingBag, DollarSign, Layers, ListOrdered, Fuel, FileText,
-  Navigation, Pin, AlertCircle, CreditCard, Coffee, Home, Wifi
+  ShoppingBag, DollarSign, Fuel, FileText, Navigation, AlertCircle,
+  CreditCard, Coffee, Target, Percent, BarChart3, Hash, Package2
 } from 'lucide-react';
 
 // --- FIREBASE CONFIG ---
@@ -24,9 +24,14 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-try { enableIndexedDbPersistence(db); } catch (err) { console.log("Offline mode ready"); }
+try {
+  enableIndexedDbPersistence(db);
+} catch (err) {
+  console.log("Offline mode ready");
+}
 
 export default function App() {
+  // State Variables
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isSplash, setIsSplash] = useState(true);
@@ -47,46 +52,114 @@ export default function App() {
   const [showModal, setShowModal] = useState(null);
   const [searchDate, setSearchDate] = useState(new Date().toISOString().split('T')[0]);
   const [lastOrder, setLastOrder] = useState(null);
-
   const [isRegisterMode, setIsRegisterMode] = useState(false);
   const [shopSearch, setShopSearch] = useState('');
   const [selectedRouteFilter, setSelectedRouteFilter] = useState('ALL');
-
-  // NEW STATES
   const [manualItems, setManualItems] = useState([{ name: '', qty: 1, price: 0, subtotal: 0 }]);
-  const [showTotalCalculator, setShowTotalCalculator] = useState(false);
   const [editingBrand, setEditingBrand] = useState(null);
-  const [totalCalculation, setTotalCalculation] = useState({ subtotal: 0, discount: 0, tax: 0, grandTotal: 0 });
+  const [totalCalculation, setTotalCalculation] = useState({
+    subtotal: 0,
+    discount: 0,
+    tax: 0,
+    grandTotal: 0
+  });
   const [expenseType, setExpenseType] = useState('fuel');
   const [expenseAmount, setExpenseAmount] = useState('');
   const [expenseNote, setExpenseNote] = useState('');
   const [repNote, setRepNote] = useState('');
   const [currentLocation, setCurrentLocation] = useState(null);
-  const [shopLocation, setShopLocation] = useState(null);
   const [isSavingExpense, setIsSavingExpense] = useState(false);
   const [isSavingNote, setIsSavingNote] = useState(false);
+  const [showCalculator, setShowCalculator] = useState(false);
 
+  // Splash Screen & Auth Listener
   useEffect(() => {
-    const timer = setTimeout(() => setIsSplash(false), 2500);
-    const unsubAuth = onAuthStateChanged(auth, (u) => { setUser(u); setLoading(false); });
-    return () => { clearTimeout(timer); unsubAuth(); };
+    const timer = setTimeout(() => setIsSplash(false), 1500);
+    const unsubAuth = onAuthStateChanged(auth, (user) => {
+      setUser(user);
+      setLoading(false);
+    });
+    return () => {
+      clearTimeout(timer);
+      unsubAuth();
+    };
   }, []);
 
+  // Real-time Data Fetching
   useEffect(() => {
     if (!user) return;
-    const cols = ['routes', 'shops', 'orders', 'brands', 'expenses', 'notes', 'locations'];
-    const unsubs = cols.map(c => {
-      const q = query(collection(db, c), where("userId", "==", user.uid), orderBy("timestamp", "desc"));
-      return onSnapshot(q, s => setData(prev => ({ ...prev, [c]: s.docs.map(d => ({ id: d.id, ...d.data() })) })));
-    });
-    const unsubSettings = onSnapshot(doc(db, "settings", user.uid), (d) => {
-      if (d.exists()) setData(prev => ({ ...prev, settings: d.data() }));
-    });
-    return () => { unsubs.forEach(f => f()); unsubSettings(); };
+
+    const unsubscribeFunctions = [];
+
+    try {
+      const collections = ['routes', 'shops', 'orders', 'brands', 'expenses', 'notes', 'locations'];
+
+      collections.forEach(collectionName => {
+        try {
+          const q = query(
+            collection(db, collectionName),
+            where("userId", "==", user.uid),
+            orderBy("timestamp", "desc")
+          );
+
+          const unsubscribe = onSnapshot(q, (snapshot) => {
+            const items = snapshot.docs.map(doc => ({
+              id: doc.id,
+              ...doc.data()
+            }));
+
+            setData(prev => ({
+              ...prev,
+              [collectionName]: items
+            }));
+          }, (error) => {
+            console.error(`Error fetching ${collectionName}:`, error);
+          });
+
+          unsubscribeFunctions.push(unsubscribe);
+        } catch (error) {
+          console.error(`Error setting up listener for ${collectionName}:`, error);
+        }
+      });
+
+      const settingsUnsubscribe = onSnapshot(doc(db, "settings", user.uid),
+        (docSnap) => {
+          if (docSnap.exists()) {
+            setData(prev => ({
+              ...prev,
+              settings: docSnap.data()
+            }));
+          }
+        },
+        (error) => {
+          console.error("Error fetching settings:", error);
+        }
+      );
+
+      unsubscribeFunctions.push(settingsUnsubscribe);
+
+    } catch (error) {
+      console.error("Error in data fetching useEffect:", error);
+    }
+
+    return () => {
+      unsubscribeFunctions.forEach(unsub => {
+        try {
+          unsub();
+        } catch (error) {
+          console.error("Error unsubscribing:", error);
+        }
+      });
+    };
   }, [user]);
 
-  // Get current location
+  // Get Current Location
   const getLocation = () => {
+    if (!user) {
+      alert("Please login first!");
+      return;
+    }
+
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
@@ -96,16 +169,18 @@ export default function App() {
             timestamp: Date.now()
           };
           setCurrentLocation(location);
-          // Save to Firebase
+
           addDoc(collection(db, 'locations'), {
             ...location,
             userId: user.uid,
             date: new Date().toISOString().split('T')[0],
-            type: 'user_location'
+            type: 'user_location',
+            name: `${data.settings.name || 'Rep'} Location`
           }).then(() => {
-            alert("Location saved successfully!");
+            alert("📍 Location saved successfully!");
           }).catch(err => {
             console.error("Error saving location:", err);
+            alert("Error saving location");
           });
         },
         (error) => {
@@ -118,18 +193,35 @@ export default function App() {
     }
   };
 
+  // Save Profile
   const handleSaveProfile = async (e) => {
     e.preventDefault();
+    if (!user) {
+      alert("Please login first!");
+      return;
+    }
+
     try {
       const name = e.target.repName.value.toUpperCase();
       const company = e.target.companyName.value.toUpperCase();
-      await setDoc(doc(db, "settings", user.uid), { name, company, userId: user.uid });
-      alert("Settings Saved!");
-    } catch (err) { alert("Error: " + err.message); }
+      await setDoc(doc(db, "settings", user.uid), {
+        name,
+        company,
+        userId: user.uid
+      });
+      alert("✅ Settings Saved!");
+    } catch (err) {
+      alert("Error: " + err.message);
+    }
   };
 
   // Save Expense
   const saveExpense = async () => {
+    if (!user) {
+      alert("Please login first!");
+      return;
+    }
+
     if (!expenseAmount || parseFloat(expenseAmount) <= 0) {
       alert("Please enter a valid amount");
       return;
@@ -145,7 +237,7 @@ export default function App() {
         timestamp: Date.now(),
         date: new Date().toISOString().split('T')[0]
       });
-      alert("Expense saved!");
+      alert("✅ Expense saved!");
       setExpenseAmount('');
       setExpenseNote('');
       setShowModal(null);
@@ -158,6 +250,11 @@ export default function App() {
 
   // Save Note
   const saveNote = async () => {
+    if (!user) {
+      alert("Please login first!");
+      return;
+    }
+
     if (!repNote.trim()) {
       alert("Please enter a note");
       return;
@@ -171,7 +268,7 @@ export default function App() {
         timestamp: Date.now(),
         date: new Date().toISOString().split('T')[0]
       });
-      alert("Note saved!");
+      alert("✅ Note saved!");
       setRepNote('');
       setShowModal(null);
     } catch (err) {
@@ -181,8 +278,13 @@ export default function App() {
     }
   };
 
-  // Save manual order
+  // Save Manual Order
   const saveManualOrder = async () => {
+    if (!user) {
+      alert("Please login first!");
+      return;
+    }
+
     const validItems = manualItems.filter(item => item.name && item.qty > 0 && item.price > 0);
     if (!validItems.length) return alert("Please add at least one valid item!");
 
@@ -214,21 +316,22 @@ export default function App() {
     }
   };
 
-  // Calculate total function for calculator
+  // Calculate Total
   const calculateTotal = () => {
     const subtotal = parseFloat(totalCalculation.subtotal) || 0;
     const discount = parseFloat(totalCalculation.discount) || 0;
     const tax = parseFloat(totalCalculation.tax) || 0;
     const grandTotal = subtotal - discount + tax;
-    
+
     setTotalCalculation(prev => ({
       ...prev,
       grandTotal: grandTotal
     }));
-    
-    alert(`Grand Total: Rs.${grandTotal.toLocaleString()}`);
+
+    alert(`💰 Grand Total: Rs.${grandTotal.toLocaleString()}`);
   };
 
+  // Statistics Calculation
   const stats = useMemo(() => {
     const todayStr = new Date().toLocaleDateString();
     const currentMonth = new Date().getMonth();
@@ -238,45 +341,86 @@ export default function App() {
       const summary = {};
       let totalSales = 0;
       let totalUnits = 0;
+
       list.forEach(o => {
-        totalSales += o.total;
-        o.items.forEach(i => {
-          totalUnits += i.qty;
-          if (!summary[i.name]) summary[i.name] = { units: 0, rev: 0 };
-          summary[i.name].units += i.qty;
-          summary[i.name].rev += i.subtotal;
-        });
+        totalSales += o.total || 0;
+        if (o.items && Array.isArray(o.items)) {
+          o.items.forEach(i => {
+            const qty = i.qty || 0;
+            const price = i.price || 0;
+            const subtotal = i.subtotal || 0;
+
+            totalUnits += qty;
+
+            if (!summary[i.name]) {
+              summary[i.name] = {
+                units: 0,
+                rev: 0,
+                price: price
+              };
+            }
+            summary[i.name].units += qty;
+            summary[i.name].rev += subtotal;
+          });
+        }
       });
+
       const topBrand = Object.entries(summary).sort((a,b) => b[1].units - a[1].units)[0];
-      return { 
-        totalSales, 
+      const topBrandRevenue = Object.entries(summary).sort((a,b) => b[1].rev - a[1].rev)[0];
+
+      return {
+        totalSales,
         totalUnits,
-        summary: Object.entries(summary), 
+        summary: Object.entries(summary).map(([name, data]) => ({
+          name,
+          ...data
+        })),
         topBrand: topBrand ? topBrand[0] : 'N/A',
+        topBrandUnits: topBrand ? topBrand[1].units : 0,
+        topBrandRevenue: topBrandRevenue ? topBrandRevenue[1].rev : 0,
         avgPrice: totalUnits > 0 ? totalSales / totalUnits : 0
       };
     };
 
-    const dailyOrders = data.orders.filter(o => o.dateString === todayStr);
-    const monthlyOrders = data.orders.filter(o => {
-      const d = new Date(o.timestamp);
-      return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+    const dailyOrders = data.orders.filter(o => {
+      try {
+        return o.dateString === todayStr;
+      } catch {
+        return false;
+      }
     });
 
-    // Calculate expenses
+    const monthlyOrders = data.orders.filter(o => {
+      try {
+        const d = new Date(o.timestamp);
+        return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+      } catch {
+        return false;
+      }
+    });
+
     const todayExpenses = data.expenses.filter(e => e.date === todayStr);
-    const totalExpenses = todayExpenses.reduce((sum, e) => sum + e.amount, 0);
+    const totalExpenses = todayExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+
+    const todayNotes = data.notes.filter(n => n.date === todayStr);
 
     return {
       daily: getStats(dailyOrders),
       monthly: getStats(monthlyOrders),
-      expenses: totalExpenses
+      expenses: totalExpenses,
+      notes: todayNotes.length
     };
-  }, [data.orders, data.expenses]);
+  }, [data.orders, data.expenses, data.notes]);
 
+  // Filter Shops
   const filteredShops = useMemo(() => {
     return data.shops.filter(s => {
-      const matchesSearch = s.name.toLowerCase().includes(shopSearch.toLowerCase()) || s.area.toLowerCase().includes(shopSearch.toLowerCase());
+      const shopName = s.name || '';
+      const shopArea = s.area || '';
+      const searchTerm = shopSearch.toLowerCase();
+
+      const matchesSearch = shopName.toLowerCase().includes(searchTerm) ||
+                           shopArea.toLowerCase().includes(searchTerm);
       const matchesRoute = selectedRouteFilter === 'ALL' || s.area === selectedRouteFilter;
       return matchesSearch && matchesRoute;
     });
@@ -306,105 +450,198 @@ export default function App() {
     }
   };
 
-  // Enhanced WhatsApp share with location
+  // WhatsApp Share Functions
   const shareToWhatsApp = (order) => {
-    let msg = `*${order.companyName} - INVOICE*\n`;
-    msg += `--------------------------\n`;
-    msg += `🏪 *Shop:* ${order.shopName}\n`;
-    msg += `📅 *Date:* ${new Date(order.timestamp).toLocaleString()}\n`;
-    
-    // Add location if available
+    if (!order) return;
+
+    let msg = `*${order.companyName || "MONARCH"} - INVOICE*\n`;
+    msg += `⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯\n`;
+    msg += `🏪 *Shop:* ${order.shopName || "Unknown Shop"}\n`;
+    msg += `📅 *Date:* ${order.timestamp ? new Date(order.timestamp).toLocaleString() : new Date().toLocaleString()}\n`;
+
     if (currentLocation) {
       const mapsUrl = `https://www.google.com/maps?q=${currentLocation.lat},${currentLocation.lng}`;
       msg += `📍 *Location:* ${mapsUrl}\n`;
     }
-    
+
     msg += `\n*ITEMS:*\n`;
-    order.items.forEach(i => {
-      msg += `• ${i.name} (${i.qty} x Rs.${i.price}) = *Rs.${i.subtotal.toLocaleString()}*\n`;
-    });
-    msg += `\n--------------------------\n`;
-    msg += `💰 *TOTAL BILL: Rs.${order.total.toLocaleString()}*\n`;
-    msg += `--------------------------\n`;
+    if (order.items && Array.isArray(order.items)) {
+      order.items.forEach(i => {
+        msg += `• ${i.name || "Item"} (${i.qty || 0} x Rs.${i.price || 0}) = *Rs.${(i.subtotal || 0).toLocaleString()}*\n`;
+      });
+    }
+    msg += `\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯\n`;
+    msg += `💰 *TOTAL BILL: Rs.${(order.total || 0).toLocaleString()}*\n`;
+    msg += `⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯\n`;
     msg += `_Generated by Monarch Pro_`;
     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
   };
 
-  // Share location only
-  const shareLocation = () => {
-    if (!currentLocation) {
-      alert("Please get location first!");
-      return;
-    }
-    
-    const mapsUrl = `https://www.google.com/maps?q=${currentLocation.lat},${currentLocation.lng}`;
-    const msg = `📍 *My Current Location:*\n${mapsUrl}\n\n_Shared via Monarch Pro_`;
-    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
-  };
-
-  // Share bill with location
   const shareBillWithLocation = (order) => {
-    if (!currentLocation) {
-      if (!confirm("Location not available. Send bill without location?")) {
-        return;
-      }
-    }
-    
-    let msg = `*${order.companyName} - INVOICE*\n`;
-    msg += `--------------------------\n`;
-    msg += `🏪 *Shop:* ${order.shopName}\n`;
-    msg += `📅 *Date:* ${new Date(order.timestamp).toLocaleString()}\n`;
-    
+    if (!order) return;
+
+    let msg = `*${order.companyName || "MONARCH"} - INVOICE*\n`;
+    msg += `⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯\n`;
+    msg += `🏪 *Shop:* ${order.shopName || "Unknown Shop"}\n`;
+    msg += `📅 *Date:* ${order.timestamp ? new Date(order.timestamp).toLocaleString() : new Date().toLocaleString()}\n`;
+
     if (currentLocation) {
       const mapsUrl = `https://www.google.com/maps?q=${currentLocation.lat},${currentLocation.lng}`;
       msg += `📍 *Delivery Location:* ${mapsUrl}\n`;
+    } else if (!confirm("Location not available. Send bill without location?")) {
+      return;
     }
-    
+
     msg += `\n*ITEMS:*\n`;
-    order.items.forEach(i => {
-      msg += `• ${i.name} (${i.qty} x Rs.${i.price}) = *Rs.${i.subtotal.toLocaleString()}*\n`;
-    });
-    msg += `\n--------------------------\n`;
-    msg += `💰 *TOTAL BILL: Rs.${order.total.toLocaleString()}*\n`;
-    msg += `--------------------------\n`;
+    if (order.items && Array.isArray(order.items)) {
+      order.items.forEach(i => {
+        msg += `• ${i.name || "Item"} (${i.qty || 0} x Rs.${i.price || 0}) = *Rs.${(i.subtotal || 0).toLocaleString()}*\n`;
+      });
+    }
+    msg += `\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯\n`;
+    msg += `💰 *TOTAL BILL: Rs.${(order.total || 0).toLocaleString()}*\n`;
+    msg += `⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯\n`;
     msg += `_Generated by Monarch Pro_`;
     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
   };
 
+  // Auth Handler
+  const handleAuth = async (e) => {
+    e.preventDefault();
+    const email = e.target.email.value;
+    const password = e.target.password.value;
+
+    try {
+      if (isRegisterMode) {
+        await createUserWithEmailAndPassword(auth, email, password);
+        alert("Account created successfully!");
+      } else {
+        await signInWithEmailAndPassword(auth, email, password);
+      }
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  // Cart Total
+  const calculateCartTotal = () => {
+    return Object.entries(cart).reduce((acc, [id, q]) => {
+      const brand = data.brands.find(b => b.id === id);
+      const price = brand?.price || 0;
+      const quantity = Number(q) || 0;
+      return acc + (price * quantity);
+    }, 0);
+  };
+
+  // Create Order from Cart
+  const handleCreateOrder = async () => {
+    if (!user) {
+      alert("Please login first!");
+      return;
+    }
+
+    if (!selectedShop) {
+      alert("Please select a shop first!");
+      return;
+    }
+
+    const items = Object.entries(cart)
+      .filter(([_, q]) => q > 0)
+      .map(([id, q]) => {
+        const b = data.brands.find(x => x.id === id);
+        const quantity = Number(q) || 0;
+        const price = b?.price || 0;
+        return {
+          name: `${b?.name || 'Unknown'} ${b?.size || ''}`,
+          qty: quantity,
+          price: price,
+          subtotal: price * quantity
+        };
+      });
+
+    if (items.length === 0) {
+      alert("Cart is empty!");
+      return;
+    }
+
+    const orderData = {
+      shopName: selectedShop.name,
+      companyName: data.settings.company || "MONARCH",
+      items,
+      total: items.reduce((s, i) => s + i.subtotal, 0),
+      userId: user.uid,
+      timestamp: Date.now(),
+      dateString: new Date().toLocaleDateString(),
+      location: currentLocation
+    };
+
+    try {
+      await addDoc(collection(db, 'orders'), orderData);
+      setCart({});
+      setLastOrder(orderData);
+      setShowModal('preview');
+    } catch (err) {
+      alert("Error saving order: " + err.message);
+    }
+  };
+
+  // --- RENDER ---
+
+  // Splash Screen
   if (isSplash || loading) return (
-    <div className="h-screen bg-[#050505] flex flex-col items-center justify-center">
-      <Crown size={60} className="text-[#d4af37] animate-bounce" />
-      <h1 className="mt-4 text-[#d4af37] text-2xl font-black tracking-widest italic uppercase">Monarch Pro</h1>
-      <div className="mt-3 w-40 h-1 bg-white/10 rounded-full overflow-hidden">
-        <div className="h-full bg-[#d4af37] animate-progress shadow-[0_0_10px_#d4af37]"></div>
+    <div className="h-screen bg-gradient-to-br from-black to-gray-900 flex flex-col items-center justify-center">
+      <Crown size={70} className="text-[#d4af37] animate-pulse" />
+      <h1 className="mt-6 text-[#d4af37] text-3xl font-black tracking-widest italic uppercase">Monarch Pro</h1>
+      <p className="mt-2 text-white/50 text-sm uppercase tracking-widest">Sales Management System</p>
+      <div className="mt-6 w-56 h-1.5 bg-white/10 rounded-full overflow-hidden">
+        <div className="h-full bg-gradient-to-r from-[#d4af37] to-[#b8860b] animate-progress shadow-[0_0_15px_#d4af37]"></div>
       </div>
     </div>
   );
 
+  // Login Screen
   if (!user) return (
-    <div className="h-screen bg-black flex items-center justify-center p-6">
-      <div className="w-full max-sm space-y-6 text-center">
-        <Crown size={50} className="text-[#d4af37] mx-auto" />
-        <h2 className="text-white font-black text-lg tracking-widest uppercase">{isRegisterMode ? "Create Account" : "Welcome Back"}</h2>
-        <form onSubmit={async (e) => {
-          e.preventDefault();
-          const email = e.target.email.value;
-          const password = e.target.password.value;
-          try {
-            if(isRegisterMode) {
-              await createUserWithEmailAndPassword(auth, email, password);
-            } else {
-              await signInWithEmailAndPassword(auth, email, password);
-            }
-          }
-          catch (err) { alert(err.message); }
-        }} className="space-y-3">
-          <input name="email" type="email" placeholder="EMAIL" className="w-full bg-[#111] p-4 rounded-2xl border border-white/10 text-white font-bold outline-none focus:border-[#d4af37]" required />
-          <input name="password" type="password" placeholder="PASSWORD" className="w-full bg-[#111] p-4 rounded-2xl border border-white/10 text-white font-bold outline-none focus:border-[#d4af37]" required />
-          <button className="w-full py-4 bg-[#d4af37] text-black font-black rounded-2xl shadow-lg uppercase text-sm">{
-            isRegisterMode ? "Sign Up" : "Login"}</button>
+    <div className="h-screen bg-gradient-to-br from-black to-gray-900 flex items-center justify-center p-4">
+      <div className="w-full max-w-sm space-y-8 text-center">
+        <div className="space-y-4">
+          <Crown size={60} className="text-[#d4af37] mx-auto animate-bounce" />
+          <h2 className="text-white font-black text-2xl tracking-widest uppercase">
+            {isRegisterMode ? "Create Account" : "Welcome Back"}
+          </h2>
+          <p className="text-white/60 text-sm">
+            {isRegisterMode ? "Join Monarch Pro Today" : "Sign in to continue"}
+          </p>
+        </div>
 
-          <button type="button" onClick={() => setIsRegisterMode(!isRegisterMode)} className="text-[#d4af37] text-xs font-black uppercase tracking-widest opacity-60">
+        <form onSubmit={handleAuth} className="space-y-4">
+          <div>
+            <input
+              name="email"
+              type="email"
+              placeholder="EMAIL ADDRESS"
+              className="w-full bg-white/5 backdrop-blur-sm p-4 rounded-2xl border border-white/10 text-white font-bold outline-none focus:border-[#d4af37] transition-all"
+              required
+            />
+          </div>
+          <div>
+            <input
+              name="password"
+              type="password"
+              placeholder="PASSWORD"
+              className="w-full bg-white/5 backdrop-blur-sm p-4 rounded-2xl border border-white/10 text-white font-bold outline-none focus:border-[#d4af37] transition-all"
+              required
+            />
+          </div>
+
+          <button type="submit" className="w-full py-4 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-2xl shadow-lg uppercase text-sm tracking-widest hover:opacity-90 transition-all">
+            {isRegisterMode ? "Sign Up" : "Login"}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setIsRegisterMode(!isRegisterMode)}
+            className="text-[#d4af37] text-sm font-bold uppercase tracking-widest opacity-80 hover:opacity-100 transition-all"
+          >
             {isRegisterMode ? "Already have an account? Login" : "New User? Create Account"}
           </button>
         </form>
@@ -412,326 +649,712 @@ export default function App() {
     </div>
   );
 
+  // Main App
   return (
-    <div className={`min-h-screen pb-40 transition-colors duration-500 ${isDarkMode ? "bg-[#050505] text-white" : "bg-gray-50 text-black"}`}>
-      <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0"/>
+    <div className={`min-h-screen pb-40 transition-all duration-500 ${isDarkMode ? "bg-gradient-to-b from-black to-gray-900 text-white" : "bg-gradient-to-b from-gray-50 to-gray-100 text-gray-900"}`}>
+      <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
 
-      <header className={`p-4 flex justify-between items-center sticky top-0 z-50 backdrop-blur-xl border-b ${isDarkMode ? "bg-black/80 border-white/5" : "bg-white/80 border-black/5"}`}>
-        <div className="flex items-center gap-2">
-          <div className="p-2 bg-[#d4af37] rounded-lg text-black"><Crown size={18} /></div>
+      {/* Header */}
+      <header className={`p-4 flex justify-between items-center sticky top-0 z-50 backdrop-blur-xl border-b ${isDarkMode ? "bg-black/90 border-white/5" : "bg-white/95 border-gray-200"}`}>
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 bg-gradient-to-br from-[#d4af37] to-[#b8860b] rounded-xl text-black shadow-lg">
+            <Crown size={20} />
+          </div>
           <div>
-            <h1 className="font-black text-base tracking-tight leading-none uppercase">{data.settings.company || "MONARCH"}</h1>
-            <p className="text-[8px] font-bold opacity-40 uppercase tracking-widest">{data.settings.name || "Sales Rep"}</p>
+            <h1 className="font-black text-lg tracking-tight leading-none uppercase">
+              {data.settings.company || "MONARCH"}
+            </h1>
+            <p className="text-[10px] font-bold opacity-60 uppercase tracking-widest">
+              {data.settings.name || "Sales Representative"}
+            </p>
           </div>
         </div>
-        <div className="flex gap-1">
-          <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2 rounded-xl border border-white/10 bg-white/5 text-[#d4af37]">
-            {isDarkMode ? <Sun size={16}/> : <Moon size={16}/>}
+        <div className="flex gap-2">
+          <button
+            onClick={() => setIsDarkMode(!isDarkMode)}
+            className="p-2.5 rounded-xl border bg-white/5 text-[#d4af37] hover:bg-white/10 transition-all"
+          >
+            {isDarkMode ? <Sun size={18}/> : <Moon size={18}/>}
           </button>
-          <button onClick={() => setShowModal('expense')} className="p-2 rounded-xl border border-white/10 bg-white/5 text-[#d4af37]">
-            <CreditCard size={16}/>
+          <button
+            onClick={() => setShowModal('expense')}
+            className="p-2.5 rounded-xl border bg-white/5 text-[#d4af37] hover:bg-white/10 transition-all"
+          >
+            <CreditCard size={18}/>
           </button>
-          <button onClick={() => setShowTotalCalculator(true)} className="p-2 rounded-xl border border-white/10 bg-white/5 text-[#d4af37]">
-            <Calculator size={16}/>
+          <button
+            onClick={() => setShowCalculator(true)}
+            className="p-2.5 rounded-xl border bg-white/5 text-[#d4af37] hover:bg-white/10 transition-all"
+          >
+            <Calculator size={18}/>
           </button>
-          <button onClick={() => signOut(auth)} className="p-2 bg-red-500/10 text-red-500 rounded-xl border border-red-500/20">
-            <LogOut size={16}/>
+          <button
+            onClick={() => signOut(auth)}
+            className="p-2.5 bg-red-500/10 text-red-500 rounded-xl border border-red-500/20 hover:bg-red-500/20 transition-all"
+          >
+            <LogOut size={18}/>
           </button>
         </div>
       </header>
 
+      {/* Main Content */}
       <main className="p-4 max-w-lg mx-auto space-y-6" style={{ fontSize: '0.85rem' }}>
+
+        {/* Dashboard Tab */}
         {activeTab === 'dashboard' && (
-          <div className="space-y-4 animate-in slide-in-from-bottom-4 duration-500">
-            {/* Today's Stats Card */}
-            <div className="bg-gradient-to-br from-[#d4af37] to-[#b8860b] p-6 rounded-2xl text-black shadow-xl relative overflow-hidden">
-                <Star className="absolute -right-3 -top-3 opacity-10" size={100} />
-                <p className="text-xs font-black uppercase opacity-60 mb-1 tracking-widest">Today's Revenue</p>
-                <h2 className="text-3xl font-black italic tracking-tighter">Rs.{stats.daily.totalSales.toLocaleString()}</h2>
-                <div className="mt-4 flex items-center justify-between">
-                  <div className="flex items-center gap-1 bg-black/10 px-3 py-1 rounded-full border border-black/5">
+          <div className="space-y-4">
+
+            {/* Today's Revenue Card */}
+            <div className="bg-gradient-to-br from-[#d4af37] via-[#c19a2e] to-[#b8860b] p-6 rounded-2xl text-black shadow-2xl relative overflow-hidden">
+              <Star className="absolute -right-4 -top-4 opacity-10" size={120} />
+              <div className="relative z-10">
+                <p className="text-xs font-black uppercase opacity-80 mb-1 tracking-widest">Today's Revenue</p>
+                <h2 className="text-4xl font-black italic tracking-tighter">Rs.{stats.daily.totalSales.toLocaleString()}</h2>
+                <div className="mt-6 flex items-center justify-between">
+                  <div className="flex items-center gap-2 bg-black/10 px-4 py-2 rounded-full border border-black/10">
+                    <Target size={14} />
                     <span className="text-xs font-black uppercase italic">Top: {stats.daily.topBrand}</span>
                   </div>
                   <div className="text-right">
-                    <p className="text-xs font-black uppercase opacity-60">Expenses</p>
-                    <p className="text-sm font-black text-red-600">Rs.{stats.expenses.toLocaleString()}</p>
+                    <p className="text-xs font-black uppercase opacity-80">Expenses</p>
+                    <p className="text-sm font-black text-red-700">Rs.{stats.expenses.toLocaleString()}</p>
                   </div>
                 </div>
+              </div>
             </div>
 
             {/* Quick Actions */}
-            <div className="grid grid-cols-3 gap-2">
-              <button onClick={() => setShowModal('expense')} className="bg-[#0f0f0f] p-4 rounded-xl border border-white/5 flex flex-col items-center gap-1">
-                <Fuel size={18} className="text-[#d4af37]" />
+            <div className="grid grid-cols-4 gap-2">
+              <button
+                onClick={() => setShowModal('expense')}
+                className="bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] p-4 rounded-xl border border-white/5 flex flex-col items-center gap-2 hover:scale-[1.02] transition-all"
+              >
+                <Fuel size={20} className="text-[#d4af37]" />
                 <span className="text-[10px] font-black uppercase">Expense</span>
               </button>
-              <button onClick={getLocation} className="bg-[#0f0f0f] p-4 rounded-xl border border-white/5 flex flex-col items-center gap-1">
-                <Navigation size={18} className="text-[#d4af37]" />
+              <button
+                onClick={getLocation}
+                className="bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] p-4 rounded-xl border border-white/5 flex flex-col items-center gap-2 hover:scale-[1.02] transition-all"
+              >
+                <Navigation size={20} className="text-[#d4af37]" />
                 <span className="text-[10px] font-black uppercase">Location</span>
               </button>
-              <button onClick={() => setShowModal('note')} className="bg-[#0f0f0f] p-4 rounded-xl border border-white/5 flex flex-col items-center gap-1">
-                <FileText size={18} className="text-[#d4af37]" />
+              <button
+                onClick={() => setShowModal('note')}
+                className="bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] p-4 rounded-xl border border-white/5 flex flex-col items-center gap-2 hover:scale-[1.02] transition-all"
+              >
+                <FileText size={20} className="text-[#d4af37]" />
                 <span className="text-[10px] font-black uppercase">Note</span>
+              </button>
+              <button
+                onClick={() => setShowCalculator(true)}
+                className="bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] p-4 rounded-xl border border-white/5 flex flex-col items-center gap-2 hover:scale-[1.02] transition-all"
+              >
+                <Calculator size={20} className="text-[#d4af37]" />
+                <span className="text-[10px] font-black uppercase">Calc</span>
               </button>
             </div>
 
             {/* Monthly Performance */}
-            <div className={`p-6 rounded-2xl border ${isDarkMode ? "bg-[#0f0f0f] border-white/10 shadow-lg" : "bg-white border-black/5 shadow-md"}`}>
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-xs font-black text-[#d4af37] uppercase tracking-widest">Monthly Performance</h3>
-                  <TrendingUp size={14} className="text-[#d4af37] opacity-50" />
+            <div className={`p-6 rounded-2xl border ${isDarkMode ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/10 shadow-xl" : "bg-white border-gray-200 shadow-lg"}`}>
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h3 className="text-sm font-black text-[#d4af37] uppercase tracking-widest">Monthly Performance</h3>
+                  <p className="text-[10px] opacity-50 mt-1">Current Month Statistics</p>
                 </div>
-                <div className="grid grid-cols-2 gap-3 mb-4">
-                   <div className="bg-black/20 p-3 rounded-xl border border-white/5">
-                      <p className="text-[9px] font-black opacity-40 uppercase">Revenue</p>
-                      <p className="text-base font-black text-white mt-1">Rs.{stats.monthly.totalSales.toLocaleString()}</p>
-                   </div>
-                   <div className="bg-black/20 p-3 rounded-xl border border-white/5">
-                      <p className="text-[9px] font-black opacity-40 uppercase">Total Units</p>
-                      <p className="text-base font-black text-[#d4af37] mt-1">{stats.monthly.totalUnits || 0}</p>
-                   </div>
-                </div>
-                <div className="mt-4">
-                  <p className="text-[9px] font-black opacity-30 uppercase tracking-widest mb-2">Average Price per Unit</p>
-                  <p className="text-lg font-black text-white">Rs.{stats.monthly.avgPrice.toFixed(2)}</p>
-                </div>
-            </div>
+                <BarChart3 size={18} className="text-[#d4af37] opacity-60" />
+              </div>
 
-            {/* Today's Items */}
-            <div className={`p-6 rounded-2xl border ${isDarkMode ? "bg-[#0f0f0f] border-white/10 shadow-lg" : "bg-white border-black/5 shadow-md"}`}>
-                <h3 className="text-xs font-black text-[#d4af37] uppercase tracking-widest mb-4">Today's Sales</h3>
-                <div className="space-y-2">
-                  {stats.daily.summary.map(([name, s]) => (
-                    <div key={name} className="flex justify-between items-center p-3 rounded-xl bg-black/5 border border-white/5">
-                        <div>
-                          <p className="text-xs font-black uppercase tracking-tight">{name}</p>
-                          <p className="text-[10px] opacity-40 font-bold italic">{s.units} UNITS</p>
+              <div className="grid grid-cols-2 gap-4 mb-6">
+                <div className="bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] p-4 rounded-xl border border-white/5">
+                  <p className="text-[10px] font-black opacity-50 uppercase mb-2">Revenue</p>
+                  <p className="text-xl font-black text-white">Rs.{stats.monthly.totalSales.toLocaleString()}</p>
+                </div>
+                <div className="bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] p-4 rounded-xl border border-white/5">
+                  <p className="text-[10px] font-black opacity-50 uppercase mb-2">Total Units</p>
+                  <p className="text-xl font-black text-[#d4af37]">{stats.monthly.totalUnits || 0}</p>
+                </div>
+              </div>
+
+              {/* Monthly Top Brand */}
+              <div className="mb-6">
+                <p className="text-[10px] font-black opacity-50 uppercase mb-3">Monthly Top Brand</p>
+                <div className="bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] p-4 rounded-xl border border-white/5">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-black uppercase">{stats.monthly.topBrand}</p>
+                      <div className="flex items-center gap-4 mt-2">
+                        <div className="flex items-center gap-1">
+                          <Package2 size={12} className="opacity-50" />
+                          <span className="text-xs opacity-70">{stats.monthly.topBrandUnits} units</span>
                         </div>
-                        <div className="text-right">
-                          <span className="font-black text-sm tabular-nums text-[#d4af37]">Rs.{s.rev.toLocaleString()}</span>
-                          <p className="text-[9px] opacity-40">Avg: Rs.{(s.units > 0 ? s.rev / s.units : 0).toFixed(2)}</p>
+                        <div className="flex items-center gap-1">
+                          <DollarSign size={12} className="opacity-50" />
+                          <span className="text-xs opacity-70">Rs.{stats.monthly.topBrandRevenue?.toLocaleString() || 0}</span>
                         </div>
-                    </div>
-                  ))}
-                  {stats.daily.summary.length === 0 && <p className="text-xs opacity-30 italic text-center py-3">No sales today yet</p>}
-                </div>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'shops' && (
-          <div className="space-y-3 animate-in slide-in-from-right-4 duration-500">
-            <div className="space-y-2">
-                <div className={`p-3 rounded-xl border flex items-center gap-2 ${isDarkMode ? "bg-[#0f0f0f] border-white/10" : "bg-white border-black/10"}`}>
-                    <Search size={16} className="opacity-30"/>
-                    <input value={shopSearch} onChange={(e) => setShopSearch(e.target.value)} placeholder="SEARCH SHOP..." className="bg-transparent text-xs font-black uppercase outline-none w-full" />
-                </div>
-                <div className="flex gap-1 overflow-x-auto pb-1 scrollbar-hide">
-                    <button onClick={() => setSelectedRouteFilter('ALL')} className={`px-4 py-2 rounded-full text-xs font-black uppercase transition-all whitespace-nowrap border ${selectedRouteFilter === 'ALL' ? 'bg-[#d4af37] text-black border-[#d4af37]' : 'bg-black/20 border-white/10 text-white/40'}`}>ALL</button>
-                    {data.routes.map(r => (
-                        <button key={r.id} onClick={() => setSelectedRouteFilter(r.name)} className={`px-4 py-2 rounded-full text-xs font-black uppercase transition-all whitespace-nowrap border ${selectedRouteFilter === r.name ? 'bg-[#d4af37] text-black border-[#d4af37]' : 'bg-black/20 border-white/10 text-white/40'}`}>{r.name}</button>
-                    ))}
-                </div>
-            </div>
-
-            <div className="flex gap-2">
-              <button onClick={() => setShowModal('shop')} className="flex-1 py-4 rounded-2xl border-2 border-dashed border-[#d4af37]/40 text-[#d4af37] font-black uppercase text-xs flex items-center justify-center gap-1 bg-[#d4af37]/5">
-                <Plus size={16}/> New Shop
-              </button>
-              <button onClick={() => { setSelectedShop(null); setShowModal('manual'); }} className="flex-1 py-4 rounded-2xl border-2 border-dashed border-green-500/40 text-green-500 font-black uppercase text-xs flex items-center justify-center gap-1 bg-green-500/5">
-                <ShoppingBag size={16}/> Manual
-              </button>
-            </div>
-
-            <div className="grid gap-2">
-                {filteredShops.map(s => (
-                <div key={s.id} className={`p-4 rounded-2xl border flex justify-between items-center ${isDarkMode ? "bg-[#0f0f0f] border-white/5" : "bg-white border-black/5"}`}>
-                    <div className="flex items-center gap-3">
-                      <div className="p-3 bg-[#d4af37]/10 rounded-xl text-[#d4af37]"><Store size={18}/></div>
-                      <div>
-                          <h4 className="text-sm font-black uppercase leading-tight">{s.name}</h4>
-                          <p className="text-[10px] opacity-40 font-bold uppercase mt-0.5 tracking-tighter italic">{s.area}</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1">
-                        <button onClick={async () => { if(window.confirm('Delete Shop?')) await deleteDoc(doc(db, 'shops', s.id)) }} className="p-2 text-red-500/30 hover:text-red-500"><Trash2 size={16}/></button>
-                        <button onClick={() => { setSelectedShop(s); setShowModal('invoice'); }} className="bg-[#d4af37] text-black px-4 py-2 rounded-xl text-xs font-black uppercase shadow-lg">BILL</button>
-                    </div>
+                    <Target size={24} className="text-[#d4af37]" />
+                  </div>
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <p className="text-[10px] font-black opacity-50 uppercase">Avg Price per Unit</p>
+                  <p className="text-sm font-black text-white">Rs.{stats.monthly.avgPrice.toFixed(2)}</p>
+                </div>
+                <div className="flex justify-between items-center">
+                  <p className="text-[10px] font-black opacity-50 uppercase">Today's Notes</p>
+                  <p className="text-sm font-black text-[#d4af37]">{stats.notes}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Today's Sales */}
+            <div className={`p-6 rounded-2xl border ${isDarkMode ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/10 shadow-xl" : "bg-white border-gray-200 shadow-lg"}`}>
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h3 className="text-sm font-black text-[#d4af37] uppercase tracking-widest">Today's Sales</h3>
+                  <p className="text-[10px] opacity-50 mt-1">Itemized Breakdown</p>
+                </div>
+                <TrendingUp size={18} className="text-[#d4af37] opacity-60" />
+              </div>
+
+              <div className="space-y-3">
+                {stats.daily.summary.map((item, index) => (
+                  <div key={index} className="flex justify-between items-center p-4 rounded-xl bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border border-white/5 hover:border-[#d4af37]/30 transition-all">
+                    <div className="flex-1">
+                      <p className="text-sm font-black uppercase tracking-tight mb-1">{item.name}</p>
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-1">
+                          <Hash size={10} className="opacity-50" />
+                          <span className="text-[10px] opacity-70">{item.units} UNITS</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <DollarSign size={10} className="opacity-50" />
+                          <span className="text-[10px] opacity-70">Rs.{item.price}/unit</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-black text-lg tabular-nums text-[#d4af37]">Rs.{item.rev.toLocaleString()}</p>
+                      <p className="text-[9px] opacity-50">Total Revenue</p>
+                    </div>
+                  </div>
                 ))}
+                {stats.daily.summary.length === 0 && (
+                  <div className="text-center py-8">
+                    <Package2 size={40} className="mx-auto opacity-20 mb-3" />
+                    <p className="text-sm opacity-30 italic">No sales recorded today</p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}
 
-        {activeTab === 'history' && (
-          <div className="space-y-3 animate-in fade-in duration-500">
-             <div className={`p-4 rounded-2xl border flex items-center gap-3 ${isDarkMode ? "bg-[#0f0f0f] border-white/10" : "bg-white border-black/5"}`}>
-                <Calendar size={18} className="text-[#d4af37]"/>
-                <input type="date" className="bg-transparent text-sm font-black uppercase outline-none w-full [color-scheme:dark]" onChange={(e) => setSearchDate(e.target.value)} value={searchDate}/>
+        {/* Shops Tab */}
+        {activeTab === 'shops' && (
+          <div className="space-y-4">
+            <div className="space-y-3">
+              <div className={`p-4 rounded-2xl border flex items-center gap-3 ${isDarkMode ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/10" : "bg-white border-gray-200"}`}>
+                <Search size={18} className="opacity-30"/>
+                <input
+                  value={shopSearch}
+                  onChange={(e) => setShopSearch(e.target.value)}
+                  placeholder="SEARCH SHOP BY NAME OR AREA..."
+                  className="bg-transparent text-sm font-black uppercase outline-none w-full placeholder:opacity-30"
+                />
+              </div>
+
+              <div className="flex gap-2 overflow-x-auto pb-2">
+                <button
+                  onClick={() => setSelectedRouteFilter('ALL')}
+                  className={`px-5 py-2.5 rounded-full text-xs font-black uppercase transition-all whitespace-nowrap border ${selectedRouteFilter === 'ALL' ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black border-[#d4af37]' : 'bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/10 text-white/60'}`}
+                >
+                  ALL
+                </button>
+                {data.routes.map(r => (
+                  <button
+                    key={r.id}
+                    onClick={() => setSelectedRouteFilter(r.name)}
+                    className={`px-5 py-2.5 rounded-full text-xs font-black uppercase transition-all whitespace-nowrap border ${selectedRouteFilter === r.name ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black border-[#d4af37]' : 'bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/10 text-white/60'}`}
+                  >
+                    {r.name}
+                  </button>
+                ))}
+              </div>
             </div>
-            {data.orders.filter(o => new Date(o.timestamp).toISOString().split('T')[0] === searchDate).map((o) => (
-              <div key={o.id} className={`p-5 rounded-2xl border ${isDarkMode ? "bg-[#0f0f0f] border-white/5" : "bg-white border-black/5 shadow-lg"}`}>
-                <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <h4 className="text-xs font-black uppercase text-[#d4af37]">{o.shopName}</h4>
-                    <p className="text-[10px] opacity-40 font-black uppercase">{o.companyName}</p>
-                    {o.isManual && <span className="text-[8px] bg-green-500/20 text-green-500 px-2 py-1 rounded-full">MANUAL</span>}
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowModal('shop')}
+                className="flex-1 py-5 rounded-2xl border-2 border-dashed border-[#d4af37]/40 text-[#d4af37] font-black uppercase text-sm flex items-center justify-center gap-2 bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] hover:border-[#d4af37] transition-all"
+              >
+                <Plus size={18}/> New Shop
+              </button>
+              <button
+                onClick={() => { setSelectedShop(null); setShowModal('manual'); }}
+                className="flex-1 py-5 rounded-2xl border-2 border-dashed border-green-500/40 text-green-500 font-black uppercase text-sm flex items-center justify-center gap-2 bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] hover:border-green-500 transition-all"
+              >
+                <ShoppingBag size={18}/> Manual
+              </button>
+            </div>
+
+            <div className="grid gap-3">
+              {filteredShops.map(s => (
+                <div
+                  key={s.id}
+                  className={`p-5 rounded-2xl border flex justify-between items-center ${isDarkMode ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/5 hover:border-[#d4af37]/30" : "bg-white border-gray-200 hover:border-[#d4af37]"} transition-all`}
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="p-3.5 bg-gradient-to-br from-[#d4af37]/10 to-[#b8860b]/5 rounded-xl text-[#d4af37] border border-[#d4af37]/20">
+                      <Store size={20}/>
+                    </div>
+                    <div>
+                      <h4 className="text-base font-black uppercase leading-tight">{s.name}</h4>
+                      <div className="flex items-center gap-2 mt-1.5">
+                        <MapPin size={12} className="opacity-40" />
+                        <p className="text-[11px] opacity-60 font-bold uppercase tracking-tighter">{s.area}</p>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex gap-1">
-                    <button onClick={() => shareBillWithLocation(o)} className="text-[#d4af37] p-1" title="Share with Location">
-                      <Navigation size={16}/>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={async () => {
+                        if(window.confirm('Delete this shop?'))
+                          await deleteDoc(doc(db, 'shops', s.id))
+                      }}
+                      className="p-2.5 text-red-500/30 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
+                    >
+                      <Trash2 size={18}/>
                     </button>
-                    <button onClick={() => shareToWhatsApp(o)} className="text-[#d4af37] p-1" title="Share Bill">
-                      <Share2 size={16}/>
+                    <button
+                      onClick={() => { setSelectedShop(s); setShowModal('invoice'); }}
+                      className="bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black px-5 py-2.5 rounded-xl text-sm font-black uppercase shadow-lg hover:opacity-90 transition-all"
+                    >
+                      BILL
                     </button>
-                    <button onClick={async () => { if(window.confirm('Delete Bill?')) await deleteDoc(doc(db, 'orders', o.id)) }} className="text-red-500/20 hover:text-red-500 p-1"><Trash2 size={16}/></button>
                   </div>
                 </div>
-                <div className="space-y-1 border-y border-white/5 py-3 my-3">
-                  {o.items.map((i, k) => (
-                    <div key={k} className="flex justify-between text-xs uppercase font-bold">
-                      <span className="opacity-50">{i.name} x {i.qty} @ Rs.{i.price}</span>
-                      <span>Rs.{i.subtotal.toLocaleString()}</span>
+              ))}
+              {filteredShops.length === 0 && (
+                <div className="text-center py-8">
+                  <Store size={40} className="mx-auto opacity-20 mb-3" />
+                  <p className="text-sm opacity-30 italic">No shops found</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* History Tab */}
+        {activeTab === 'history' && (
+          <div className="space-y-4">
+            <div className={`p-5 rounded-2xl border flex items-center gap-4 ${isDarkMode ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/10" : "bg-white border-gray-200"}`}>
+              <Calendar size={20} className="text-[#d4af37]"/>
+              <input
+                type="date"
+                className="bg-transparent text-sm font-black uppercase outline-none w-full [color-scheme:dark]"
+                onChange={(e) => setSearchDate(e.target.value)}
+                value={searchDate}
+              />
+            </div>
+
+            {data.orders
+              .filter(o => {
+                try {
+                  const orderDate = new Date(o.timestamp).toISOString().split('T')[0];
+                  return orderDate === searchDate;
+                } catch {
+                  return false;
+                }
+              })
+              .map((o) => (
+              <div
+                key={o.id}
+                className={`p-6 rounded-2xl border ${isDarkMode ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/5 shadow-xl" : "bg-white border-gray-200 shadow-lg"}`}
+              >
+                <div className="flex justify-between items-start mb-5">
+                  <div>
+                    <h4 className="text-sm font-black uppercase text-[#d4af37] mb-1">{o.shopName}</h4>
+                    <div className="flex items-center gap-3">
+                      <p className="text-[11px] opacity-60 font-black uppercase">{o.companyName}</p>
+                      {o.isManual && (
+                        <span className="text-[9px] bg-gradient-to-r from-green-500/20 to-green-600/20 text-green-500 px-3 py-1 rounded-full border border-green-500/30">
+                          MANUAL
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => shareBillWithLocation(o)}
+                      className="p-2.5 text-[#d4af37] hover:bg-[#d4af37]/10 rounded-lg transition-all"
+                      title="Share with Location"
+                    >
+                      <Navigation size={18}/>
+                    </button>
+                    <button
+                      onClick={() => shareToWhatsApp(o)}
+                      className="p-2.5 text-[#d4af37] hover:bg-[#d4af37]/10 rounded-lg transition-all"
+                      title="Share Bill"
+                    >
+                      <Share2 size={18}/>
+                    </button>
+                    <button
+                      onClick={async () => {
+                        if(window.confirm('Delete this bill?'))
+                          await deleteDoc(doc(db, 'orders', o.id))
+                      }}
+                      className="p-2.5 text-red-500/30 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
+                    >
+                      <Trash2 size={18}/>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-3 border-y border-white/5 py-4 my-4">
+                  {o.items && o.items.map((i, k) => (
+                    <div key={k} className="flex justify-between items-center text-sm uppercase font-bold">
+                      <div className="flex items-center gap-3">
+                        <span className="opacity-60">{i.name}</span>
+                        <span className="text-[10px] opacity-40">x{i.qty} @ Rs.{i.price}</span>
+                      </div>
+                      <span className="text-[#d4af37] font-black">Rs.{i.subtotal.toLocaleString()}</span>
                     </div>
                   ))}
                 </div>
-                <div className="flex justify-between items-center font-black">
-                    <span className="text-xs opacity-30 uppercase">Total</span>
-                    <span className="text-lg text-[#d4af37]">Rs.{o.total.toLocaleString()}</span>
+
+                <div className="flex justify-between items-center font-black pt-3">
+                  <span className="text-sm opacity-40 uppercase">Total Amount</span>
+                  <span className="text-2xl text-[#d4af37]">Rs.{o.total.toLocaleString()}</span>
                 </div>
               </div>
             ))}
+            {data.orders.filter(o => {
+              try {
+                const orderDate = new Date(o.timestamp).toISOString().split('T')[0];
+                return orderDate === searchDate;
+              } catch {
+                return false;
+              }
+            }).length === 0 && (
+              <div className="text-center py-8">
+                <History size={40} className="mx-auto opacity-20 mb-3" />
+                <p className="text-sm opacity-30 italic">No orders found for this date</p>
+              </div>
+            )}
           </div>
         )}
 
+        {/* Settings Tab */}
         {activeTab === 'settings' && (
-          <div className="space-y-6 animate-in slide-in-from-left-4 duration-500 pb-16">
+          <div className="space-y-6 pb-20">
             {/* Profile Settings */}
-            <form onSubmit={handleSaveProfile} className={`p-6 rounded-2xl border ${isDarkMode ? "bg-[#0f0f0f] border-white/10 shadow-lg" : "bg-white border-black/10"} space-y-4`}>
-              <h3 className="text-xs font-black text-[#d4af37] uppercase tracking-widest">Profile</h3>
-              <input name="repName" defaultValue={data.settings.name} placeholder="YOUR NAME" className="w-full bg-black/20 p-4 rounded-xl border border-white/5 text-sm font-black uppercase outline-none focus:border-[#d4af37]" />
-              <input name="companyName" defaultValue={data.settings.company} placeholder="COMPANY" className="w-full bg-black/20 p-4 rounded-xl border border-white/5 text-sm font-black uppercase outline-none focus:border-[#d4af37]" />
-              <button className="w-full py-4 bg-green-600 text-white font-black rounded-xl text-xs uppercase flex items-center justify-center gap-1"><Save size={16}/> SAVE</button>
+            <form
+              onSubmit={handleSaveProfile}
+              className={`p-6 rounded-2xl border ${isDarkMode ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/10 shadow-xl" : "bg-white border-gray-200 shadow-lg"} space-y-5`}
+            >
+              <div>
+                <h3 className="text-sm font-black text-[#d4af37] uppercase tracking-widest mb-1">Profile Settings</h3>
+                <p className="text-[11px] opacity-50">Update your personal information</p>
+              </div>
+
+              <input
+                name="repName"
+                defaultValue={data.settings.name}
+                placeholder="YOUR FULL NAME"
+                className="w-full bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] p-4 rounded-xl border border-white/5 text-sm font-black uppercase outline-none focus:border-[#d4af37] transition-all"
+              />
+
+              <input
+                name="companyName"
+                defaultValue={data.settings.company}
+                placeholder="COMPANY NAME"
+                className="w-full bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] p-4 rounded-xl border border-white/5 text-sm font-black uppercase outline-none focus:border-[#d4af37] transition-all"
+              />
+
+              <button type="submit" className="w-full py-4 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-black rounded-xl text-sm uppercase flex items-center justify-center gap-2 hover:opacity-90 transition-all">
+                <Save size={18}/> SAVE PROFILE
+              </button>
             </form>
 
             {/* Quick Add Buttons */}
-            <div className="grid grid-cols-2 gap-3">
-              <button onClick={() => setShowModal('route')} className="py-4 rounded-xl border border-white/5 bg-[#0f0f0f] text-[#d4af37] font-black uppercase text-xs flex flex-col items-center gap-1">
-                <MapPin size={18}/> ADD ROUTE
+            <div className="grid grid-cols-2 gap-4">
+              <button
+                onClick={() => setShowModal('route')}
+                className="py-5 rounded-xl border bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5 text-[#d4af37] font-black uppercase text-sm flex flex-col items-center gap-2 hover:border-[#d4af37] transition-all"
+              >
+                <MapPin size={22}/> ADD ROUTE
               </button>
-              <button onClick={() => setShowModal('brand')} className="py-4 rounded-xl border border-white/5 bg-[#0f0f0f] text-[#d4af37] font-black uppercase text-xs flex flex-col items-center gap-1">
-                <Package size={18}/> ADD BRAND
+              <button
+                onClick={() => setShowModal('brand')}
+                className="py-5 rounded-xl border bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5 text-[#d4af37] font-black uppercase text-sm flex flex-col items-center gap-2 hover:border-[#d4af37] transition-all"
+              >
+                <Package size={22}/> ADD BRAND
               </button>
             </div>
 
             {/* Brands List */}
             <div>
-                <h4 className="text-xs font-black opacity-30 uppercase px-3 mb-2 tracking-widest">Brands</h4>
-                <div className="grid gap-1">
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="text-sm font-black text-[#d4af37] uppercase tracking-widest">Brands List</h4>
+                <span className="text-xs opacity-50">{data.brands.length} brands</span>
+              </div>
+
+              <div className="grid gap-2">
                 {data.brands.map(b => (
-                    <div key={b.id} className="flex justify-between items-center p-3 bg-white/5 rounded-xl border border-white/5">
-                    <div className="text-xs font-black uppercase">
+                  <div
+                    key={b.id}
+                    className="flex justify-between items-center p-4 rounded-xl bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border border-white/5 hover:border-[#d4af37]/30 transition-all"
+                  >
+                    <div className="text-sm font-black uppercase">
                       {editingBrand === b.id ? (
-                        <div className="space-y-1">
+                        <div className="space-y-2">
                           <input
                             defaultValue={b.name}
-                            className="bg-black/30 p-1.5 rounded w-full text-xs"
+                            className="bg-black/50 p-2.5 rounded-lg w-full text-sm border border-white/10"
                             onBlur={(e) => updateDoc(doc(db, 'brands', b.id), { name: e.target.value.toUpperCase() })}
                           />
-                          <input
-                            defaultValue={b.size}
-                            className="bg-black/30 p-1.5 rounded w-full text-xs"
-                            onBlur={(e) => updateDoc(doc(db, 'brands', b.id), { size: e.target.value.toUpperCase() })}
-                          />
-                          <input
-                            defaultValue={b.price}
-                            type="number"
-                            className="bg-black/30 p-1.5 rounded w-full text-xs"
-                            onBlur={(e) => updateDoc(doc(db, 'brands', b.id), { price: parseFloat(e.target.value) })}
-                          />
+                          <div className="grid grid-cols-2 gap-2">
+                            <input
+                              defaultValue={b.size}
+                              className="bg-black/50 p-2.5 rounded-lg w-full text-sm border border-white/10"
+                              onBlur={(e) => updateDoc(doc(db, 'brands', b.id), { size: e.target.value.toUpperCase() })}
+                            />
+                            <input
+                              defaultValue={b.price}
+                              type="number"
+                              className="bg-black/50 p-2.5 rounded-lg w-full text-sm border border-white/10"
+                              onBlur={(e) => updateDoc(doc(db, 'brands', b.id), { price: parseFloat(e.target.value) })}
+                            />
+                          </div>
                         </div>
                       ) : (
-                        <span>{b.name} ({b.size}) @ Rs.{b.price}</span>
+                        <div>
+                          <span className="block">{b.name} ({b.size})</span>
+                          <span className="text-[#d4af37] text-xs mt-1">Rs.{b.price}/unit</span>
+                        </div>
                       )}
                     </div>
-                    <div className="flex gap-1">
-                      <button onClick={() => setEditingBrand(editingBrand === b.id ? null : b.id)} className="text-blue-500/40 hover:text-blue-500 p-1">
-                        <Edit2 size={14}/>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setEditingBrand(editingBrand === b.id ? null : b.id)}
+                        className="p-2 text-blue-500/40 hover:text-blue-500 hover:bg-blue-500/10 rounded-lg transition-all"
+                      >
+                        <Edit2 size={16}/>
                       </button>
-                      <button onClick={async () => { if(window.confirm('Delete Brand?')) await deleteDoc(doc(db, 'brands', b.id)) }} className="text-red-500/40 hover:text-red-500 p-1"><Trash2 size={14}/></button>
+                      <button
+                        onClick={async () => {
+                          if(window.confirm('Delete this brand?'))
+                            await deleteDoc(doc(db, 'brands', b.id))
+                        }}
+                        className="p-2 text-red-500/40 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
+                      >
+                        <Trash2 size={16}/>
+                      </button>
                     </div>
-                    </div>
+                  </div>
                 ))}
-                </div>
+                {data.brands.length === 0 && (
+                  <div className="text-center py-4">
+                    <Package size={30} className="mx-auto opacity-20 mb-2" />
+                    <p className="text-sm opacity-30 italic">No brands added yet</p>
+                  </div>
+                )}
+              </div>
             </div>
 
-            {/* Expenses History */}
+            {/* Today's Expenses */}
             <div>
-                <h4 className="text-xs font-black opacity-30 uppercase px-3 mb-2 tracking-widest">Today's Expenses</h4>
-                <div className="space-y-1">
-                {data.expenses.filter(e => e.date === new Date().toISOString().split('T')[0]).map(exp => (
-                    <div key={exp.id} className="flex justify-between items-center p-3 bg-white/5 rounded-xl border border-white/5">
-                      <div>
-                        <div className="flex items-center gap-1">
-                          {exp.type === 'fuel' && <Fuel size={12} className="text-[#d4af37]" />}
-                          {exp.type === 'food' && <Coffee size={12} className="text-[#d4af37]" />}
-                          {exp.type === 'transport' && <Navigation size={12} className="text-[#d4af37]" />}
-                          {exp.type === 'other' && <AlertCircle size={12} className="text-[#d4af37]" />}
-                          <span className="text-xs font-black uppercase">{exp.type}</span>
-                        </div>
-                        {exp.note && <p className="text-[10px] opacity-40 mt-0.5">{exp.note}</p>}
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="text-sm font-black text-[#d4af37] uppercase tracking-widest">Today's Expenses</h4>
+                <span className="text-xs opacity-50">Rs.{stats.expenses.toLocaleString()}</span>
+              </div>
+
+              <div className="space-y-2">
+                {data.expenses
+                  .filter(e => e.date === new Date().toISOString().split('T')[0])
+                  .map(exp => (
+                  <div
+                    key={exp.id}
+                    className="flex justify-between items-center p-4 rounded-xl bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border border-white/5 hover:border-red-500/30 transition-all"
+                  >
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        {exp.type === 'fuel' && <Fuel size={14} className="text-red-500" />}
+                        {exp.type === 'food' && <Coffee size={14} className="text-amber-500" />}
+                        {exp.type === 'transport' && <Navigation size={14} className="text-blue-500" />}
+                        {exp.type === 'other' && <AlertCircle size={14} className="text-gray-500" />}
+                        <span className="text-sm font-black uppercase">{exp.type}</span>
                       </div>
-                      <div className="text-right">
-                        <span className="text-sm font-black text-red-500">Rs.{exp.amount.toLocaleString()}</span>
-                        <p className="text-[10px] opacity-30">{new Date(exp.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
-                      </div>
+                      {exp.note && <p className="text-[11px] opacity-60 mt-1">{exp.note}</p>}
                     </div>
+                    <div className="text-right">
+                      <span className="text-lg font-black text-red-500">Rs.{exp.amount.toLocaleString()}</span>
+                      <p className="text-[10px] opacity-40 mt-1">
+                        {new Date(exp.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                      </p>
+                    </div>
+                  </div>
                 ))}
-                </div>
+
+                {data.expenses.filter(e => e.date === new Date().toISOString().split('T')[0]).length === 0 && (
+                  <div className="text-center py-6">
+                    <CreditCard size={40} className="mx-auto opacity-20 mb-3" />
+                    <p className="text-sm opacity-30 italic">No expenses recorded today</p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}
       </main>
 
       {/* Bottom Navigation */}
-      <nav className={`fixed bottom-6 inset-x-6 h-18 rounded-2xl border flex items-center justify-around z-50 shadow-xl ${isDarkMode ? "bg-black/90 border-white/10" : "bg-white/95 border-black/10"}`}>
+      <nav className={`fixed bottom-8 inset-x-8 h-20 rounded-2xl border flex items-center justify-around z-50 shadow-2xl ${isDarkMode ? "bg-gradient-to-br from-black/95 to-gray-900/95 border-white/10 backdrop-blur-xl" : "bg-white/95 border-gray-200 backdrop-blur-xl"}`}>
         {[
           {id: 'dashboard', icon: LayoutDashboard, label: 'Home'},
           {id: 'shops', icon: Store, label: 'Shops'},
           {id: 'history', icon: History, label: 'History'},
           {id: 'settings', icon: Settings, label: 'More'}
         ].map(t => (
-          <button key={t.id} onClick={() => setActiveTab(t.id)} className={`p-4 transition-all relative flex flex-col items-center ${activeTab === t.id ? 'text-[#d4af37]' : 'opacity-30'}`}>
-            <t.icon size={22} />
-            <span className="text-[8px] font-black uppercase mt-0.5">{t.label}</span>
-            {activeTab === t.id && <div className="absolute -bottom-1 w-1.5 h-1.5 bg-[#d4af37] rounded-full"></div>}
+          <button
+            key={t.id}
+            onClick={() => setActiveTab(t.id)}
+            className={`p-4 transition-all relative flex flex-col items-center ${activeTab === t.id ? 'text-[#d4af37]' : 'opacity-40 hover:opacity-70'}`}
+          >
+            <div className={`p-2.5 rounded-lg ${activeTab === t.id ? 'bg-[#d4af37]/10' : ''}`}>
+              <t.icon size={24} />
+            </div>
+            <span className="text-[9px] font-black uppercase mt-1.5">{t.label}</span>
+            {activeTab === t.id && (
+              <div className="absolute -bottom-1 w-8 h-1 bg-gradient-to-r from-[#d4af37] to-[#b8860b] rounded-full"></div>
+            )}
           </button>
         ))}
       </nav>
 
-      {/* --- EXPENSE MODAL --- */}
-      {showModal === 'expense' && (
-        <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-6 backdrop-blur-2xl">
-          <div className="bg-[#0f0f0f] w-full max-w-sm p-8 rounded-2xl border border-[#d4af37]/30 relative">
-            <button onClick={() => setShowModal(null)} className="absolute top-6 right-6 text-white/20"><X size={20}/></button>
-            <h3 className="text-center font-black text-[#d4af37] mb-6 uppercase text-xs tracking-widest">ADD EXPENSE</h3>
+      {/* --- ADVANCED CALCULATOR MODAL --- */}
+      {showCalculator && (
+        <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-4 backdrop-blur-3xl">
+          <div className="bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] w-full max-w-sm p-6 rounded-3xl border border-[#d4af37]/30 relative shadow-2xl">
+            <button
+              onClick={() => setShowCalculator(false)}
+              className="absolute top-4 right-4 text-white/20 hover:text-white/40 transition-all"
+            >
+              <X size={24}/>
+            </button>
+
+            <div className="text-center mb-6">
+              <Calculator size={40} className="text-[#d4af37] mx-auto mb-3" />
+              <h3 className="font-black text-[#d4af37] mb-2 uppercase text-lg tracking-widest">ADVANCED CALCULATOR</h3>
+              <p className="text-xs opacity-50">Calculate totals with discount & tax</p>
+            </div>
 
             <div className="space-y-4">
               <div>
-                <p className="text-xs font-black uppercase opacity-40 mb-1">Expense Type</p>
+                <label className="text-xs font-black uppercase opacity-40 mb-2 block">Subtotal (Rs.)</label>
+                <input
+                  type="number"
+                  value={totalCalculation.subtotal}
+                  onChange={(e) => setTotalCalculation({...totalCalculation, subtotal: parseFloat(e.target.value) || 0})}
+                  placeholder="0.00"
+                  className="w-full bg-black/40 p-4 rounded-xl border border-white/5 text-white font-bold text-center outline-none text-xl focus:border-[#d4af37] transition-all"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-black uppercase opacity-40 mb-2 block flex items-center gap-1">
+                    <Percent size={12} /> Discount
+                  </label>
+                  <input
+                    type="number"
+                    value={totalCalculation.discount}
+                    onChange={(e) => setTotalCalculation({...totalCalculation, discount: parseFloat(e.target.value) || 0})}
+                    placeholder="0.00"
+                    className="w-full bg-black/40 p-3 rounded-xl border border-white/5 text-white font-bold text-center outline-none focus:border-[#d4af37] transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-black uppercase opacity-40 mb-2 block">Tax (Rs.)</label>
+                  <input
+                    type="number"
+                    value={totalCalculation.tax}
+                    onChange={(e) => setTotalCalculation({...totalCalculation, tax: parseFloat(e.target.value) || 0})}
+                    placeholder="0.00"
+                    className="w-full bg-black/40 p-3 rounded-xl border border-white/5 text-white font-bold text-center outline-none focus:border-[#d4af37] transition-all"
+                  />
+                </div>
+              </div>
+
+              <div className="bg-gradient-to-br from-black/60 to-black/40 p-4 rounded-xl border border-[#d4af37]/30">
+                <div className="flex justify-between items-center mb-2">
+                  <p className="text-xs font-black uppercase opacity-60">Calculated Total</p>
+                  <Calculator size={16} className="text-[#d4af37] opacity-60" />
+                </div>
+                <p className="text-2xl font-black text-[#d4af37] text-center">
+                  Rs.{(totalCalculation.subtotal - totalCalculation.discount + totalCalculation.tax).toLocaleString()}
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <button
+                  onClick={calculateTotal}
+                  className="w-full py-4 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-xl uppercase text-sm tracking-widest hover:opacity-90 transition-all"
+                >
+                  CALCULATE & SAVE
+                </button>
+
+                <button
+                  onClick={() => {
+                    setTotalCalculation({ subtotal: 0, discount: 0, tax: 0, grandTotal: 0 });
+                  }}
+                  className="w-full py-3 bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] text-white/60 font-black rounded-xl uppercase text-xs tracking-widest border border-white/5 hover:border-white/10 transition-all"
+                >
+                  RESET CALCULATOR
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- EXPENSE MODAL --- */}
+      {showModal === 'expense' && (
+        <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-4 backdrop-blur-3xl">
+          <div className="bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] w-full max-w-sm p-6 rounded-3xl border border-[#d4af37]/30 relative shadow-2xl">
+            <button onClick={() => setShowModal(null)} className="absolute top-4 right-4 text-white/20 hover:text-white/40">
+              <X size={24}/>
+            </button>
+
+            <div className="text-center mb-6">
+              <CreditCard size={40} className="text-[#d4af37] mx-auto mb-3" />
+              <h3 className="font-black text-[#d4af37] mb-2 uppercase text-lg tracking-widest">ADD EXPENSE</h3>
+              <p className="text-xs opacity-50">Record your daily expenses</p>
+            </div>
+
+            <div className="space-y-5">
+              <div>
+                <p className="text-xs font-black uppercase opacity-40 mb-3">Expense Type</p>
                 <div className="grid grid-cols-4 gap-2">
                   {[
-                    {type: 'fuel', icon: Fuel, label: 'Fuel'},
-                    {type: 'food', icon: Coffee, label: 'Food'},
-                    {type: 'transport', icon: Navigation, label: 'Travel'},
-                    {type: 'other', icon: AlertCircle, label: 'Other'}
+                    {type: 'fuel', icon: Fuel, label: 'Fuel', color: 'text-red-400'},
+                    {type: 'food', icon: Coffee, label: 'Food', color: 'text-amber-400'},
+                    {type: 'transport', icon: Navigation, label: 'Travel', color: 'text-blue-400'},
+                    {type: 'other', icon: AlertCircle, label: 'Other', color: 'text-gray-400'}
                   ].map(item => (
                     <button
                       key={item.type}
+                      type="button"
                       onClick={() => setExpenseType(item.type)}
-                      className={`p-3 rounded-xl border flex flex-col items-center gap-1 ${expenseType === item.type ? 'bg-[#d4af37]/20 border-[#d4af37]' : 'bg-black/40 border-white/5'}`}
+                      className={`p-3 rounded-xl border flex flex-col items-center gap-1 transition-all ${expenseType === item.type ? 'bg-black/60 border-[#d4af37]' : 'bg-black/40 border-white/5 hover:border-white/20'}`}
                     >
-                      <item.icon size={16} className={expenseType === item.type ? 'text-[#d4af37]' : 'text-white/40'} />
+                      <item.icon size={18} className={expenseType === item.type ? 'text-[#d4af37]' : item.color} />
                       <span className="text-[10px] font-black uppercase">{item.label}</span>
                     </button>
                   ))}
@@ -739,30 +1362,30 @@ export default function App() {
               </div>
 
               <div>
-                <p className="text-xs font-black uppercase opacity-40 mb-1">Amount (Rs.)</p>
+                <p className="text-xs font-black uppercase opacity-40 mb-2">Amount (Rs.)</p>
                 <input
                   type="number"
                   value={expenseAmount}
                   onChange={(e) => setExpenseAmount(e.target.value)}
                   placeholder="0.00"
-                  className="w-full bg-black/40 p-4 rounded-xl border border-white/5 text-white font-bold text-center outline-none text-lg"
+                  className="w-full bg-black/40 p-4 rounded-xl border border-white/5 text-white font-bold text-center outline-none text-2xl focus:border-[#d4af37] transition-all"
                 />
               </div>
 
               <div>
-                <p className="text-xs font-black uppercase opacity-40 mb-1">Note (Optional)</p>
+                <p className="text-xs font-black uppercase opacity-40 mb-2">Note (Optional)</p>
                 <textarea
                   value={expenseNote}
                   onChange={(e) => setExpenseNote(e.target.value)}
-                  placeholder="Add note..."
-                  className="w-full bg-black/40 p-4 rounded-xl border border-white/5 text-white text-sm outline-none resize-none h-20"
+                  placeholder="Add expense details..."
+                  className="w-full bg-black/40 p-3 rounded-xl border border-white/5 text-white text-sm outline-none resize-none h-20 focus:border-[#d4af37] transition-all"
                 />
               </div>
 
               <button
                 onClick={saveExpense}
                 disabled={isSavingExpense}
-                className={`w-full py-4 ${isSavingExpense ? 'bg-gray-600' : 'bg-[#d4af37]'} text-black font-black rounded-xl uppercase text-xs tracking-widest`}
+                className={`w-full py-4 rounded-xl uppercase text-sm tracking-widest font-black transition-all ${isSavingExpense ? 'bg-gray-700 text-gray-400' : 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black hover:opacity-90'}`}
               >
                 {isSavingExpense ? 'SAVING...' : 'SAVE EXPENSE'}
               </button>
@@ -773,23 +1396,32 @@ export default function App() {
 
       {/* --- NOTE MODAL --- */}
       {showModal === 'note' && (
-        <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-6 backdrop-blur-2xl">
-          <div className="bg-[#0f0f0f] w-full max-w-sm p-8 rounded-2xl border border-[#d4af37]/30 relative">
-            <button onClick={() => setShowModal(null)} className="absolute top-6 right-6 text-white/20"><X size={20}/></button>
-            <h3 className="text-center font-black text-[#d4af37] mb-6 uppercase text-xs tracking-widest">ADD NOTE</h3>
+        <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-4 backdrop-blur-3xl">
+          <div className="bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] w-full max-w-sm p-6 rounded-3xl border border-[#d4af37]/30 relative shadow-2xl">
+            <button onClick={() => setShowModal(null)} className="absolute top-4 right-4 text-white/20 hover:text-white/40">
+              <X size={24}/>
+            </button>
 
-            <div className="space-y-4">
-              <textarea
-                value={repNote}
-                onChange={(e) => setRepNote(e.target.value)}
-                placeholder="Type your note here..."
-                className="w-full bg-black/40 p-4 rounded-xl border border-white/5 text-white text-sm outline-none resize-none h-32"
-              />
+            <div className="text-center mb-6">
+              <FileText size={40} className="text-[#d4af37] mx-auto mb-3" />
+              <h3 className="font-black text-[#d4af37] mb-2 uppercase text-lg tracking-widest">ADD NOTE</h3>
+              <p className="text-xs opacity-50">Record important information</p>
+            </div>
+
+            <div className="space-y-5">
+              <div className="relative">
+                <textarea
+                  value={repNote}
+                  onChange={(e) => setRepNote(e.target.value)}
+                  placeholder="Type your note here... (Meeting notes, customer feedback, reminders, etc.)"
+                  className="w-full bg-black/40 p-4 rounded-xl border border-white/5 text-white text-sm outline-none resize-none h-32 focus:border-[#d4af37] transition-all"
+                />
+              </div>
 
               <button
                 onClick={saveNote}
                 disabled={isSavingNote}
-                className={`w-full py-4 ${isSavingNote ? 'bg-gray-600' : 'bg-[#d4af37]'} text-black font-black rounded-xl uppercase text-xs tracking-widest`}
+                className={`w-full py-4 rounded-xl uppercase text-sm tracking-widest font-black transition-all ${isSavingNote ? 'bg-gray-700 text-gray-400' : 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black hover:opacity-90'}`}
               >
                 {isSavingNote ? 'SAVING...' : 'SAVE NOTE'}
               </button>
@@ -798,117 +1430,90 @@ export default function App() {
         </div>
       )}
 
-      {/* --- TOTAL CALCULATOR MODAL --- */}
-      {showTotalCalculator && (
-        <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-6 backdrop-blur-2xl">
-          <div className="bg-[#0f0f0f] w-full max-w-sm p-8 rounded-2xl border border-[#d4af37]/30 relative">
-            <button onClick={() => setShowTotalCalculator(false)} className="absolute top-6 right-6 text-white/20"><X size={20}/></button>
-            <h3 className="text-center font-black text-[#d4af37] mb-6 uppercase text-xs tracking-widest">TOTAL CALCULATOR</h3>
-            
-            <div className="space-y-4">
-              <div>
-                <p className="text-xs font-black uppercase opacity-40 mb-1">Subtotal (Rs.)</p>
-                <input
-                  type="number"
-                  value={totalCalculation.subtotal}
-                  onChange={(e) => setTotalCalculation({...totalCalculation, subtotal: parseFloat(e.target.value) || 0})}
-                  placeholder="0.00"
-                  className="w-full bg-black/40 p-4 rounded-xl border border-white/5 text-white font-bold text-center outline-none text-lg"
-                />
-              </div>
-              
-              <div>
-                <p className="text-xs font-black uppercase opacity-40 mb-1">Discount (Rs.)</p>
-                <input
-                  type="number"
-                  value={totalCalculation.discount}
-                  onChange={(e) => setTotalCalculation({...totalCalculation, discount: parseFloat(e.target.value) || 0})}
-                  placeholder="0.00"
-                  className="w-full bg-black/40 p-4 rounded-xl border border-white/5 text-white font-bold text-center outline-none"
-                />
-              </div>
-              
-              <div>
-                <p className="text-xs font-black uppercase opacity-40 mb-1">Tax (Rs.)</p>
-                <input
-                  type="number"
-                  value={totalCalculation.tax}
-                  onChange={(e) => setTotalCalculation({...totalCalculation, tax: parseFloat(e.target.value) || 0})}
-                  placeholder="0.00"
-                  className="w-full bg-black/40 p-4 rounded-xl border border-white/5 text-white font-bold text-center outline-none"
-                />
-              </div>
-              
-              <div className="bg-black/60 p-4 rounded-xl border border-[#d4af37]/30">
-                <p className="text-xs font-black uppercase opacity-60 mb-2">GRAND TOTAL</p>
-                <p className="text-2xl font-black text-[#d4af37] text-center">
-                  Rs.{(totalCalculation.subtotal - totalCalculation.discount + totalCalculation.tax).toLocaleString()}
-                </p>
-              </div>
-              
-              <button 
-                onClick={calculateTotal}
-                className="w-full py-4 bg-[#d4af37] text-black font-black rounded-xl uppercase text-xs tracking-widest"
-              >
-                CALCULATE
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* --- INVOICE MODAL --- */}
       {showModal === 'invoice' && selectedShop && (
-        <div className="fixed inset-0 bg-black z-[100] animate-in slide-in-from-bottom overflow-y-auto p-6">
-          <div className="max-w-lg mx-auto pb-40">
-            <div className="flex justify-between items-center mb-6 sticky top-0 bg-black py-3 border-b border-white/10">
+        <div className="fixed inset-0 bg-black z-[100] overflow-y-auto">
+          <div className="min-h-screen p-4 max-w-lg mx-auto pb-40">
+            {/* Header */}
+            <div className="flex justify-between items-center mb-6 sticky top-0 bg-black/95 py-4 border-b border-white/10 backdrop-blur-xl z-10">
               <div>
                 <h2 className="text-2xl font-black uppercase text-white">{selectedShop.name}</h2>
-                <p className="text-xs text-[#d4af37] font-black uppercase">New Bill</p>
+                <p className="text-sm text-[#d4af37] font-black uppercase mt-1">Create New Bill</p>
               </div>
-              <button onClick={() => { setShowModal(null); setCart({}); }} className="p-3 bg-white/10 rounded-full text-white"><X size={20}/></button>
+              <button
+                onClick={() => { setShowModal(null); setCart({}); }}
+                className="p-3 bg-white/10 rounded-full text-white hover:bg-white/20 transition-all"
+              >
+                <X size={24}/>
+              </button>
             </div>
 
+            {/* Brand List */}
             <div className="space-y-3">
               {data.brands.map(b => (
-                <div key={b.id} className="bg-[#0f0f0f] p-4 rounded-xl border border-white/5 flex items-center justify-between">
+                <div
+                  key={b.id}
+                  className="bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] p-4 rounded-2xl border border-white/5 flex items-center justify-between hover:border-[#d4af37]/30 transition-all"
+                >
                   <div className="flex-1">
                     <h4 className="text-sm font-black uppercase text-white">{b.name} ({b.size})</h4>
-                    <p className="text-xs text-[#d4af37] font-bold">Rs.{b.price.toLocaleString()}</p>
+                    <p className="text-sm text-[#d4af37] font-bold mt-1">Rs.{b.price.toLocaleString()}</p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <button onClick={() => setCart({...cart, [b.id]: Math.max(0, (Number(cart[b.id])||0)-1)})} className="w-10 h-10 bg-white/5 rounded-xl text-white font-black">-</button>
-                    <input type="number" value={cart[b.id] || ''} onChange={(e) => setCart({...cart, [b.id]: e.target.value})} className="w-10 bg-transparent text-center font-black text-[#d4af37] text-lg outline-none" placeholder="0" />
-                    <button onClick={() => setCart({...cart, [b.id]: (Number(cart[b.id])||0)+1})} className="w-10 h-10 bg-white/5 rounded-xl text-white font-black">+</button>
+                    <button
+                      type="button"
+                      onClick={() => setCart({...cart, [b.id]: Math.max(0, (Number(cart[b.id])||0)-1})}
+                      className="w-10 h-10 bg-white/5 rounded-xl text-white font-black hover:bg-white/10 transition-all"
+                    >
+                      -
+                    </button>
+                    <input
+                      type="number"
+                      value={cart[b.id] || ''}
+                      onChange={(e) => setCart({...cart, [b.id]: e.target.value})}
+                      className="w-14 bg-transparent text-center font-black text-[#d4af37] text-lg outline-none"
+                      placeholder="0"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setCart({...cart, [b.id]: (Number(cart[b.id])||0)+1})}
+                      className="w-10 h-10 bg-white/5 rounded-xl text-white font-black hover:bg-white/10 transition-all"
+                    >
+                      +
+                    </button>
                   </div>
                 </div>
               ))}
+              {data.brands.length === 0 && (
+                <div className="text-center py-8">
+                  <Package size={40} className="mx-auto opacity-20 mb-3" />
+                  <p className="text-sm opacity-30 italic">No brands added yet. Add brands in Settings.</p>
+                </div>
+              )}
             </div>
 
-            <div className="fixed bottom-0 inset-x-0 p-6 bg-black/95 border-t border-white/10 backdrop-blur-xl">
+            {/* Fixed Bottom Bar */}
+            <div className="fixed bottom-0 inset-x-0 p-4 bg-black/95 border-t border-white/10 backdrop-blur-2xl z-20">
               <div className="max-w-lg mx-auto">
                 <div className="flex justify-between items-center mb-4">
-                  <span className="text-xs font-black uppercase opacity-40">Total</span>
-                  <span className="text-2xl font-black">Rs.{Object.entries(cart).reduce((acc, [id, q]) => acc + (data.brands.find(b=>b.id===id)?.price||0) * Number(q), 0).toLocaleString()}</span>
+                  <div>
+                    <span className="text-xs font-black uppercase opacity-40">Total Items</span>
+                    <p className="text-base font-black">
+                      {Object.values(cart).filter(q => q > 0).length}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-xs font-black uppercase opacity-40">Total Amount</span>
+                    <p className="text-2xl font-black text-[#d4af37]">
+                      Rs.{calculateCartTotal().toLocaleString()}
+                    </p>
+                  </div>
                 </div>
-                <button onClick={async () => {
-                  const items = Object.entries(cart).filter(([_, q]) => q > 0).map(([id, q]) => {
-                    const b = data.brands.find(x => x.id === id);
-                    return { name: `${b.name} ${b.size}`, qty: Number(q), price: b.price, subtotal: b.price * Number(q) };
-                  });
-                  if (!items.length) return alert("Empty Cart!");
-                  const orderData = {
-                    shopName: selectedShop.name,
-                    companyName: data.settings.company || "MONARCH",
-                    items,
-                    total: items.reduce((s, i) => s + i.subtotal, 0),
-                    userId: user.uid,
-                    timestamp: Date.now(),
-                    dateString: new Date().toLocaleDateString()
-                  };
-                  await addDoc(collection(db, 'orders'), orderData);
-                  setCart({}); setLastOrder(orderData); setShowModal('preview');
-                }} className="w-full py-4 bg-[#d4af37] text-black font-black rounded-xl uppercase text-xs tracking-widest">
+                <button
+                  type="button"
+                  onClick={handleCreateOrder}
+                  className="w-full py-4 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-2xl uppercase text-sm tracking-widest hover:opacity-90 transition-all"
+                >
                   CONFIRM ORDER
                 </button>
               </div>
@@ -919,28 +1524,38 @@ export default function App() {
 
       {/* --- MANUAL ORDER MODAL --- */}
       {showModal === 'manual' && (
-        <div className="fixed inset-0 bg-black z-[100] animate-in slide-in-from-bottom overflow-y-auto p-6">
-          <div className="max-w-lg mx-auto pb-60">
-            <div className="flex justify-between items-center mb-8 sticky top-0 bg-black py-4 border-b border-white/10">
+        <div className="fixed inset-0 bg-black z-[100] overflow-y-auto">
+          <div className="min-h-screen p-4 max-w-lg mx-auto pb-60">
+            {/* Header */}
+            <div className="flex justify-between items-center mb-6 sticky top-0 bg-black/95 py-4 border-b border-white/10 backdrop-blur-xl z-10">
               <div>
                 <h2 className="text-2xl font-black uppercase text-white">Manual Order</h2>
-                <p className="text-xs text-[#d4af37] font-black uppercase">Add Custom Items</p>
+                <p className="text-sm text-[#d4af37] font-black uppercase">Add Custom Items</p>
               </div>
-              <button onClick={() => { setShowModal(null); setManualItems([{ name: '', qty: 1, price: 0, subtotal: 0 }]); }} className="p-3 bg-white/10 rounded-full text-white"><X size={20}/></button>
+              <button
+                onClick={() => {
+                  setShowModal(null);
+                  setManualItems([{ name: '', qty: 1, price: 0, subtotal: 0 }]);
+                }}
+                className="p-3 bg-white/10 rounded-full text-white hover:bg-white/20 transition-all"
+              >
+                <X size={24}/>
+              </button>
             </div>
 
             {/* Shop Selection */}
             <div className="mb-6">
-              <p className="text-xs font-black uppercase opacity-60 mb-2">Select Shop</p>
+              <label className="text-sm font-black uppercase opacity-60 mb-3 block">Select Shop</label>
               <select
-                className="w-full bg-[#0f0f0f] p-4 rounded-xl border border-white/5 text-white font-bold uppercase outline-none"
+                className="w-full bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] p-4 rounded-2xl border border-white/5 text-white font-bold uppercase outline-none focus:border-[#d4af37] transition-all"
                 onChange={(e) => {
                   const shopId = e.target.value;
                   const shop = data.shops.find(s => s.id === shopId);
                   setSelectedShop(shop);
                 }}
+                defaultValue=""
               >
-                <option value="">-- SELECT SHOP --</option>
+                <option value="">-- SELECT A SHOP --</option>
                 {data.shops.map(s => (
                   <option key={s.id} value={s.id}>{s.name} - {s.area}</option>
                 ))}
@@ -948,61 +1563,69 @@ export default function App() {
             </div>
 
             {/* Manual Items */}
-            <div className="space-y-3">
+            <div className="space-y-4">
               <div className="flex justify-between items-center">
-                <h3 className="text-xs font-black uppercase opacity-60">Items</h3>
-                <button onClick={addManualItem} className="text-[#d4af37] text-xs font-black uppercase flex items-center gap-1">
-                  <Plus size={14}/> ADD ITEM
+                <h3 className="text-sm font-black uppercase opacity-60">Custom Items</h3>
+                <button
+                  type="button"
+                  onClick={addManualItem}
+                  className="text-[#d4af37] text-sm font-black uppercase flex items-center gap-2 hover:opacity-80 transition-all"
+                >
+                  <Plus size={18}/> ADD ITEM
                 </button>
               </div>
 
               {manualItems.map((item, index) => (
-                <div key={index} className="bg-[#0f0f0f] p-4 rounded-xl border border-white/5 space-y-3">
+                <div key={index} className="bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] p-4 rounded-2xl border border-white/5 space-y-3">
                   <div className="flex justify-between items-center">
                     <span className="text-xs font-black uppercase opacity-60">Item #{index + 1}</span>
                     {manualItems.length > 1 && (
-                      <button onClick={() => removeManualItem(index)} className="text-red-500/60 hover:text-red-500 p-1">
-                        <Trash2 size={14}/>
+                      <button
+                        type="button"
+                        onClick={() => removeManualItem(index)}
+                        className="p-2 text-red-500/60 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
+                      >
+                        <Trash2 size={16}/>
                       </button>
                     )}
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <p className="text-[10px] font-black uppercase opacity-40 mb-1">Item Name</p>
+                      <p className="text-[11px] font-black uppercase opacity-40 mb-1">Item Name</p>
                       <input
                         value={item.name}
                         onChange={(e) => updateManualItem(index, 'name', e.target.value)}
                         placeholder="PRODUCT NAME"
-                        className="w-full bg-black/40 p-3 rounded-lg border border-white/5 text-white font-bold uppercase outline-none text-xs"
+                        className="w-full bg-black/40 p-3 rounded-lg border border-white/5 text-white font-bold uppercase outline-none text-sm focus:border-[#d4af37] transition-all"
                       />
                     </div>
 
                     <div>
-                      <p className="text-[10px] font-black uppercase opacity-40 mb-1">Quantity</p>
+                      <p className="text-[11px] font-black uppercase opacity-40 mb-1">Quantity</p>
                       <input
                         type="number"
                         value={item.qty}
                         onChange={(e) => updateManualItem(index, 'qty', e.target.value)}
-                        className="w-full bg-black/40 p-3 rounded-lg border border-white/5 text-white font-bold text-center outline-none text-xs"
+                        className="w-full bg-black/40 p-3 rounded-lg border border-white/5 text-white font-bold text-center outline-none text-sm focus:border-[#d4af37] transition-all"
                       />
                     </div>
 
                     <div>
-                      <p className="text-[10px] font-black uppercase opacity-40 mb-1">Unit Price</p>
+                      <p className="text-[11px] font-black uppercase opacity-40 mb-1">Unit Price (Rs.)</p>
                       <input
                         type="number"
                         value={item.price}
                         onChange={(e) => updateManualItem(index, 'price', e.target.value)}
                         placeholder="0.00"
-                        className="w-full bg-black/40 p-3 rounded-lg border border-white/5 text-white font-bold text-center outline-none text-xs"
+                        className="w-full bg-black/40 p-3 rounded-lg border border-white/5 text-white font-bold text-center outline-none text-sm focus:border-[#d4af37] transition-all"
                       />
                     </div>
 
                     <div>
-                      <p className="text-[10px] font-black uppercase opacity-40 mb-1">Subtotal</p>
+                      <p className="text-[11px] font-black uppercase opacity-40 mb-1">Subtotal (Rs.)</p>
                       <div className="w-full bg-black/40 p-3 rounded-lg border border-white/5 text-center">
-                        <span className="text-[#d4af37] font-black text-xs">Rs.{item.subtotal.toLocaleString()}</span>
+                        <span className="text-[#d4af37] font-black text-base">Rs.{item.subtotal.toLocaleString()}</span>
                       </div>
                     </div>
                   </div>
@@ -1010,25 +1633,28 @@ export default function App() {
               ))}
             </div>
 
-            {/* Total Calculation */}
-            <div className="fixed bottom-0 inset-x-0 p-6 bg-black/95 border-t border-white/10 backdrop-blur-2xl">
+            {/* Fixed Bottom Bar */}
+            <div className="fixed bottom-0 inset-x-0 p-4 bg-black/95 border-t border-white/10 backdrop-blur-2xl z-20">
               <div className="max-w-lg mx-auto">
                 <div className="flex justify-between items-center mb-4">
                   <div>
-                    <p className="text-[10px] font-black uppercase opacity-40">Shop</p>
-                    <p className="text-sm font-black">{selectedShop?.name || "Not Selected"}</p>
+                    <p className="text-[11px] font-black uppercase opacity-40">Selected Shop</p>
+                    <p className="text-base font-black">
+                      {selectedShop?.name || "Not Selected"}
+                    </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-[10px] font-black uppercase opacity-40">Total</p>
+                    <p className="text-[11px] font-black uppercase opacity-40">Order Total</p>
                     <p className="text-xl font-black text-[#d4af37]">
                       Rs.{manualItems.reduce((sum, item) => sum + (item.subtotal || 0), 0).toLocaleString()}
                     </p>
                   </div>
                 </div>
                 <button
+                  type="button"
                   onClick={saveManualOrder}
                   disabled={!selectedShop}
-                  className={`w-full py-4 font-black rounded-xl uppercase tracking-widest text-xs ${selectedShop ? 'bg-[#d4af37] text-black' : 'bg-gray-700 text-gray-400'}`}
+                  className={`w-full py-4 font-black rounded-2xl uppercase tracking-widest text-sm transition-all ${selectedShop ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black hover:opacity-90' : 'bg-gray-700 text-gray-400'}`}
                 >
                   {selectedShop ? 'SAVE MANUAL ORDER' : 'SELECT SHOP FIRST'}
                 </button>
@@ -1040,40 +1666,64 @@ export default function App() {
 
       {/* --- PREVIEW MODAL --- */}
       {showModal === 'preview' && lastOrder && (
-        <div className="fixed inset-0 bg-black z-[110] flex items-center justify-center p-6 backdrop-blur-3xl">
-          <div className="bg-[#0f0f0f] w-full max-w-sm p-6 rounded-2xl border border-[#d4af37]/30 shadow-xl">
-            <div className="flex flex-col items-center text-center mb-4">
-                <div className="w-12 h-12 bg-green-500/10 text-green-500 rounded-full flex items-center justify-center mb-3">
-                  <CheckCircle2 size={24}/>
-                </div>
-                <h3 className="text-lg font-black text-white uppercase">Bill Confirmed!</h3>
-                <p className="text-xs text-white/40 uppercase font-bold mt-0.5">{lastOrder.shopName}</p>
+        <div className="fixed inset-0 bg-black/95 z-[110] flex items-center justify-center p-4 backdrop-blur-3xl">
+          <div className="bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] w-full max-w-md p-6 rounded-3xl border border-[#d4af37]/30 shadow-2xl">
+            <div className="flex flex-col items-center text-center mb-6">
+              <div className="w-14 h-14 bg-gradient-to-br from-green-500/20 to-emerald-600/20 text-green-500 rounded-full flex items-center justify-center mb-4 border border-green-500/30">
+                <CheckCircle2 size={28}/>
+              </div>
+              <h3 className="text-xl font-black text-white uppercase">Bill Confirmed!</h3>
+              <p className="text-sm text-white/60 uppercase font-bold mt-2">{lastOrder.shopName}</p>
+              <p className="text-xs opacity-50 mt-1">
+                {new Date(lastOrder.timestamp).toLocaleString()}
+              </p>
             </div>
 
-            <div className="bg-white/5 rounded-xl p-4 mb-4 max-h-40 overflow-y-auto">
-                <div className="space-y-2">
-                   {lastOrder.items.map((it, idx) => (
-                       <div key={idx} className="flex justify-between items-center text-xs uppercase font-bold">
-                           <span className="text-white/60">{it.name} <span className="text-white">x{it.qty} @ Rs.{it.price}</span></span>
-                           <span className="text-white">Rs.{it.subtotal.toLocaleString()}</span>
-                       </div>
-                   ))}
-                </div>
-                <div className="mt-3 pt-3 border-t border-white/10 flex justify-between items-center">
-                    <span className="text-xs font-black uppercase text-white">Total</span>
-                    <span className="text-lg font-black text-[#d4af37]">Rs.{lastOrder.total.toLocaleString()}</span>
-                </div>
+            {/* Order Summary */}
+            <div className="bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] rounded-2xl p-4 mb-6 border border-white/5">
+              <div className="space-y-3 max-h-40 overflow-y-auto pr-2">
+                {lastOrder.items && lastOrder.items.map((it, idx) => (
+                  <div key={idx} className="flex justify-between items-center text-sm uppercase font-bold py-2 border-b border-white/5 last:border-0">
+                    <div>
+                      <span className="text-white/80">{it.name}</span>
+                      <span className="text-white text-xs ml-2">x{it.qty} @ Rs.{it.price}</span>
+                    </div>
+                    <span className="text-white font-black">Rs.{it.subtotal.toLocaleString()}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-4 pt-3 border-t border-white/10 flex justify-between items-center">
+                <span className="text-sm font-black uppercase text-white">Total Amount</span>
+                <span className="text-xl font-black text-[#d4af37]">Rs.{lastOrder.total.toLocaleString()}</span>
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <button onClick={() => shareBillWithLocation(lastOrder)} className="w-full py-3 bg-[#25D366] text-white font-black rounded-xl uppercase text-xs flex items-center justify-center gap-2">
-                <Navigation size={14} /> Share with Location
+            {/* Action Buttons */}
+            <div className="space-y-3">
+              <button
+                type="button"
+                onClick={() => shareBillWithLocation(lastOrder)}
+                className="w-full py-3 bg-gradient-to-r from-[#25D366] to-[#128C7E] text-white font-black rounded-2xl uppercase text-sm flex items-center justify-center gap-2 hover:opacity-90 transition-all"
+              >
+                <Navigation size={16} /> Share with Location
               </button>
-              <button onClick={() => shareToWhatsApp(lastOrder)} className="w-full py-3 bg-blue-500 text-white font-black rounded-xl uppercase text-xs flex items-center justify-center gap-2">
-                <Share2 size={14} /> Share Bill Only
+              <button
+                type="button"
+                onClick={() => shareToWhatsApp(lastOrder)}
+                className="w-full py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-black rounded-2xl uppercase text-sm flex items-center justify-center gap-2 hover:opacity-90 transition-all"
+              >
+                <Share2 size={16} /> Share Bill Only
               </button>
-              <button onClick={() => { setShowModal(null); setLastOrder(null); }} className="w-full py-3 bg-white/5 text-white/60 font-black rounded-xl uppercase text-xs border border-white/5">
-                Close
+              <button
+                type="button"
+                onClick={() => {
+                  setShowModal(null);
+                  setLastOrder(null);
+                }}
+                className="w-full py-3 bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] text-white/60 font-black rounded-2xl uppercase text-sm border border-white/5 hover:border-white/10 transition-all"
+              >
+                Close Preview
               </button>
             </div>
           </div>
@@ -1082,63 +1732,254 @@ export default function App() {
 
       {/* --- REGISTER MODALS (Shop, Brand, Route) --- */}
       {['route', 'shop', 'brand'].includes(showModal) && (
-        <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-6 backdrop-blur-2xl">
-          <div className="bg-[#0f0f0f] w-full max-w-sm p-8 rounded-2xl border border-[#d4af37]/30 relative">
-            <button onClick={() => setShowModal(null)} className="absolute top-6 right-6 text-white/20"><X size={20}/></button>
-            <h3 className="text-center font-black text-[#d4af37] mb-6 uppercase text-xs tracking-widest">New {showModal}</h3>
+        <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-4 backdrop-blur-3xl">
+          <div className="bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] w-full max-w-sm p-6 rounded-3xl border border-[#d4af37]/30 relative shadow-2xl">
+            <button onClick={() => setShowModal(null)} className="absolute top-4 right-4 text-white/20 hover:text-white/40">
+              <X size={24}/>
+            </button>
+
+            <div className="text-center mb-6">
+              {showModal === 'route' && <MapPin size={36} className="text-[#d4af37] mx-auto mb-3" />}
+              {showModal === 'shop' && <Store size={36} className="text-[#d4af37] mx-auto mb-3" />}
+              {showModal === 'brand' && <Package size={36} className="text-[#d4af37] mx-auto mb-3" />}
+
+              <h3 className="font-black text-[#d4af37] mb-2 uppercase text-lg tracking-widest">
+                New {showModal.charAt(0).toUpperCase() + showModal.slice(1)}
+              </h3>
+              <p className="text-xs opacity-50">
+                {showModal === 'route' && 'Add new sales route'}
+                {showModal === 'shop' && 'Register new shop'}
+                {showModal === 'brand' && 'Add new product brand'}
+              </p>
+            </div>
+
             <form onSubmit={async (e) => {
-              e.preventDefault(); const f = e.target;
+              e.preventDefault();
+              const f = e.target;
+
+              if (!user) {
+                alert("Please login first!");
+                return;
+              }
+
               const payload = { userId: user.uid, timestamp: Date.now() };
-              if(showModal==='route') await addDoc(collection(db, 'routes'), { ...payload, name: f.name.value.toUpperCase() });
-              if(showModal==='shop') await addDoc(collection(db, 'shops'), { ...payload, name: f.name.value.toUpperCase(), area: f.area.value });
-              if(showModal==='brand') await addDoc(collection(db, 'brands'), { ...payload, name: f.name.value.toUpperCase(), size: f.size.value.toUpperCase(), price: parseFloat(f.price.value) });
-              setShowModal(null);
-            }} className="space-y-3">
-              <input name="name" placeholder={showModal === 'brand' ? "BRAND NAME" : showModal === 'shop' ? "SHOP NAME" : "ROUTE NAME"}
-                className="w-full bg-black/40 p-4 rounded-xl border border-white/5 text-white font-bold uppercase outline-none focus:border-[#d4af37]" required />
+
+              try {
+                if(showModal==='route') {
+                  await addDoc(collection(db, 'routes'), {
+                    ...payload,
+                    name: f.name.value.toUpperCase()
+                  });
+                  alert("✅ Route added successfully!");
+                }
+
+                if(showModal==='shop') {
+                  await addDoc(collection(db, 'shops'), {
+                    ...payload,
+                    name: f.name.value.toUpperCase(),
+                    area: f.area.value
+                  });
+                  alert("✅ Shop registered successfully!");
+                }
+
+                if(showModal==='brand') {
+                  await addDoc(collection(db, 'brands'), {
+                    ...payload,
+                    name: f.name.value.toUpperCase(),
+                    size: f.size.value.toUpperCase(),
+                    price: parseFloat(f.price.value)
+                  });
+                  alert("✅ Brand added successfully!");
+                }
+
+                setShowModal(null);
+              } catch (err) {
+                alert("Error: " + err.message);
+              }
+            }} className="space-y-4">
+
+              <input
+                name="name"
+                placeholder={
+                  showModal === 'brand' ? "BRAND NAME (e.g., COCA COLA)" :
+                  showModal === 'shop' ? "SHOP NAME (e.g., SUPERMARKET)" :
+                  "ROUTE NAME (e.g., COLOMBO CITY)"
+                }
+                className="w-full bg-black/40 p-4 rounded-xl border border-white/5 text-white font-bold uppercase outline-none focus:border-[#d4af37] transition-all"
+                required
+              />
 
               {showModal==='shop' && (
                 <div className="relative">
-                  <select name="area" className="w-full bg-black/40 p-4 rounded-xl border border-white/5 text-white font-bold uppercase outline-none appearance-none" required>
-                    <option value="">SELECT ROUTE</option>
-                    {data.routes.map(r => <option key={r.id} value={r.name}>{r.name}</option>)}
+                  <select
+                    name="area"
+                    className="w-full bg-black/40 p-4 rounded-xl border border-white/5 text-white font-bold uppercase outline-none appearance-none focus:border-[#d4af37] transition-all"
+                    required
+                  >
+                    <option value="">SELECT ROUTE AREA</option>
+                    {data.routes.map(r => (
+                      <option key={r.id} value={r.name}>{r.name}</option>
+                    ))}
                   </select>
-                  <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 opacity-30" size={16}/>
+                  <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 opacity-30" size={20}/>
                 </div>
               )}
 
               {showModal==='brand' && (
                 <>
-                  <input name="size" placeholder="SIZE (500ML, 1KG)"
-                    className="w-full bg-black/40 p-4 rounded-xl border border-white/5 text-white font-bold uppercase outline-none focus:border-[#d4af37]" required />
-                  <input name="price" type="number" step="0.01" placeholder="UNIT PRICE"
-                    className="w-full bg-black/40 p-4 rounded-xl border border-white/5 text-white font-bold outline-none focus:border-[#d4af37]" required />
+                  <input
+                    name="size"
+                    placeholder="SIZE (e.g., 500ML, 1KG, 2L)"
+                    className="w-full bg-black/40 p-4 rounded-xl border border-white/5 text-white font-bold uppercase outline-none focus:border-[#d4af37] transition-all"
+                    required
+                  />
+                  <input
+                    name="price"
+                    type="number"
+                    step="0.01"
+                    placeholder="UNIT PRICE (Rs.)"
+                    className="w-full bg-black/40 p-4 rounded-xl border border-white/5 text-white font-bold outline-none focus:border-[#d4af37] transition-all"
+                    required
+                  />
                 </>
               )}
 
-              <button className="w-full py-4 bg-[#d4af37] text-black font-black rounded-xl uppercase text-xs tracking-widest">
-                SAVE
+              <button type="submit" className="w-full py-4 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-2xl uppercase text-sm tracking-widest hover:opacity-90 transition-all">
+                SAVE {showModal.toUpperCase()}
               </button>
             </form>
           </div>
         </div>
       )}
 
+      {/* Custom Styles */}
       <style>{`
-        .animate-progress { animation: progress 2.5s ease-in-out; }
-        @keyframes progress { 0% { width: 0%; } 100% { width: 100%; } }
-        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        @keyframes progress {
+          0% { width: 0%; }
+          100% { width: 100%; }
+        }
+
+        .animate-progress {
+          animation: progress 2.5s ease-in-out;
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+          width: 4px;
+        }
+
+        ::-webkit-scrollbar-track {
+          background: rgba(255,255,255,0.05);
+          border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+          background: rgba(212, 175, 55, 0.5);
+          border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+          background: rgba(212, 175, 55, 0.8);
+        }
 
         /* Mobile Optimizations */
         @media (max-width: 640px) {
-          main { font-size: 0.8rem !important; padding: 0.75rem !important; }
-          h1 { font-size: 1.25rem !important; }
-          h2 { font-size: 1.1rem !important; }
-          h3 { font-size: 0.9rem !important; }
-          .text-xs { font-size: 0.7rem !important; }
-          .text-sm { font-size: 0.8rem !important; }
-          nav { bottom: 0.5rem !important; inset-x: 0.5rem !important; height: 4rem !important; }
-          header { padding: 0.75rem !important; }
+          main {
+            padding: 0.75rem !important;
+          }
+
+          header {
+            padding: 0.75rem !important;
+          }
+
+          nav {
+            bottom: 1rem !important;
+            inset-x: 1rem !important;
+            height: 4.5rem !important;
+            border-radius: 1.5rem !important;
+          }
+
+          h1 {
+            font-size: 1.2rem !important;
+          }
+
+          h2 {
+            font-size: 1.5rem !important;
+          }
+
+          h3 {
+            font-size: 1.1rem !important;
+          }
+
+          .text-xs {
+            font-size: 0.7rem !important;
+          }
+
+          .text-sm {
+            font-size: 0.8rem !important;
+          }
+
+          .text-base {
+            font-size: 0.9rem !important;
+          }
+
+          .fixed.inset-0 {
+            padding: 0.5rem !important;
+          }
+
+          .rounded-3xl {
+            border-radius: 1.5rem !important;
+          }
+
+          .p-8 {
+            padding: 1.5rem !important;
+          }
+        }
+
+        @media (max-width: 400px) {
+          nav {
+            bottom: 0.5rem !important;
+            inset-x: 0.5rem !important;
+            height: 4rem !important;
+          }
+
+          .grid-cols-4 {
+            grid-template-columns: repeat(2, 1fr) !important;
+          }
+
+          .grid-cols-2 {
+            grid-template-columns: 1fr !important;
+          }
+          
+          button, input, select, textarea {
+            font-size: 0.8rem !important;
+          }
+        }
+
+        /* Touch-friendly buttons */
+        button, input[type="button"], input[type="submit"] {
+          min-height: 44px;
+          min-width: 44px;
+        }
+
+        /* Prevent text selection on buttons */
+        button {
+          user-select: none;
+          -webkit-user-select: none;
+        }
+
+        /* Better touch feedback */
+        .transition-all {
+          transition: all 0.2s ease;
+        }
+
+        /* Prevent zoom on input focus on iOS */
+        @media screen and (-webkit-min-device-pixel-ratio:0) {
+          select,
+          textarea,
+          input {
+            font-size: 16px !important;
+          }
         }
       `}</style>
     </div>
