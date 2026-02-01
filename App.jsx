@@ -2294,135 +2294,165 @@ export default function App() {
       )}
 
       {/* Custom Styles */}
-      <style>{`
-        @keyframes progress {
-          0% { width: 0%; }
-          100% { width: 100%; }
-        }
+      {/* Custom Styles */}
+<style>{`
+  @keyframes progress {
+    0% { width: 0%; }
+    100% { width: 100%; }
+  }
 
-        .animate-progress {
-          animation: progress 2.5s ease-in-out;
-        }
+  .animate-progress {
+    animation: progress 2.5s ease-in-out;
+  }
 
-        /* Custom scrollbar */
-        ::-webkit-scrollbar {
-          width: 4px;
-        }
+  /* Font Family Fix - NEW */
+  * {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif !important;
+  }
 
-        ::-webkit-scrollbar-track {
-          background: rgba(255,255,255,0.05);
-          border-radius: 10px;
-        }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
 
-        ::-webkit-scrollbar-thumb {
-          background: rgba(212, 175, 55, 0.5);
-          border-radius: 10px;
-        }
+  input, button, select, textarea {
+    font-family: inherit !important;
+  }
 
-        ::-webkit-scrollbar-thumb:hover {
-          background: rgba(212, 175, 55, 0.8);
-        }
+  /* Search input specific fix */
+  input[type="text"], input[type="search"], input::placeholder {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.5px !important;
+  }
 
-        /* Mobile Optimizations */
-        @media (max-width: 640px) {
-          main {
-            padding: 0.75rem !important;
-          }
+  /* Fix for uppercase text */
+  .uppercase {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif !important;
+    font-weight: 900 !important;
+    letter-spacing: 1px !important;
+  }
 
-          header {
-            padding: 0.75rem !important;
-          }
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 4px;
+  }
 
-          nav {
-            bottom: 1rem !important;
-            inset-x: 1rem !important;
-            height: 4.5rem !important;
-            border-radius: 1.5rem !important;
-          }
+  ::-webkit-scrollbar-track {
+    background: rgba(255,255,255,0.05);
+    border-radius: 10px;
+  }
 
-          h1 {
-            font-size: 1.2rem !important;
-          }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(212, 175, 55, 0.5);
+    border-radius: 10px;
+  }
 
-          h2 {
-            font-size: 1.5rem !important;
-          }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(212, 175, 55, 0.8);
+  }
 
-          h3 {
-            font-size: 1.1rem !important;
-          }
+  /* Mobile Optimizations */
+  @media (max-width: 640px) {
+    main {
+      padding: 0.75rem !important;
+    }
 
-          .text-xs {
-            font-size: 0.7rem !important;
-          }
+    header {
+      padding: 0.75rem !important;
+    }
 
-          .text-sm {
-            font-size: 0.8rem !important;
-          }
+    nav {
+      bottom: 1rem !important;
+      inset-x: 1rem !important;
+      height: 4.5rem !important;
+      border-radius: 1.5rem !important;
+    }
 
-          .text-base {
-            font-size: 0.9rem !important;
-          }
+    h1 {
+      font-size: 1.2rem !important;
+    }
 
-          .fixed.inset-0 {
-            padding: 0.5rem !important;
-          }
+    h2 {
+      font-size: 1.5rem !important;
+    }
 
-          .rounded-3xl {
-            border-radius: 1.5rem !important;
-          }
+    h3 {
+      font-size: 1.1rem !important;
+    }
 
-          .p-8 {
-            padding: 1.5rem !important;
-          }
-        }
+    .text-xs {
+      font-size: 0.7rem !important;
+    }
 
-        @media (max-width: 400px) {
-          nav {
-            bottom: 0.5rem !important;
-            inset-x: 0.5rem !important;
-            height: 4rem !important;
-          }
+    .text-sm {
+      font-size: 0.8rem !important;
+    }
 
-          .grid-cols-4 {
-            grid-template-columns: repeat(2, 1fr) !important;
-          }
+    .text-base {
+      font-size: 0.9rem !important;
+    }
 
-          .grid-cols-2 {
-            grid-template-columns: 1fr !important;
-          }
+    .fixed.inset-0 {
+      padding: 0.5rem !important;
+    }
 
-          button, input, select, textarea {
-            font-size: 0.8rem !important;
-          }
-        }
+    .rounded-3xl {
+      border-radius: 1.5rem !important;
+    }
 
-        /* Touch-friendly buttons */
-        button, input[type="button"], input[type="submit"] {
-          min-height: 44px;
-          min-width: 44px;
-        }
+    .p-8 {
+      padding: 1.5rem !important;
+    }
+  }
 
-        /* Prevent text selection on buttons */
-        button {
-          user-select: none;
-          -webkit-user-select: none;
-        }
+  @media (max-width: 400px) {
+    nav {
+      bottom: 0.5rem !important;
+      inset-x: 0.5rem !important;
+      height: 4rem !important;
+    }
 
-        /* Better touch feedback */
-        .transition-all {
-          transition: all 0.2s ease;
-        }
+    .grid-cols-4 {
+      grid-template-columns: repeat(2, 1fr) !important;
+    }
 
-        /* Prevent zoom on input focus on iOS */
-        @media screen and (-webkit-min-device-pixel-ratio:0) {
-          select,
-          textarea,
-          input {
-            font-size: 16px !important;
-          }
-        }
-      `}</style>
+    .grid-cols-2 {
+      grid-template-columns: 1fr !important;
+    }
+
+    button, input, select, textarea {
+      font-size: 0.8rem !important;
+    }
+  }
+
+  /* Touch-friendly buttons */
+  button, input[type="button"], input[type="submit"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Prevent text selection on buttons */
+  button {
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  /* Better touch feedback */
+  .transition-all {
+    transition: all 0.2s ease;
+  }
+
+  /* Prevent zoom on input focus on iOS */
+  @media screen and (-webkit-min-device-pixel-ratio:0) {
+    select,
+    textarea,
+    input {
+      font-size: 16px !important;
+    }
+  }
+`}</style>
     </div>
   );
 }
