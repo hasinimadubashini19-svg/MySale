@@ -62,6 +62,9 @@ export default function App() {
   const [expenseNote, setExpenseNote] = useState('');
   const [repNote, setRepNote] = useState('');
   const [currentLocation, setCurrentLocation] = useState(null);
+  const [shopLocation, setShopLocation] = useState(null);
+  const [isSavingExpense, setIsSavingExpense] = useState(false);
+  const [isSavingNote, setIsSavingNote] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => setIsSplash(false), 2500);
@@ -97,7 +100,12 @@ export default function App() {
           addDoc(collection(db, 'locations'), {
             ...location,
             userId: user.uid,
-            date: new Date().toISOString().split('T')[0]
+            date: new Date().toISOString().split('T')[0],
+            type: 'user_location'
+          }).then(() => {
+            alert("Location saved successfully!");
+          }).catch(err => {
+            console.error("Error saving location:", err);
           });
         },
         (error) => {
@@ -127,6 +135,7 @@ export default function App() {
       return;
     }
 
+    setIsSavingExpense(true);
     try {
       await addDoc(collection(db, 'expenses'), {
         type: expenseType,
@@ -142,6 +151,8 @@ export default function App() {
       setShowModal(null);
     } catch (err) {
       alert("Error saving expense: " + err.message);
+    } finally {
+      setIsSavingExpense(false);
     }
   };
 
@@ -152,6 +163,7 @@ export default function App() {
       return;
     }
 
+    setIsSavingNote(true);
     try {
       await addDoc(collection(db, 'notes'), {
         text: repNote,
@@ -164,14 +176,16 @@ export default function App() {
       setShowModal(null);
     } catch (err) {
       alert("Error saving note: " + err.message);
+    } finally {
+      setIsSavingNote(false);
     }
   };
 
-  // NEW: Save manual order
+  // Save manual order
   const saveManualOrder = async () => {
     const validItems = manualItems.filter(item => item.name && item.qty > 0 && item.price > 0);
     if (!validItems.length) return alert("Please add at least one valid item!");
-    
+
     if (!selectedShop) return alert("Please select a shop first!");
 
     const orderData = {
@@ -200,6 +214,21 @@ export default function App() {
     }
   };
 
+  // Calculate total function for calculator
+  const calculateTotal = () => {
+    const subtotal = parseFloat(totalCalculation.subtotal) || 0;
+    const discount = parseFloat(totalCalculation.discount) || 0;
+    const tax = parseFloat(totalCalculation.tax) || 0;
+    const grandTotal = subtotal - discount + tax;
+    
+    setTotalCalculation(prev => ({
+      ...prev,
+      grandTotal: grandTotal
+    }));
+    
+    alert(`Grand Total: Rs.${grandTotal.toLocaleString()}`);
+  };
+
   const stats = useMemo(() => {
     const todayStr = new Date().toLocaleDateString();
     const currentMonth = new Date().getMonth();
@@ -208,16 +237,24 @@ export default function App() {
     const getStats = (list) => {
       const summary = {};
       let totalSales = 0;
+      let totalUnits = 0;
       list.forEach(o => {
         totalSales += o.total;
         o.items.forEach(i => {
+          totalUnits += i.qty;
           if (!summary[i.name]) summary[i.name] = { units: 0, rev: 0 };
           summary[i.name].units += i.qty;
           summary[i.name].rev += i.subtotal;
         });
       });
       const topBrand = Object.entries(summary).sort((a,b) => b[1].units - a[1].units)[0];
-      return { totalSales, summary: Object.entries(summary), topBrand: topBrand ? topBrand[0] : 'N/A' };
+      return { 
+        totalSales, 
+        totalUnits,
+        summary: Object.entries(summary), 
+        topBrand: topBrand ? topBrand[0] : 'N/A',
+        avgPrice: totalUnits > 0 ? totalSales / totalUnits : 0
+      };
     };
 
     const dailyOrders = data.orders.filter(o => o.dateString === todayStr);
@@ -269,14 +306,63 @@ export default function App() {
     }
   };
 
+  // Enhanced WhatsApp share with location
   const shareToWhatsApp = (order) => {
     let msg = `*${order.companyName} - INVOICE*\n`;
     msg += `--------------------------\n`;
     msg += `🏪 *Shop:* ${order.shopName}\n`;
-    msg += `📅 *Date:* ${new Date(order.timestamp).toLocaleString()}\n\n`;
-    msg += `*ITEMS:*\n`;
+    msg += `📅 *Date:* ${new Date(order.timestamp).toLocaleString()}\n`;
+    
+    // Add location if available
+    if (currentLocation) {
+      const mapsUrl = `https://www.google.com/maps?q=${currentLocation.lat},${currentLocation.lng}`;
+      msg += `📍 *Location:* ${mapsUrl}\n`;
+    }
+    
+    msg += `\n*ITEMS:*\n`;
     order.items.forEach(i => {
-      msg += `• ${i.name} (${i.qty} x ${i.price}) = *Rs.${i.subtotal.toLocaleString()}*\n`;
+      msg += `• ${i.name} (${i.qty} x Rs.${i.price}) = *Rs.${i.subtotal.toLocaleString()}*\n`;
+    });
+    msg += `\n--------------------------\n`;
+    msg += `💰 *TOTAL BILL: Rs.${order.total.toLocaleString()}*\n`;
+    msg += `--------------------------\n`;
+    msg += `_Generated by Monarch Pro_`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+  };
+
+  // Share location only
+  const shareLocation = () => {
+    if (!currentLocation) {
+      alert("Please get location first!");
+      return;
+    }
+    
+    const mapsUrl = `https://www.google.com/maps?q=${currentLocation.lat},${currentLocation.lng}`;
+    const msg = `📍 *My Current Location:*\n${mapsUrl}\n\n_Shared via Monarch Pro_`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+  };
+
+  // Share bill with location
+  const shareBillWithLocation = (order) => {
+    if (!currentLocation) {
+      if (!confirm("Location not available. Send bill without location?")) {
+        return;
+      }
+    }
+    
+    let msg = `*${order.companyName} - INVOICE*\n`;
+    msg += `--------------------------\n`;
+    msg += `🏪 *Shop:* ${order.shopName}\n`;
+    msg += `📅 *Date:* ${new Date(order.timestamp).toLocaleString()}\n`;
+    
+    if (currentLocation) {
+      const mapsUrl = `https://www.google.com/maps?q=${currentLocation.lat},${currentLocation.lng}`;
+      msg += `📍 *Delivery Location:* ${mapsUrl}\n`;
+    }
+    
+    msg += `\n*ITEMS:*\n`;
+    order.items.forEach(i => {
+      msg += `• ${i.name} (${i.qty} x Rs.${i.price}) = *Rs.${i.subtotal.toLocaleString()}*\n`;
     });
     msg += `\n--------------------------\n`;
     msg += `💰 *TOTAL BILL: Rs.${order.total.toLocaleString()}*\n`;
@@ -345,6 +431,9 @@ export default function App() {
           <button onClick={() => setShowModal('expense')} className="p-2 rounded-xl border border-white/10 bg-white/5 text-[#d4af37]">
             <CreditCard size={16}/>
           </button>
+          <button onClick={() => setShowTotalCalculator(true)} className="p-2 rounded-xl border border-white/10 bg-white/5 text-[#d4af37]">
+            <Calculator size={16}/>
+          </button>
           <button onClick={() => signOut(auth)} className="p-2 bg-red-500/10 text-red-500 rounded-xl border border-red-500/20">
             <LogOut size={16}/>
           </button>
@@ -398,9 +487,13 @@ export default function App() {
                       <p className="text-base font-black text-white mt-1">Rs.{stats.monthly.totalSales.toLocaleString()}</p>
                    </div>
                    <div className="bg-black/20 p-3 rounded-xl border border-white/5">
-                      <p className="text-[9px] font-black opacity-40 uppercase">Top Brand</p>
-                      <p className="text-base font-black text-[#d4af37] mt-1">{stats.monthly.topBrand}</p>
+                      <p className="text-[9px] font-black opacity-40 uppercase">Total Units</p>
+                      <p className="text-base font-black text-[#d4af37] mt-1">{stats.monthly.totalUnits || 0}</p>
                    </div>
+                </div>
+                <div className="mt-4">
+                  <p className="text-[9px] font-black opacity-30 uppercase tracking-widest mb-2">Average Price per Unit</p>
+                  <p className="text-lg font-black text-white">Rs.{stats.monthly.avgPrice.toFixed(2)}</p>
                 </div>
             </div>
 
@@ -414,7 +507,10 @@ export default function App() {
                           <p className="text-xs font-black uppercase tracking-tight">{name}</p>
                           <p className="text-[10px] opacity-40 font-bold italic">{s.units} UNITS</p>
                         </div>
-                        <span className="font-black text-sm tabular-nums text-[#d4af37]">Rs.{s.rev.toLocaleString()}</span>
+                        <div className="text-right">
+                          <span className="font-black text-sm tabular-nums text-[#d4af37]">Rs.{s.rev.toLocaleString()}</span>
+                          <p className="text-[9px] opacity-40">Avg: Rs.{(s.units > 0 ? s.rev / s.units : 0).toFixed(2)}</p>
+                        </div>
                     </div>
                   ))}
                   {stats.daily.summary.length === 0 && <p className="text-xs opacity-30 italic text-center py-3">No sales today yet</p>}
@@ -479,16 +575,22 @@ export default function App() {
                   <div>
                     <h4 className="text-xs font-black uppercase text-[#d4af37]">{o.shopName}</h4>
                     <p className="text-[10px] opacity-40 font-black uppercase">{o.companyName}</p>
+                    {o.isManual && <span className="text-[8px] bg-green-500/20 text-green-500 px-2 py-1 rounded-full">MANUAL</span>}
                   </div>
                   <div className="flex gap-1">
-                    <button onClick={() => shareToWhatsApp(o)} className="text-[#d4af37] p-1"><Share2 size={16}/></button>
+                    <button onClick={() => shareBillWithLocation(o)} className="text-[#d4af37] p-1" title="Share with Location">
+                      <Navigation size={16}/>
+                    </button>
+                    <button onClick={() => shareToWhatsApp(o)} className="text-[#d4af37] p-1" title="Share Bill">
+                      <Share2 size={16}/>
+                    </button>
                     <button onClick={async () => { if(window.confirm('Delete Bill?')) await deleteDoc(doc(db, 'orders', o.id)) }} className="text-red-500/20 hover:text-red-500 p-1"><Trash2 size={16}/></button>
                   </div>
                 </div>
                 <div className="space-y-1 border-y border-white/5 py-3 my-3">
                   {o.items.map((i, k) => (
                     <div key={k} className="flex justify-between text-xs uppercase font-bold">
-                      <span className="opacity-50">{i.name} x {i.qty}</span>
+                      <span className="opacity-50">{i.name} x {i.qty} @ Rs.{i.price}</span>
                       <span>Rs.{i.subtotal.toLocaleString()}</span>
                     </div>
                   ))}
@@ -659,9 +761,10 @@ export default function App() {
 
               <button
                 onClick={saveExpense}
-                className="w-full py-4 bg-[#d4af37] text-black font-black rounded-xl uppercase text-xs tracking-widest"
+                disabled={isSavingExpense}
+                className={`w-full py-4 ${isSavingExpense ? 'bg-gray-600' : 'bg-[#d4af37]'} text-black font-black rounded-xl uppercase text-xs tracking-widest`}
               >
-                SAVE EXPENSE
+                {isSavingExpense ? 'SAVING...' : 'SAVE EXPENSE'}
               </button>
             </div>
           </div>
@@ -685,9 +788,69 @@ export default function App() {
 
               <button
                 onClick={saveNote}
+                disabled={isSavingNote}
+                className={`w-full py-4 ${isSavingNote ? 'bg-gray-600' : 'bg-[#d4af37]'} text-black font-black rounded-xl uppercase text-xs tracking-widest`}
+              >
+                {isSavingNote ? 'SAVING...' : 'SAVE NOTE'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- TOTAL CALCULATOR MODAL --- */}
+      {showTotalCalculator && (
+        <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-6 backdrop-blur-2xl">
+          <div className="bg-[#0f0f0f] w-full max-w-sm p-8 rounded-2xl border border-[#d4af37]/30 relative">
+            <button onClick={() => setShowTotalCalculator(false)} className="absolute top-6 right-6 text-white/20"><X size={20}/></button>
+            <h3 className="text-center font-black text-[#d4af37] mb-6 uppercase text-xs tracking-widest">TOTAL CALCULATOR</h3>
+            
+            <div className="space-y-4">
+              <div>
+                <p className="text-xs font-black uppercase opacity-40 mb-1">Subtotal (Rs.)</p>
+                <input
+                  type="number"
+                  value={totalCalculation.subtotal}
+                  onChange={(e) => setTotalCalculation({...totalCalculation, subtotal: parseFloat(e.target.value) || 0})}
+                  placeholder="0.00"
+                  className="w-full bg-black/40 p-4 rounded-xl border border-white/5 text-white font-bold text-center outline-none text-lg"
+                />
+              </div>
+              
+              <div>
+                <p className="text-xs font-black uppercase opacity-40 mb-1">Discount (Rs.)</p>
+                <input
+                  type="number"
+                  value={totalCalculation.discount}
+                  onChange={(e) => setTotalCalculation({...totalCalculation, discount: parseFloat(e.target.value) || 0})}
+                  placeholder="0.00"
+                  className="w-full bg-black/40 p-4 rounded-xl border border-white/5 text-white font-bold text-center outline-none"
+                />
+              </div>
+              
+              <div>
+                <p className="text-xs font-black uppercase opacity-40 mb-1">Tax (Rs.)</p>
+                <input
+                  type="number"
+                  value={totalCalculation.tax}
+                  onChange={(e) => setTotalCalculation({...totalCalculation, tax: parseFloat(e.target.value) || 0})}
+                  placeholder="0.00"
+                  className="w-full bg-black/40 p-4 rounded-xl border border-white/5 text-white font-bold text-center outline-none"
+                />
+              </div>
+              
+              <div className="bg-black/60 p-4 rounded-xl border border-[#d4af37]/30">
+                <p className="text-xs font-black uppercase opacity-60 mb-2">GRAND TOTAL</p>
+                <p className="text-2xl font-black text-[#d4af37] text-center">
+                  Rs.{(totalCalculation.subtotal - totalCalculation.discount + totalCalculation.tax).toLocaleString()}
+                </p>
+              </div>
+              
+              <button 
+                onClick={calculateTotal}
                 className="w-full py-4 bg-[#d4af37] text-black font-black rounded-xl uppercase text-xs tracking-widest"
               >
-                SAVE NOTE
+                CALCULATE
               </button>
             </div>
           </div>
@@ -769,7 +932,7 @@ export default function App() {
             {/* Shop Selection */}
             <div className="mb-6">
               <p className="text-xs font-black uppercase opacity-60 mb-2">Select Shop</p>
-              <select 
+              <select
                 className="w-full bg-[#0f0f0f] p-4 rounded-xl border border-white/5 text-white font-bold uppercase outline-none"
                 onChange={(e) => {
                   const shopId = e.target.value;
@@ -792,7 +955,7 @@ export default function App() {
                   <Plus size={14}/> ADD ITEM
                 </button>
               </div>
-              
+
               {manualItems.map((item, index) => (
                 <div key={index} className="bg-[#0f0f0f] p-4 rounded-xl border border-white/5 space-y-3">
                   <div className="flex justify-between items-center">
@@ -803,7 +966,7 @@ export default function App() {
                       </button>
                     )}
                   </div>
-                  
+
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <p className="text-[10px] font-black uppercase opacity-40 mb-1">Item Name</p>
@@ -814,7 +977,7 @@ export default function App() {
                         className="w-full bg-black/40 p-3 rounded-lg border border-white/5 text-white font-bold uppercase outline-none text-xs"
                       />
                     </div>
-                    
+
                     <div>
                       <p className="text-[10px] font-black uppercase opacity-40 mb-1">Quantity</p>
                       <input
@@ -824,7 +987,7 @@ export default function App() {
                         className="w-full bg-black/40 p-3 rounded-lg border border-white/5 text-white font-bold text-center outline-none text-xs"
                       />
                     </div>
-                    
+
                     <div>
                       <p className="text-[10px] font-black uppercase opacity-40 mb-1">Unit Price</p>
                       <input
@@ -835,7 +998,7 @@ export default function App() {
                         className="w-full bg-black/40 p-3 rounded-lg border border-white/5 text-white font-bold text-center outline-none text-xs"
                       />
                     </div>
-                    
+
                     <div>
                       <p className="text-[10px] font-black uppercase opacity-40 mb-1">Subtotal</p>
                       <div className="w-full bg-black/40 p-3 rounded-lg border border-white/5 text-center">
@@ -862,7 +1025,7 @@ export default function App() {
                     </p>
                   </div>
                 </div>
-                <button 
+                <button
                   onClick={saveManualOrder}
                   disabled={!selectedShop}
                   className={`w-full py-4 font-black rounded-xl uppercase tracking-widest text-xs ${selectedShop ? 'bg-[#d4af37] text-black' : 'bg-gray-700 text-gray-400'}`}
@@ -891,7 +1054,7 @@ export default function App() {
                 <div className="space-y-2">
                    {lastOrder.items.map((it, idx) => (
                        <div key={idx} className="flex justify-between items-center text-xs uppercase font-bold">
-                           <span className="text-white/60">{it.name} <span className="text-white">x{it.qty}</span></span>
+                           <span className="text-white/60">{it.name} <span className="text-white">x{it.qty} @ Rs.{it.price}</span></span>
                            <span className="text-white">Rs.{it.subtotal.toLocaleString()}</span>
                        </div>
                    ))}
@@ -903,8 +1066,11 @@ export default function App() {
             </div>
 
             <div className="space-y-2">
-              <button onClick={() => shareToWhatsApp(lastOrder)} className="w-full py-3 bg-[#25D366] text-white font-black rounded-xl uppercase text-xs flex items-center justify-center gap-2">
-                <Share2 size={14} /> Share to WhatsApp
+              <button onClick={() => shareBillWithLocation(lastOrder)} className="w-full py-3 bg-[#25D366] text-white font-black rounded-xl uppercase text-xs flex items-center justify-center gap-2">
+                <Navigation size={14} /> Share with Location
+              </button>
+              <button onClick={() => shareToWhatsApp(lastOrder)} className="w-full py-3 bg-blue-500 text-white font-black rounded-xl uppercase text-xs flex items-center justify-center gap-2">
+                <Share2 size={14} /> Share Bill Only
               </button>
               <button onClick={() => { setShowModal(null); setLastOrder(null); }} className="w-full py-3 bg-white/5 text-white/60 font-black rounded-xl uppercase text-xs border border-white/5">
                 Close
