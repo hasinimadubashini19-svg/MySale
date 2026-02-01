@@ -7,7 +7,8 @@ import {
   MapPin, Package, History, Calendar, Sun, Moon, Save, Star, Search,
   CheckCircle2, ChevronDown, Share2, TrendingUp, Edit2, Calculator,
   ShoppingBag, DollarSign, Fuel, FileText, Navigation, AlertCircle,
-  CreditCard, Coffee, Target, Percent, BarChart3, Hash, Package2
+  CreditCard, Coffee, Target, Percent, BarChart3, Hash, Package2,
+  BookOpen, Filter, Eye, Clock
 } from 'lucide-react';
 
 // --- FIREBASE CONFIG ---
@@ -51,6 +52,7 @@ export default function App() {
   const [selectedShop, setSelectedShop] = useState(null);
   const [showModal, setShowModal] = useState(null);
   const [searchDate, setSearchDate] = useState(new Date().toISOString().split('T')[0]);
+  const [noteSearchDate, setNoteSearchDate] = useState(new Date().toISOString().split('T')[0]);
   const [lastOrder, setLastOrder] = useState(null);
   const [isRegisterMode, setIsRegisterMode] = useState(false);
   const [shopSearch, setShopSearch] = useState('');
@@ -72,6 +74,7 @@ export default function App() {
   const [isSavingNote, setIsSavingNote] = useState(false);
   const [showCalculator, setShowCalculator] = useState(false);
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+  const [showAllMonthlyBrands, setShowAllMonthlyBrands] = useState(false);
 
   // Toast Notification
   const showToast = (message, type = 'success') => {
@@ -364,9 +367,9 @@ export default function App() {
             const qty = i.qty || 0;
             const price = i.price || 0;
             const subtotal = i.subtotal || 0;
-            
-            const itemName = i.name.split('(')[0].trim(); // Extract only brand name without size
-            
+
+            const itemName = i.name.split('(')[0].trim();
+
             totalUnits += qty;
 
             if (!summary[itemName]) {
@@ -385,24 +388,30 @@ export default function App() {
       // Sort by units sold (most to least)
       const sortedByUnits = Object.entries(summary).sort((a, b) => b[1].units - a[1].units);
       const topBrandByUnits = sortedByUnits[0];
-      
+
       // Sort by revenue (most to least)
       const sortedByRevenue = Object.entries(summary).sort((a, b) => b[1].revenue - a[1].revenue);
       const topBrandByRevenue = sortedByRevenue[0];
 
-      return {
-        totalSales,
-        totalUnits,
-        summary: Object.entries(summary).map(([name, data]) => ({
+      // Get all brands sorted by revenue
+      const allBrandsSorted = Object.entries(summary)
+        .map(([name, data]) => ({
           name,
           units: data.units,
           revenue: data.revenue,
           avgPrice: data.units > 0 ? data.revenue / data.units : 0
-        })),
+        }))
+        .sort((a, b) => b.revenue - a.revenue);
+
+      return {
+        totalSales,
+        totalUnits,
+        summary: allBrandsSorted,
         topBrand: topBrandByUnits ? topBrandByUnits[0] : 'N/A',
         topBrandUnits: topBrandByUnits ? topBrandByUnits[1].units : 0,
         topBrandRevenue: topBrandByRevenue ? topBrandByRevenue[1].revenue : 0,
-        avgPrice: totalUnits > 0 ? totalSales / totalUnits : 0
+        avgPrice: totalUnits > 0 ? totalSales / totalUnits : 0,
+        allBrands: allBrandsSorted
       };
     };
 
@@ -432,7 +441,8 @@ export default function App() {
       daily: getStats(dailyOrders),
       monthly: getStats(monthlyOrders),
       expenses: totalExpenses,
-      notes: todayNotes.length
+      notes: todayNotes.length,
+      todayExpenses: todayExpenses
     };
   }, [data.orders, data.expenses, data.notes]);
 
@@ -449,6 +459,17 @@ export default function App() {
       return matchesSearch && matchesRoute;
     });
   }, [data.shops, shopSearch, selectedRouteFilter]);
+
+  // Filter Notes by Date
+  const filteredNotes = useMemo(() => {
+    return data.notes.filter(note => {
+      try {
+        return note.date === noteSearchDate;
+      } catch {
+        return false;
+      }
+    });
+  }, [data.notes, noteSearchDate]);
 
   // Manual Items Handlers
   const addManualItem = () => {
@@ -611,6 +632,18 @@ export default function App() {
     }
   };
 
+  // Delete Note
+  const deleteNote = async (noteId) => {
+    if (window.confirm('Are you sure you want to delete this note?')) {
+      try {
+        await deleteDoc(doc(db, 'notes', noteId));
+        showToast("Note deleted successfully!", "success");
+      } catch (err) {
+        showToast("Error deleting note: " + err.message, "error");
+      }
+    }
+  };
+
   // --- RENDER ---
 
   // Splash Screen
@@ -769,8 +802,8 @@ export default function App() {
               <button
                 onClick={() => setShowModal('expense')}
                 className={`p-4 rounded-xl border flex flex-col items-center gap-2 hover:scale-[1.02] transition-all ${
-                  isDarkMode 
-                    ? "bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5 text-white" 
+                  isDarkMode
+                    ? "bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5 text-white"
                     : "bg-white border-gray-200 text-gray-800 shadow-sm"
                 }`}
               >
@@ -780,8 +813,8 @@ export default function App() {
               <button
                 onClick={getLocation}
                 className={`p-4 rounded-xl border flex flex-col items-center gap-2 hover:scale-[1.02] transition-all ${
-                  isDarkMode 
-                    ? "bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5 text-white" 
+                  isDarkMode
+                    ? "bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5 text-white"
                     : "bg-white border-gray-200 text-gray-800 shadow-sm"
                 }`}
               >
@@ -791,8 +824,8 @@ export default function App() {
               <button
                 onClick={() => setShowModal('note')}
                 className={`p-4 rounded-xl border flex flex-col items-center gap-2 hover:scale-[1.02] transition-all ${
-                  isDarkMode 
-                    ? "bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5 text-white" 
+                  isDarkMode
+                    ? "bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5 text-white"
                     : "bg-white border-gray-200 text-gray-800 shadow-sm"
                 }`}
               >
@@ -802,8 +835,8 @@ export default function App() {
               <button
                 onClick={() => setShowCalculator(true)}
                 className={`p-4 rounded-xl border flex flex-col items-center gap-2 hover:scale-[1.02] transition-all ${
-                  isDarkMode 
-                    ? "bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5 text-white" 
+                  isDarkMode
+                    ? "bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5 text-white"
                     : "bg-white border-gray-200 text-gray-800 shadow-sm"
                 }`}
               >
@@ -812,10 +845,10 @@ export default function App() {
               </button>
             </div>
 
-            {/* Monthly Performance */}
+            {/* Monthly Performance - ENHANCED */}
             <div className={`p-6 rounded-2xl border shadow-xl ${
-              isDarkMode 
-                ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/10" 
+              isDarkMode
+                ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/10"
                 : "bg-white border-gray-200 shadow-lg"
             }`}>
               <div className="flex items-center justify-between mb-6">
@@ -828,16 +861,16 @@ export default function App() {
 
               <div className="grid grid-cols-2 gap-4 mb-6">
                 <div className={`p-4 rounded-xl border ${
-                  isDarkMode 
-                    ? "bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5" 
+                  isDarkMode
+                    ? "bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5"
                     : "bg-gray-50 border-gray-100"
                 }`}>
                   <p className="text-[10px] font-black uppercase mb-2" style={{ color: isDarkMode ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)' }}>Revenue</p>
                   <p className="text-xl font-black" style={{ color: isDarkMode ? 'white' : 'black' }}>Rs.{stats.monthly.totalSales.toLocaleString()}</p>
                 </div>
                 <div className={`p-4 rounded-xl border ${
-                  isDarkMode 
-                    ? "bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5" 
+                  isDarkMode
+                    ? "bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5"
                     : "bg-gray-50 border-gray-100"
                 }`}>
                   <p className="text-[10px] font-black uppercase mb-2" style={{ color: isDarkMode ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)' }}>Total Units</p>
@@ -845,18 +878,33 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Monthly Top Brand - FIXED */}
+              {/* Monthly Top Brand Section - IMPROVED */}
               <div className="mb-6">
-                <p className="text-[10px] font-black uppercase mb-3" style={{ color: isDarkMode ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)' }}>Monthly Top Brand</p>
-                <div className={`p-4 rounded-xl border ${
-                  isDarkMode 
-                    ? "bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5" 
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-[10px] font-black uppercase" style={{ color: isDarkMode ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)' }}>Monthly Top Brands</p>
+                  <button
+                    onClick={() => setShowAllMonthlyBrands(!showAllMonthlyBrands)}
+                    className="text-[#d4af37] text-[10px] font-black uppercase"
+                  >
+                    {showAllMonthlyBrands ? 'Show Less' : 'Show All'}
+                  </button>
+                </div>
+
+                {/* Top Brand Highlight */}
+                <div className={`p-4 rounded-xl border mb-3 ${
+                  isDarkMode
+                    ? "bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5"
                     : "bg-gray-50 border-gray-100"
                 }`}>
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-black uppercase" style={{ color: isDarkMode ? 'white' : 'black' }}>{stats.monthly.topBrand}</p>
-                      <div className="flex items-center gap-4 mt-2">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Target size={16} className="text-[#d4af37]" />
+                        <p className="text-sm font-black uppercase" style={{ color: isDarkMode ? 'white' : 'black' }}>
+                          {stats.monthly.topBrand || 'N/A'}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-4">
                         <div className="flex items-center gap-1">
                           <Package2 size={12} style={{ opacity: 0.5 }} />
                           <span className="text-xs" style={{ opacity: 0.7, color: isDarkMode ? 'white' : 'black' }}>
@@ -871,9 +919,60 @@ export default function App() {
                         </div>
                       </div>
                     </div>
-                    <Target size={24} className="text-[#d4af37]" />
+                    <div className="text-right">
+                      <p className="text-xs opacity-50 mb-1">Revenue Share</p>
+                      <p className="text-lg font-black text-[#d4af37]">
+                        {stats.monthly.totalSales > 0 ? 
+                          ((stats.monthly.topBrandRevenue / stats.monthly.totalSales) * 100).toFixed(1) : 0}%
+                      </p>
+                    </div>
                   </div>
                 </div>
+
+                {/* Show All Brands Performance */}
+                {showAllMonthlyBrands && stats.monthly.allBrands.length > 0 && (
+                  <div className="space-y-3 mt-4">
+                    <p className="text-[10px] font-black uppercase opacity-60">All Brands Performance</p>
+                    {stats.monthly.allBrands.map((brand, index) => (
+                      <div key={index} className={`p-3 rounded-xl border flex justify-between items-center ${
+                        isDarkMode
+                          ? "bg-black/40 border-white/5"
+                          : "bg-gray-50/50 border-gray-100"
+                      }`}>
+                        <div className="flex items-center gap-3">
+                          <div className={`w-6 h-6 rounded-md flex items-center justify-center ${
+                            isDarkMode ? "bg-white/10" : "bg-gray-200"
+                          }`}>
+                            <span className="text-xs font-black">{index + 1}</span>
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold" style={{ color: isDarkMode ? 'white' : 'black' }}>
+                              {brand.name}
+                            </p>
+                            <div className="flex items-center gap-3 mt-1">
+                              <span className="text-xs opacity-50">{brand.units} units</span>
+                              <span className="text-xs opacity-50">Rs.{brand.avgPrice.toFixed(2)}/unit</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-black text-[#d4af37]">Rs.{brand.revenue.toLocaleString()}</p>
+                          <p className="text-xs opacity-50 mt-1">
+                            {stats.monthly.totalSales > 0 ? 
+                              ((brand.revenue / stats.monthly.totalSales) * 100).toFixed(1) : 0}%
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {stats.monthly.allBrands.length === 0 && (
+                  <div className="text-center py-6">
+                    <Package2 size={40} className="mx-auto opacity-20 mb-3" />
+                    <p className="text-sm opacity-30 italic">No monthly sales data available</p>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -890,8 +989,8 @@ export default function App() {
 
             {/* Today's Sales - FIXED */}
             <div className={`p-6 rounded-2xl border shadow-xl ${
-              isDarkMode 
-                ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/10" 
+              isDarkMode
+                ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/10"
                 : "bg-white border-gray-200 shadow-lg"
             }`}>
               <div className="flex items-center justify-between mb-6">
@@ -905,8 +1004,8 @@ export default function App() {
               <div className="space-y-3">
                 {stats.daily.summary.map((item, index) => (
                   <div key={index} className={`p-4 rounded-xl border flex justify-between items-center transition-all ${
-                    isDarkMode 
-                      ? "bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5 hover:border-[#d4af37]/30" 
+                    isDarkMode
+                      ? "bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5 hover:border-[#d4af37]/30"
                       : "bg-gray-50 border-gray-100 hover:border-[#d4af37]"
                   }`}>
                     <div className="flex-1">
@@ -936,6 +1035,59 @@ export default function App() {
                 )}
               </div>
             </div>
+
+            {/* Today's Expenses Breakdown */}
+            {stats.todayExpenses.length > 0 && (
+              <div className={`p-6 rounded-2xl border shadow-xl ${
+                isDarkMode
+                  ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/10"
+                  : "bg-white border-gray-200 shadow-lg"
+              }`}>
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h3 className="text-sm font-black text-[#d4af37] uppercase tracking-widest">Today's Expenses</h3>
+                    <p className="text-[10px] opacity-50 mt-1">Breakdown by Category</p>
+                  </div>
+                  <CreditCard size={18} className="text-[#d4af37] opacity-60" />
+                </div>
+
+                <div className="space-y-3">
+                  {Object.entries(
+                    stats.todayExpenses.reduce((acc, expense) => {
+                      const type = expense.type || 'other';
+                      if (!acc[type]) acc[type] = 0;
+                      acc[type] += expense.amount || 0;
+                      return acc;
+                    }, {})
+                  ).map(([type, amount], index) => (
+                    <div key={index} className={`p-4 rounded-xl border flex justify-between items-center transition-all ${
+                      isDarkMode
+                        ? "bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5 hover:border-red-500/30"
+                        : "bg-gray-50 border-gray-100 hover:border-red-500"
+                    }`}>
+                      <div className="flex items-center gap-3">
+                        {type === 'fuel' && <Fuel size={18} className="text-red-500" />}
+                        {type === 'food' && <Coffee size={18} className="text-amber-500" />}
+                        {type === 'transport' && <Navigation size={18} className="text-blue-500" />}
+                        {type === 'other' && <AlertCircle size={18} className="text-gray-500" />}
+                        <div>
+                          <p className="text-sm font-black uppercase" style={{ color: isDarkMode ? 'white' : 'black' }}>
+                            {type.charAt(0).toUpperCase() + type.slice(1)}
+                          </p>
+                          <p className="text-[10px] opacity-50 mt-1">
+                            {stats.todayExpenses.filter(e => e.type === type).length} entries
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-black text-lg tabular-nums text-red-500">Rs.{amount.toLocaleString()}</p>
+                        <p className="text-[9px] opacity-50" style={{ color: isDarkMode ? 'white' : 'black' }}>Total</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -944,8 +1096,8 @@ export default function App() {
           <div className="space-y-4">
             <div className="space-y-3">
               <div className={`p-4 rounded-2xl border flex items-center gap-3 ${
-                isDarkMode 
-                  ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/10" 
+                isDarkMode
+                  ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/10"
                   : "bg-white border-gray-200 shadow-sm"
               }`}>
                 <Search size={18} className="opacity-30"/>
@@ -962,8 +1114,8 @@ export default function App() {
                 <button
                   onClick={() => setSelectedRouteFilter('ALL')}
                   className={`px-5 py-2.5 rounded-full text-xs font-black uppercase transition-all whitespace-nowrap border ${
-                    selectedRouteFilter === 'ALL' 
-                      ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black border-[#d4af37]' 
+                    selectedRouteFilter === 'ALL'
+                      ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black border-[#d4af37]'
                       : isDarkMode
                         ? 'bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/10 text-white/60'
                         : 'bg-gray-100 border-gray-200 text-gray-600'
@@ -976,8 +1128,8 @@ export default function App() {
                     key={r.id}
                     onClick={() => setSelectedRouteFilter(r.name)}
                     className={`px-5 py-2.5 rounded-full text-xs font-black uppercase transition-all whitespace-nowrap border ${
-                      selectedRouteFilter === r.name 
-                        ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black border-[#d4af37]' 
+                      selectedRouteFilter === r.name
+                        ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black border-[#d4af37]'
                         : isDarkMode
                           ? 'bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/10 text-white/60'
                           : 'bg-gray-100 border-gray-200 text-gray-600'
@@ -1017,8 +1169,8 @@ export default function App() {
                 <div
                   key={s.id}
                   className={`p-5 rounded-2xl border flex justify-between items-center transition-all ${
-                    isDarkMode 
-                      ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/5 hover:border-[#d4af37]/30" 
+                    isDarkMode
+                      ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/5 hover:border-[#d4af37]/30"
                       : "bg-white border-gray-200 shadow-sm hover:border-[#d4af37] hover:shadow-md"
                   }`}
                 >
@@ -1071,8 +1223,8 @@ export default function App() {
         {activeTab === 'history' && (
           <div className="space-y-4">
             <div className={`p-5 rounded-2xl border flex items-center gap-4 ${
-              isDarkMode 
-                ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/10" 
+              isDarkMode
+                ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/10"
                 : "bg-white border-gray-200 shadow-sm"
             }`}>
               <Calendar size={20} className="text-[#d4af37]"/>
@@ -1098,8 +1250,8 @@ export default function App() {
               <div
                 key={o.id}
                 className={`p-6 rounded-2xl border ${
-                  isDarkMode 
-                    ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/5 shadow-xl" 
+                  isDarkMode
+                    ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/5 shadow-xl"
                     : "bg-white border-gray-200 shadow-lg"
                 }`}
               >
@@ -1188,6 +1340,91 @@ export default function App() {
           </div>
         )}
 
+        {/* NEW NOTES TAB */}
+        {activeTab === 'notes' && (
+          <div className="space-y-4">
+            <div className={`p-5 rounded-2xl border flex items-center gap-4 ${
+              isDarkMode
+                ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/10"
+                : "bg-white border-gray-200 shadow-sm"
+            }`}>
+              <Calendar size={20} className="text-[#d4af37]"/>
+              <input
+                type="date"
+                className="bg-transparent text-sm font-black uppercase outline-none w-full"
+                onChange={(e) => setNoteSearchDate(e.target.value)}
+                value={noteSearchDate}
+                style={{ color: isDarkMode ? 'white' : 'black' }}
+              />
+              <button
+                onClick={() => setShowModal('note')}
+                className="bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black px-4 py-2.5 rounded-xl text-sm font-black uppercase shadow-lg hover:opacity-90 transition-all"
+              >
+                Add Note
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {filteredNotes.map((note) => (
+                <div
+                  key={note.id}
+                  className={`p-6 rounded-2xl border ${
+                    isDarkMode
+                      ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/5 shadow-xl"
+                      : "bg-white border-gray-200 shadow-lg"
+                  }`}
+                >
+                  <div className="flex justify-between items-start mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2.5 bg-gradient-to-br from-blue-500/10 to-blue-600/10 rounded-lg text-blue-500 border border-blue-500/20">
+                        <BookOpen size={18}/>
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <Clock size={12} className="opacity-50"/>
+                          <span className="text-xs opacity-60">
+                            {new Date(note.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                          </span>
+                        </div>
+                        <p className="text-xs opacity-40 mt-1">{note.date}</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => deleteNote(note.id)}
+                      className={`p-2 rounded-lg transition-all ${
+                        isDarkMode
+                          ? 'text-red-500/30 hover:text-red-500 hover:bg-red-500/10'
+                          : 'text-red-400 hover:text-red-600 hover:bg-red-50'
+                      }`}
+                    >
+                      <Trash2 size={16}/>
+                    </button>
+                  </div>
+
+                  <div className="mt-4">
+                    <p className="text-sm leading-relaxed" style={{ color: isDarkMode ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.8)' }}>
+                      {note.text}
+                    </p>
+                  </div>
+                </div>
+              ))}
+
+              {filteredNotes.length === 0 && (
+                <div className="text-center py-12">
+                  <BookOpen size={50} className="mx-auto opacity-20 mb-4" />
+                  <p className="text-sm opacity-30 italic">No notes found for this date</p>
+                  <button
+                    onClick={() => setShowModal('note')}
+                    className="mt-4 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black px-6 py-3 rounded-xl text-sm font-black uppercase shadow-lg hover:opacity-90 transition-all"
+                  >
+                    Add Your First Note
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Settings Tab */}
         {activeTab === 'settings' && (
           <div className="space-y-6 pb-20">
@@ -1195,8 +1432,8 @@ export default function App() {
             <form
               onSubmit={handleSaveProfile}
               className={`p-6 rounded-2xl border space-y-5 ${
-                isDarkMode 
-                  ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/10 shadow-xl" 
+                isDarkMode
+                  ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/10 shadow-xl"
                   : "bg-white border-gray-200 shadow-lg"
               }`}
             >
@@ -1400,33 +1637,34 @@ export default function App() {
         )}
       </main>
 
-      {/* Bottom Navigation */}
+      {/* Bottom Navigation - UPDATED WITH NOTES TAB */}
       <nav className={`fixed bottom-8 inset-x-8 h-20 rounded-2xl border flex items-center justify-around z-50 shadow-2xl ${
-        isDarkMode 
-          ? "bg-gradient-to-br from-black/95 to-gray-900/95 border-white/10 backdrop-blur-xl" 
+        isDarkMode
+          ? "bg-gradient-to-br from-black/95 to-gray-900/95 border-white/10 backdrop-blur-xl"
           : "bg-white/95 border-gray-200 backdrop-blur-xl shadow-lg"
       }`}>
         {[
           {id: 'dashboard', icon: LayoutDashboard, label: 'Home'},
           {id: 'shops', icon: Store, label: 'Shops'},
           {id: 'history', icon: History, label: 'History'},
+          {id: 'notes', icon: BookOpen, label: 'Notes'},
           {id: 'settings', icon: Settings, label: 'More'}
         ].map(t => (
           <button
             key={t.id}
             onClick={() => setActiveTab(t.id)}
             className={`p-4 transition-all relative flex flex-col items-center ${
-              activeTab === t.id 
-                ? 'text-[#d4af37]' 
-                : isDarkMode 
-                  ? 'opacity-40 hover:opacity-70 text-white/60' 
+              activeTab === t.id
+                ? 'text-[#d4af37]'
+                : isDarkMode
+                  ? 'opacity-40 hover:opacity-70 text-white/60'
                   : 'opacity-40 hover:opacity-70 text-gray-600'
             }`}
           >
             <div className={`p-2.5 rounded-lg ${
-              activeTab === t.id 
-                ? isDarkMode 
-                  ? 'bg-[#d4af37]/10' 
+              activeTab === t.id
+                ? isDarkMode
+                  ? 'bg-[#d4af37]/10'
                   : 'bg-[#d4af37]/20'
                 : ''
             }`}>
@@ -2153,7 +2391,7 @@ export default function App() {
           .grid-cols-2 {
             grid-template-columns: 1fr !important;
           }
-          
+
           button, input, select, textarea {
             font-size: 0.8rem !important;
           }
