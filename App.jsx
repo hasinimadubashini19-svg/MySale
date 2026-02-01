@@ -8,7 +8,7 @@ import {
   CheckCircle2, ChevronDown, Share2, TrendingUp, Edit2, Calculator,
   ShoppingBag, DollarSign, Fuel, FileText, Navigation, AlertCircle,
   CreditCard, Coffee, Target, Percent, BarChart3, Hash, Package2,
-  BookOpen, Filter, Eye, Clock
+  BookOpen, Filter, Eye, Clock, Download
 } from 'lucide-react';
 
 // --- FIREBASE CONFIG ---
@@ -257,6 +257,18 @@ export default function App() {
       showToast("Error saving expense: " + err.message, "error");
     } finally {
       setIsSavingExpense(false);
+    }
+  };
+
+  // Delete Expense
+  const deleteExpense = async (expenseId) => {
+    if (window.confirm('Are you sure you want to delete this expense?')) {
+      try {
+        await deleteDoc(doc(db, 'expenses', expenseId));
+        showToast("Expense deleted successfully!", "success");
+      } catch (err) {
+        showToast("Error deleting expense: " + err.message, "error");
+      }
     }
   };
 
@@ -644,6 +656,18 @@ export default function App() {
     }
   };
 
+  // Save Brand Edit
+  const saveBrandEdit = async (brandId, field, value) => {
+    try {
+      await updateDoc(doc(db, 'brands', brandId), { 
+        [field]: field === 'price' ? parseFloat(value) : value.toUpperCase()
+      });
+      showToast("Brand updated successfully!", "success");
+    } catch (err) {
+      showToast("Error updating brand: " + err.message, "error");
+    }
+  };
+
   // --- RENDER ---
 
   // Splash Screen
@@ -772,21 +796,21 @@ export default function App() {
       </header>
 
       {/* Main Content */}
-      <main className="p-4 max-w-lg mx-auto space-y-6" style={{ fontSize: '0.85rem' }}>
+      <main className="p-3 max-w-lg mx-auto space-y-4" style={{ fontSize: '0.80rem' }}>
 
         {/* Dashboard Tab */}
         {activeTab === 'dashboard' && (
           <div className="space-y-4">
 
             {/* Today's Revenue Card */}
-            <div className="bg-gradient-to-br from-[#d4af37] via-[#c19a2e] to-[#b8860b] p-6 rounded-2xl text-black shadow-2xl relative overflow-hidden">
-              <Star className="absolute -right-4 -top-4 opacity-10" size={120} />
+            <div className="bg-gradient-to-br from-[#d4af37] via-[#c19a2e] to-[#b8860b] p-5 rounded-2xl text-black shadow-2xl relative overflow-hidden">
+              <Star className="absolute -right-4 -top-4 opacity-10" size={100} />
               <div className="relative z-10">
                 <p className="text-xs font-black uppercase opacity-80 mb-1 tracking-widest">Today's Revenue</p>
-                <h2 className="text-4xl font-black italic tracking-tighter">Rs.{stats.daily.totalSales.toLocaleString()}</h2>
-                <div className="mt-6 flex items-center justify-between">
-                  <div className="flex items-center gap-2 bg-black/10 px-4 py-2 rounded-full border border-black/10">
-                    <Target size={14} />
+                <h2 className="text-3xl font-black italic tracking-tighter">Rs.{stats.daily.totalSales.toLocaleString()}</h2>
+                <div className="mt-5 flex items-center justify-between">
+                  <div className="flex items-center gap-2 bg-black/10 px-3 py-1.5 rounded-full border border-black/10">
+                    <Target size={12} />
                     <span className="text-xs font-black uppercase italic">Top: {stats.daily.topBrand}</span>
                   </div>
                   <div className="text-right">
@@ -801,118 +825,118 @@ export default function App() {
             <div className="grid grid-cols-4 gap-2">
               <button
                 onClick={() => setShowModal('expense')}
-                className={`p-4 rounded-xl border flex flex-col items-center gap-2 hover:scale-[1.02] transition-all ${
+                className={`p-3 rounded-xl border flex flex-col items-center gap-1.5 hover:scale-[1.02] transition-all ${
                   isDarkMode
                     ? "bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5 text-white"
                     : "bg-white border-gray-200 text-gray-800 shadow-sm"
                 }`}
               >
-                <Fuel size={20} className="text-[#d4af37]" />
-                <span className="text-[10px] font-black uppercase">Expense</span>
+                <Fuel size={18} className="text-[#d4af37]" />
+                <span className="text-[9px] font-black uppercase">Expense</span>
               </button>
               <button
                 onClick={getLocation}
-                className={`p-4 rounded-xl border flex flex-col items-center gap-2 hover:scale-[1.02] transition-all ${
+                className={`p-3 rounded-xl border flex flex-col items-center gap-1.5 hover:scale-[1.02] transition-all ${
                   isDarkMode
                     ? "bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5 text-white"
                     : "bg-white border-gray-200 text-gray-800 shadow-sm"
                 }`}
               >
-                <Navigation size={20} className="text-[#d4af37]" />
-                <span className="text-[10px] font-black uppercase">Location</span>
+                <Navigation size={18} className="text-[#d4af37]" />
+                <span className="text-[9px] font-black uppercase">Location</span>
               </button>
               <button
                 onClick={() => setShowModal('note')}
-                className={`p-4 rounded-xl border flex flex-col items-center gap-2 hover:scale-[1.02] transition-all ${
+                className={`p-3 rounded-xl border flex flex-col items-center gap-1.5 hover:scale-[1.02] transition-all ${
                   isDarkMode
                     ? "bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5 text-white"
                     : "bg-white border-gray-200 text-gray-800 shadow-sm"
                 }`}
               >
-                <FileText size={20} className="text-[#d4af37]" />
-                <span className="text-[10px] font-black uppercase">Note</span>
+                <FileText size={18} className="text-[#d4af37]" />
+                <span className="text-[9px] font-black uppercase">Note</span>
               </button>
               <button
                 onClick={() => setShowCalculator(true)}
-                className={`p-4 rounded-xl border flex flex-col items-center gap-2 hover:scale-[1.02] transition-all ${
+                className={`p-3 rounded-xl border flex flex-col items-center gap-1.5 hover:scale-[1.02] transition-all ${
                   isDarkMode
                     ? "bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5 text-white"
                     : "bg-white border-gray-200 text-gray-800 shadow-sm"
                 }`}
               >
-                <Calculator size={20} className="text-[#d4af37]" />
-                <span className="text-[10px] font-black uppercase">Calc</span>
+                <Calculator size={18} className="text-[#d4af37]" />
+                <span className="text-[9px] font-black uppercase">Calc</span>
               </button>
             </div>
 
             {/* Monthly Performance - ENHANCED */}
-            <div className={`p-6 rounded-2xl border shadow-xl ${
+            <div className={`p-5 rounded-2xl border shadow-xl ${
               isDarkMode
                 ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/10"
                 : "bg-white border-gray-200 shadow-lg"
             }`}>
-              <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center justify-between mb-5">
                 <div>
                   <h3 className="text-sm font-black text-[#d4af37] uppercase tracking-widest">Monthly Performance</h3>
-                  <p className="text-[10px] opacity-50 mt-1">Current Month Statistics</p>
+                  <p className="text-[9px] opacity-50 mt-1">Current Month Statistics</p>
                 </div>
-                <BarChart3 size={18} className="text-[#d4af37] opacity-60" />
+                <BarChart3 size={16} className="text-[#d4af37] opacity-60" />
               </div>
 
-              <div className="grid grid-cols-2 gap-4 mb-6">
-                <div className={`p-4 rounded-xl border ${
+              <div className="grid grid-cols-2 gap-3 mb-5">
+                <div className={`p-3 rounded-xl border ${
                   isDarkMode
                     ? "bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5"
                     : "bg-gray-50 border-gray-100"
                 }`}>
-                  <p className="text-[10px] font-black uppercase mb-2" style={{ color: isDarkMode ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)' }}>Revenue</p>
-                  <p className="text-xl font-black" style={{ color: isDarkMode ? 'white' : 'black' }}>Rs.{stats.monthly.totalSales.toLocaleString()}</p>
+                  <p className="text-[9px] font-black uppercase mb-1" style={{ color: isDarkMode ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)' }}>Revenue</p>
+                  <p className="text-lg font-black" style={{ color: isDarkMode ? 'white' : 'black' }}>Rs.{stats.monthly.totalSales.toLocaleString()}</p>
                 </div>
-                <div className={`p-4 rounded-xl border ${
+                <div className={`p-3 rounded-xl border ${
                   isDarkMode
                     ? "bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5"
                     : "bg-gray-50 border-gray-100"
                 }`}>
-                  <p className="text-[10px] font-black uppercase mb-2" style={{ color: isDarkMode ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)' }}>Total Units</p>
-                  <p className="text-xl font-black text-[#d4af37]">{stats.monthly.totalUnits || 0}</p>
+                  <p className="text-[9px] font-black uppercase mb-1" style={{ color: isDarkMode ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)' }}>Total Units</p>
+                  <p className="text-lg font-black text-[#d4af37]">{stats.monthly.totalUnits || 0}</p>
                 </div>
               </div>
 
               {/* Monthly Top Brand Section - IMPROVED */}
-              <div className="mb-6">
-                <div className="flex items-center justify-between mb-3">
-                  <p className="text-[10px] font-black uppercase" style={{ color: isDarkMode ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)' }}>Monthly Top Brands</p>
+              <div className="mb-5">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-[9px] font-black uppercase" style={{ color: isDarkMode ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)' }}>Monthly Top Brands</p>
                   <button
                     onClick={() => setShowAllMonthlyBrands(!showAllMonthlyBrands)}
-                    className="text-[#d4af37] text-[10px] font-black uppercase"
+                    className="text-[#d4af37] text-[9px] font-black uppercase"
                   >
                     {showAllMonthlyBrands ? 'Show Less' : 'Show All'}
                   </button>
                 </div>
 
                 {/* Top Brand Highlight */}
-                <div className={`p-4 rounded-xl border mb-3 ${
+                <div className={`p-3 rounded-xl border mb-2 ${
                   isDarkMode
                     ? "bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5"
                     : "bg-gray-50 border-gray-100"
                 }`}>
                   <div className="flex items-center justify-between">
                     <div>
-                      <div className="flex items-center gap-2 mb-2">
-                        <Target size={16} className="text-[#d4af37]" />
+                      <div className="flex items-center gap-2 mb-1">
+                        <Target size={14} className="text-[#d4af37]" />
                         <p className="text-sm font-black uppercase" style={{ color: isDarkMode ? 'white' : 'black' }}>
                           {stats.monthly.topBrand || 'N/A'}
                         </p>
                       </div>
-                      <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-3">
                         <div className="flex items-center gap-1">
-                          <Package2 size={12} style={{ opacity: 0.5 }} />
+                          <Package2 size={11} style={{ opacity: 0.5 }} />
                           <span className="text-xs" style={{ opacity: 0.7, color: isDarkMode ? 'white' : 'black' }}>
                             {stats.monthly.topBrandUnits} units
                           </span>
                         </div>
                         <div className="flex items-center gap-1">
-                          <DollarSign size={12} style={{ opacity: 0.5 }} />
+                          <DollarSign size={11} style={{ opacity: 0.5 }} />
                           <span className="text-xs" style={{ opacity: 0.7, color: isDarkMode ? 'white' : 'black' }}>
                             Rs.{stats.monthly.topBrandRevenue?.toLocaleString() || 0}
                           </span>
@@ -921,7 +945,7 @@ export default function App() {
                     </div>
                     <div className="text-right">
                       <p className="text-xs opacity-50 mb-1">Revenue Share</p>
-                      <p className="text-lg font-black text-[#d4af37]">
+                      <p className="text-base font-black text-[#d4af37]">
                         {stats.monthly.totalSales > 0 ?
                           ((stats.monthly.topBrandRevenue / stats.monthly.totalSales) * 100).toFixed(1) : 0}%
                       </p>
@@ -931,33 +955,32 @@ export default function App() {
 
                 {/* Show All Brands Performance */}
                 {showAllMonthlyBrands && stats.monthly.allBrands.length > 0 && (
-                  <div className="space-y-3 mt-4">
-                    <p className="text-[10px] font-black uppercase opacity-60">All Brands Performance</p>
-                    {stats.monthly.allBrands.map((brand, index) => (
-                      <div key={index} className={`p-3 rounded-xl border flex justify-between items-center ${
+                  <div className="space-y-2 mt-3">
+                    <p className="text-[9px] font-black uppercase opacity-60">All Brands Performance</p>
+                    {stats.monthly.allBrands.slice(0, 5).map((brand, index) => (
+                      <div key={index} className={`p-2.5 rounded-xl border flex justify-between items-center ${
                         isDarkMode
                           ? "bg-black/40 border-white/5"
                           : "bg-gray-50/50 border-gray-100"
                       }`}>
-                        <div className="flex items-center gap-3">
-                          <div className={`w-6 h-6 rounded-md flex items-center justify-center ${
+                        <div className="flex items-center gap-2">
+                          <div className={`w-5 h-5 rounded-md flex items-center justify-center ${
                             isDarkMode ? "bg-white/10" : "bg-gray-200"
                           }`}>
                             <span className="text-xs font-black">{index + 1}</span>
                           </div>
                           <div>
-                            <p className="text-sm font-bold" style={{ color: isDarkMode ? 'white' : 'black' }}>
+                            <p className="text-xs font-bold" style={{ color: isDarkMode ? 'white' : 'black' }}>
                               {brand.name}
                             </p>
-                            <div className="flex items-center gap-3 mt-1">
-                              <span className="text-xs opacity-50">{brand.units} units</span>
-                              <span className="text-xs opacity-50">Rs.{brand.avgPrice.toFixed(2)}/unit</span>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <span className="text-[10px] opacity-50">{brand.units} units</span>
                             </div>
                           </div>
                         </div>
                         <div className="text-right">
-                          <p className="text-sm font-black text-[#d4af37]">Rs.{brand.revenue.toLocaleString()}</p>
-                          <p className="text-xs opacity-50 mt-1">
+                          <p className="text-xs font-black text-[#d4af37]">Rs.{brand.revenue.toLocaleString()}</p>
+                          <p className="text-[10px] opacity-50 mt-0.5">
                             {stats.monthly.totalSales > 0 ?
                               ((brand.revenue / stats.monthly.totalSales) * 100).toFixed(1) : 0}%
                           </p>
@@ -968,69 +991,65 @@ export default function App() {
                 )}
 
                 {stats.monthly.allBrands.length === 0 && (
-                  <div className="text-center py-6">
-                    <Package2 size={40} className="mx-auto opacity-20 mb-3" />
-                    <p className="text-sm opacity-30 italic">No monthly sales data available</p>
+                  <div className="text-center py-4">
+                    <Package2 size={30} className="mx-auto opacity-20 mb-2" />
+                    <p className="text-xs opacity-30 italic">No monthly sales data available</p>
                   </div>
                 )}
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <div className="flex justify-between items-center">
-                  <p className="text-[10px] font-black uppercase" style={{ color: isDarkMode ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)' }}>Avg Price per Unit</p>
-                  <p className="text-sm font-black" style={{ color: isDarkMode ? 'white' : 'black' }}>Rs.{stats.monthly.avgPrice.toFixed(2)}</p>
+                  <p className="text-[9px] font-black uppercase" style={{ color: isDarkMode ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)' }}>Avg Price per Unit</p>
+                  <p className="text-xs font-black" style={{ color: isDarkMode ? 'white' : 'black' }}>Rs.{stats.monthly.avgPrice.toFixed(2)}</p>
                 </div>
                 <div className="flex justify-between items-center">
-                  <p className="text-[10px] font-black uppercase" style={{ color: isDarkMode ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)' }}>Today's Notes</p>
-                  <p className="text-sm font-black text-[#d4af37]">{stats.notes}</p>
+                  <p className="text-[9px] font-black uppercase" style={{ color: isDarkMode ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)' }}>Today's Notes</p>
+                  <p className="text-xs font-black text-[#d4af37]">{stats.notes}</p>
                 </div>
               </div>
             </div>
 
             {/* Today's Sales - FIXED */}
-            <div className={`p-6 rounded-2xl border shadow-xl ${
+            <div className={`p-5 rounded-2xl border shadow-xl ${
               isDarkMode
                 ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/10"
                 : "bg-white border-gray-200 shadow-lg"
             }`}>
-              <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center justify-between mb-5">
                 <div>
                   <h3 className="text-sm font-black text-[#d4af37] uppercase tracking-widest">Today's Sales</h3>
-                  <p className="text-[10px] opacity-50 mt-1">Itemized Breakdown</p>
+                  <p className="text-[9px] opacity-50 mt-1">Itemized Breakdown</p>
                 </div>
-                <TrendingUp size={18} className="text-[#d4af37] opacity-60" />
+                <TrendingUp size={16} className="text-[#d4af37] opacity-60" />
               </div>
 
-              <div className="space-y-3">
-                {stats.daily.summary.map((item, index) => (
-                  <div key={index} className={`p-4 rounded-xl border flex justify-between items-center transition-all ${
+              <div className="space-y-2">
+                {stats.daily.summary.slice(0, 4).map((item, index) => (
+                  <div key={index} className={`p-3 rounded-xl border flex justify-between items-center transition-all ${
                     isDarkMode
                       ? "bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5 hover:border-[#d4af37]/30"
                       : "bg-gray-50 border-gray-100 hover:border-[#d4af37]"
                   }`}>
                     <div className="flex-1">
-                      <p className="text-sm font-black uppercase tracking-tight mb-1" style={{ color: isDarkMode ? 'white' : 'black' }}>{item.name}</p>
-                      <div className="flex items-center gap-4">
+                      <p className="text-xs font-black uppercase tracking-tight mb-1" style={{ color: isDarkMode ? 'white' : 'black' }}>{item.name}</p>
+                      <div className="flex items-center gap-3">
                         <div className="flex items-center gap-1">
-                          <Hash size={10} style={{ opacity: 0.5 }} />
-                          <span className="text-[10px]" style={{ opacity: 0.7, color: isDarkMode ? 'white' : 'black' }}>{item.units} UNITS</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <DollarSign size={10} style={{ opacity: 0.5 }} />
-                          <span className="text-[10px]" style={{ opacity: 0.7, color: isDarkMode ? 'white' : 'black' }}>Rs.{item.avgPrice.toFixed(2)}/unit</span>
+                          <Hash size={9} style={{ opacity: 0.5 }} />
+                          <span className="text-[9px]" style={{ opacity: 0.7, color: isDarkMode ? 'white' : 'black' }}>{item.units} UNITS</span>
                         </div>
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="font-black text-lg tabular-nums text-[#d4af37]">Rs.{item.revenue.toLocaleString()}</p>
-                      <p className="text-[9px] opacity-50" style={{ color: isDarkMode ? 'white' : 'black' }}>Total Revenue</p>
+                      <p className="font-black text-base tabular-nums text-[#d4af37]">Rs.{item.revenue.toLocaleString()}</p>
+                      <p className="text-[8px] opacity-50" style={{ color: isDarkMode ? 'white' : 'black' }}>Revenue</p>
                     </div>
                   </div>
                 ))}
                 {stats.daily.summary.length === 0 && (
-                  <div className="text-center py-8">
-                    <Package2 size={40} className="mx-auto opacity-20 mb-3" />
-                    <p className="text-sm opacity-30 italic">No sales recorded today</p>
+                  <div className="text-center py-6">
+                    <Package2 size={30} className="mx-auto opacity-20 mb-2" />
+                    <p className="text-xs opacity-30 italic">No sales recorded today</p>
                   </div>
                 )}
               </div>
@@ -1038,20 +1057,20 @@ export default function App() {
 
             {/* Today's Expenses Breakdown */}
             {stats.todayExpenses.length > 0 && (
-              <div className={`p-6 rounded-2xl border shadow-xl ${
+              <div className={`p-5 rounded-2xl border shadow-xl ${
                 isDarkMode
                   ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/10"
                   : "bg-white border-gray-200 shadow-lg"
               }`}>
-                <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center justify-between mb-5">
                   <div>
                     <h3 className="text-sm font-black text-[#d4af37] uppercase tracking-widest">Today's Expenses</h3>
-                    <p className="text-[10px] opacity-50 mt-1">Breakdown by Category</p>
+                    <p className="text-[9px] opacity-50 mt-1">Breakdown by Category</p>
                   </div>
-                  <CreditCard size={18} className="text-[#d4af37] opacity-60" />
+                  <CreditCard size={16} className="text-[#d4af37] opacity-60" />
                 </div>
 
-                <div className="space-y-3">
+                <div className="space-y-2">
                   {Object.entries(
                     stats.todayExpenses.reduce((acc, expense) => {
                       const type = expense.type || 'other';
@@ -1060,28 +1079,24 @@ export default function App() {
                       return acc;
                     }, {})
                   ).map(([type, amount], index) => (
-                    <div key={index} className={`p-4 rounded-xl border flex justify-between items-center transition-all ${
+                    <div key={index} className={`p-3 rounded-xl border flex justify-between items-center transition-all ${
                       isDarkMode
                         ? "bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5 hover:border-red-500/30"
                         : "bg-gray-50 border-gray-100 hover:border-red-500"
                     }`}>
-                      <div className="flex items-center gap-3">
-                        {type === 'fuel' && <Fuel size={18} className="text-red-500" />}
-                        {type === 'food' && <Coffee size={18} className="text-amber-500" />}
-                        {type === 'transport' && <Navigation size={18} className="text-blue-500" />}
-                        {type === 'other' && <AlertCircle size={18} className="text-gray-500" />}
+                      <div className="flex items-center gap-2">
+                        {type === 'fuel' && <Fuel size={16} className="text-red-500" />}
+                        {type === 'food' && <Coffee size={16} className="text-amber-500" />}
+                        {type === 'transport' && <Navigation size={16} className="text-blue-500" />}
+                        {type === 'other' && <AlertCircle size={16} className="text-gray-500" />}
                         <div>
-                          <p className="text-sm font-black uppercase" style={{ color: isDarkMode ? 'white' : 'black' }}>
+                          <p className="text-xs font-black uppercase" style={{ color: isDarkMode ? 'white' : 'black' }}>
                             {type.charAt(0).toUpperCase() + type.slice(1)}
-                          </p>
-                          <p className="text-[10px] opacity-50 mt-1">
-                            {stats.todayExpenses.filter(e => e.type === type).length} entries
                           </p>
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="font-black text-lg tabular-nums text-red-500">Rs.{amount.toLocaleString()}</p>
-                        <p className="text-[9px] opacity-50" style={{ color: isDarkMode ? 'white' : 'black' }}>Total</p>
+                        <p className="font-black text-base tabular-nums text-red-500">Rs.{amount.toLocaleString()}</p>
                       </div>
                     </div>
                   ))}
@@ -1093,122 +1108,121 @@ export default function App() {
 
         {/* Shops Tab */}
         {activeTab === 'shops' && (
-          <div className="space-y-4">
-            <div className="space-y-3">
-              <div className={`p-4 rounded-2xl border flex items-center gap-3 ${
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <div className={`p-3 rounded-2xl border flex items-center gap-2 ${
                 isDarkMode
                   ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/10"
                   : "bg-white border-gray-200 shadow-sm"
               }`}>
-                <Search size={18} className="opacity-30"/>
+                <Search size={16} className="opacity-30"/>
                 <input
                   value={shopSearch}
                   onChange={(e) => setShopSearch(e.target.value)}
                   placeholder="SEARCH SHOP BY NAME OR AREA..."
-                  className="bg-transparent text-sm font-black uppercase outline-none w-full placeholder:opacity-30"
+                  className="bg-transparent text-xs font-black uppercase outline-none w-full placeholder:opacity-30"
                   style={{ 
                     color: isDarkMode ? 'white' : 'black',
                     fontFamily: "'Roboto', 'Segoe UI', sans-serif",
                     fontWeight: '900',
-                    letterSpacing: '1px'
+                    letterSpacing: '0.5px'
                   }}
                 />
               </div>
 
-              <div className="flex gap-2 overflow-x-auto pb-2">
-                       
-    <button
-      onClick={() => setSelectedRouteFilter('ALL')}
-      className={`px-5 py-2.5 rounded-full text-xs font-black uppercase transition-all whitespace-nowrap border flex-shrink-0 ${
-        selectedRouteFilter === 'ALL'
-          ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black border-[#d4af37]'
-          : isDarkMode
-            ? 'bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/10 text-white/60'
-            : 'bg-gray-100 border-gray-200 text-gray-600'
-      }`}
-    >
-      ALL
-    </button>
-    {data.routes.map((r) => (
-      <button
-        key={r.id}
-        onClick={() => setSelectedRouteFilter(r.name)}
-        className={`px-5 py-2.5 rounded-full text-xs font-black uppercase transition-all whitespace-nowrap border flex-shrink-0 ${
-          selectedRouteFilter === r.name
-            ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black border-[#d4af37]'
-            : isDarkMode
-              ? 'bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/10 text-white/60'
-              : 'bg-gray-100 border-gray-200 text-gray-600'
-        }`}
-      >
-        {r.name}
-      </button>
+              <div className="flex gap-1.5 overflow-x-auto pb-1">
+                <button
+                  onClick={() => setSelectedRouteFilter('ALL')}
+                  className={`px-4 py-2 rounded-full text-[10px] font-black uppercase transition-all whitespace-nowrap border flex-shrink-0 ${
+                    selectedRouteFilter === 'ALL'
+                      ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black border-[#d4af37]'
+                      : isDarkMode
+                        ? 'bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/10 text-white/60'
+                        : 'bg-gray-100 border-gray-200 text-gray-600'
+                  }`}
+                >
+                  ALL
+                </button>
+                {data.routes.map((r) => (
+                  <button
+                    key={r.id}
+                    onClick={() => setSelectedRouteFilter(r.name)}
+                    className={`px-4 py-2 rounded-full text-[10px] font-black uppercase transition-all whitespace-nowrap border flex-shrink-0 ${
+                      selectedRouteFilter === r.name
+                        ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black border-[#d4af37]'
+                        : isDarkMode
+                          ? 'bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/10 text-white/60'
+                          : 'bg-gray-100 border-gray-200 text-gray-600'
+                    }`}
+                  >
+                    {r.name}
+                  </button>
                 ))}
               </div>
             </div>
 
-            <div className="flex gap-3">
+            <div className="flex gap-2">
               <button
                 onClick={() => setShowModal('shop')}
-                className={`flex-1 py-5 rounded-2xl border-2 border-dashed text-[#d4af37] font-black uppercase text-sm flex items-center justify-center gap-2 hover:border-[#d4af37] transition-all ${
+                className={`flex-1 py-4 rounded-2xl border-2 border-dashed text-[#d4af37] font-black uppercase text-xs flex items-center justify-center gap-1.5 hover:border-[#d4af37] transition-all ${
                   isDarkMode
                     ? 'bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-[#d4af37]/40'
                     : 'bg-gray-50 border-[#d4af37]/60'
                 }`}
               >
-                <Plus size={18}/> New Shop
+                <Plus size={16}/> New Shop
               </button>
               <button
                 onClick={() => { setSelectedShop(null); setShowModal('manual'); }}
-                className={`flex-1 py-5 rounded-2xl border-2 border-dashed text-green-500 font-black uppercase text-sm flex items-center justify-center gap-2 hover:border-green-500 transition-all ${
+                className={`flex-1 py-4 rounded-2xl border-2 border-dashed text-green-500 font-black uppercase text-xs flex items-center justify-center gap-1.5 hover:border-green-500 transition-all ${
                   isDarkMode
                     ? 'bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-green-500/40'
                     : 'bg-gray-50 border-green-500/60'
                 }`}
               >
-                <ShoppingBag size={18}/> Manual
+                <ShoppingBag size={16}/> Manual
               </button>
             </div>
 
-            <div className="grid gap-3">
+            <div className="grid gap-2">
               {filteredShops.map(s => (
                 <div
                   key={s.id}
-                  className={`p-5 rounded-2xl border flex justify-between items-center transition-all ${
+                  className={`p-4 rounded-2xl border flex justify-between items-center transition-all ${
                     isDarkMode
                       ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/5 hover:border-[#d4af37]/30"
                       : "bg-white border-gray-200 shadow-sm hover:border-[#d4af37] hover:shadow-md"
                   }`}
                 >
-                  <div className="flex items-center gap-4">
-                    <div className="p-3.5 bg-gradient-to-br from-[#d4af37]/10 to-[#b8860b]/5 rounded-xl text-[#d4af37] border border-[#d4af37]/20">
-                      <Store size={20}/>
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 bg-gradient-to-br from-[#d4af37]/10 to-[#b8860b]/5 rounded-xl text-[#d4af37] border border-[#d4af37]/20">
+                      <Store size={18}/>
                     </div>
                     <div>
-                      <h4 className="text-base font-black uppercase leading-tight" style={{ color: isDarkMode ? 'white' : 'black' }}>{s.name}</h4>
-                      <div className="flex items-center gap-2 mt-1.5">
-                        <MapPin size={12} className="opacity-40" />
-                        <p className="text-[11px] font-bold uppercase tracking-tighter" style={{ opacity: 0.6, color: isDarkMode ? 'white' : 'black' }}>{s.area}</p>
+                      <h4 className="text-sm font-black uppercase leading-tight" style={{ color: isDarkMode ? 'white' : 'black' }}>{s.name}</h4>
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <MapPin size={11} className="opacity-40" />
+                        <p className="text-[10px] font-bold uppercase tracking-tighter" style={{ opacity: 0.6, color: isDarkMode ? 'white' : 'black' }}>{s.area}</p>
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
                     <button
                       onClick={async () => {
                         if(window.confirm('Delete this shop?'))
                           await deleteDoc(doc(db, 'shops', s.id))
                       }}
-                      className={`p-2.5 rounded-lg transition-all ${
+                      className={`p-2 rounded-lg transition-all ${
                         isDarkMode
                           ? 'text-red-500/30 hover:text-red-500 hover:bg-red-500/10'
                           : 'text-red-400 hover:text-red-600 hover:bg-red-50'
                       }`}
                     >
-                      <Trash2 size={18}/>
+                      <Trash2 size={16}/>
                     </button>
                     <button
                       onClick={() => { setSelectedShop(s); setShowModal('invoice'); }}
-                      className="bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black px-5 py-2.5 rounded-xl text-sm font-black uppercase shadow-lg hover:opacity-90 transition-all"
+                      className="bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black px-4 py-2 rounded-xl text-xs font-black uppercase shadow-lg hover:opacity-90 transition-all"
                     >
                       BILL
                     </button>
@@ -1216,9 +1230,9 @@ export default function App() {
                 </div>
               ))}
               {filteredShops.length === 0 && (
-                <div className="text-center py-8">
-                  <Store size={40} className="mx-auto opacity-20 mb-3" />
-                  <p className="text-sm opacity-30 italic">No shops found</p>
+                <div className="text-center py-6">
+                  <Store size={30} className="mx-auto opacity-20 mb-2" />
+                  <p className="text-xs opacity-30 italic">No shops found</p>
                 </div>
               )}
             </div>
@@ -1227,16 +1241,16 @@ export default function App() {
 
         {/* History Tab */}
         {activeTab === 'history' && (
-          <div className="space-y-4">
-            <div className={`p-5 rounded-2xl border flex items-center gap-4 ${
+          <div className="space-y-3">
+            <div className={`p-4 rounded-2xl border flex items-center gap-3 ${
               isDarkMode
                 ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/10"
                 : "bg-white border-gray-200 shadow-sm"
             }`}>
-              <Calendar size={20} className="text-[#d4af37]"/>
+              <Calendar size={18} className="text-[#d4af37]"/>
               <input
                 type="date"
-                className="bg-transparent text-sm font-black uppercase outline-none w-full"
+                className="bg-transparent text-xs font-black uppercase outline-none w-full"
                 onChange={(e) => setSearchDate(e.target.value)}
                 value={searchDate}
                 style={{ color: isDarkMode ? 'white' : 'black' }}
@@ -1255,78 +1269,78 @@ export default function App() {
               .map((o) => (
               <div
                 key={o.id}
-                className={`p-6 rounded-2xl border ${
+                className={`p-5 rounded-2xl border ${
                   isDarkMode
                     ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/5 shadow-xl"
                     : "bg-white border-gray-200 shadow-lg"
                 }`}
               >
-                <div className="flex justify-between items-start mb-5">
+                <div className="flex justify-between items-start mb-4">
                   <div>
-                    <h4 className="text-sm font-black uppercase text-[#d4af37] mb-1">{o.shopName}</h4>
-                    <div className="flex items-center gap-3">
-                      <p className="text-[11px] opacity-60 font-black uppercase" style={{ color: isDarkMode ? 'white' : 'black' }}>{o.companyName}</p>
+                    <h4 className="text-xs font-black uppercase text-[#d4af37] mb-1">{o.shopName}</h4>
+                    <div className="flex items-center gap-2">
+                      <p className="text-[10px] opacity-60 font-black uppercase" style={{ color: isDarkMode ? 'white' : 'black' }}>{o.companyName}</p>
                       {o.isManual && (
-                        <span className="text-[9px] bg-gradient-to-r from-green-500/20 to-green-600/20 text-green-500 px-3 py-1 rounded-full border border-green-500/30">
+                        <span className="text-[8px] bg-gradient-to-r from-green-500/20 to-green-600/20 text-green-500 px-2 py-0.5 rounded-full border border-green-500/30">
                           MANUAL
                         </span>
                       )}
                     </div>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-1.5">
                     <button
                       onClick={() => shareBillWithLocation(o)}
-                      className={`p-2.5 rounded-lg transition-all ${
+                      className={`p-2 rounded-lg transition-all ${
                         isDarkMode
                           ? 'text-[#d4af37] hover:bg-[#d4af37]/10'
                           : 'text-[#d4af37] hover:bg-[#d4af37]/20'
                       }`}
                       title="Share with Location"
                     >
-                      <Navigation size={18}/>
+                      <Navigation size={16}/>
                     </button>
                     <button
                       onClick={() => shareToWhatsApp(o)}
-                      className={`p-2.5 rounded-lg transition-all ${
+                      className={`p-2 rounded-lg transition-all ${
                         isDarkMode
                           ? 'text-[#d4af37] hover:bg-[#d4af37]/10'
                           : 'text-[#d4af37] hover:bg-[#d4af37]/20'
                       }`}
                       title="Share Bill"
                     >
-                      <Share2 size={18}/>
+                      <Share2 size={16}/>
                     </button>
                     <button
                       onClick={async () => {
                         if(window.confirm('Delete this bill?'))
                           await deleteDoc(doc(db, 'orders', o.id))
                       }}
-                      className={`p-2.5 rounded-lg transition-all ${
+                      className={`p-2 rounded-lg transition-all ${
                         isDarkMode
                           ? 'text-red-500/30 hover:text-red-500 hover:bg-red-500/10'
                           : 'text-red-400 hover:text-red-600 hover:bg-red-50'
                       }`}
                     >
-                      <Trash2 size={18}/>
+                      <Trash2 size={16}/>
                     </button>
                   </div>
                 </div>
 
-                <div className="space-y-3 border-y py-4 my-4" style={{ borderColor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.1)' }}>
+                <div className="space-y-2 border-y py-3 my-3" style={{ borderColor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.1)' }}>
                   {o.items && o.items.map((i, k) => (
-                    <div key={k} className="flex justify-between items-center text-sm uppercase font-bold">
-                      <div className="flex items-center gap-3">
+                    <div key={k} className="flex justify-between items-center text-xs uppercase font-bold">
+                      <div className="flex items-center gap-2">
                         <span style={{ opacity: 0.6, color: isDarkMode ? 'white' : 'black' }}>{i.name}</span>
-                        <span className="text-[10px]" style={{ opacity: 0.4, color: isDarkMode ? 'white' : 'black' }}>x{i.qty} @ Rs.{i.price}</span>
+                        <span className="text-[9px]" style={{ opacity: 0.4, color: isDarkMode ? 'white' : 'black' }}>x{i.qty} @ Rs.{i.price}</span>
                       </div>
                       <span className="text-[#d4af37] font-black">Rs.{i.subtotal.toLocaleString()}</span>
                     </div>
                   ))}
                 </div>
 
-                <div className="flex justify-between items-center font-black pt-3">
-                  <span className="text-sm uppercase" style={{ opacity: 0.4, color: isDarkMode ? 'white' : 'black' }}>Total Amount</span>
-                  <span className="text-2xl text-[#d4af37]">Rs.{o.total.toLocaleString()}</span>
+                <div className="flex justify-between items-center font-black pt-2">
+                  <span className="text-xs uppercase" style={{ opacity: 0.4, color: isDarkMode ? 'white' : 'black' }}>Total Amount</span>
+                  <span className="text-xl text-[#d4af37]">Rs.{o.total.toLocaleString()}</span>
                 </div>
               </div>
             ))}
@@ -1338,9 +1352,9 @@ export default function App() {
                 return false;
               }
             }).length === 0 && (
-              <div className="text-center py-8">
-                <History size={40} className="mx-auto opacity-20 mb-3" />
-                <p className="text-sm opacity-30 italic">No orders found for this date</p>
+              <div className="text-center py-6">
+                <History size={30} className="mx-auto opacity-20 mb-2" />
+                <p className="text-xs opacity-30 italic">No orders found for this date</p>
               </div>
             )}
           </div>
@@ -1348,67 +1362,67 @@ export default function App() {
 
         {/* NEW NOTES TAB */}
         {activeTab === 'notes' && (
-          <div className="space-y-4">
-            <div className={`p-5 rounded-2xl border flex items-center gap-4 ${
+          <div className="space-y-3">
+            <div className={`p-4 rounded-2xl border flex items-center gap-3 ${
               isDarkMode
                 ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/10"
                 : "bg-white border-gray-200 shadow-sm"
             }`}>
-              <Calendar size={20} className="text-[#d4af37]"/>
+              <Calendar size={18} className="text-[#d4af37]"/>
               <input
                 type="date"
-                className="bg-transparent text-sm font-black uppercase outline-none w-full"
+                className="bg-transparent text-xs font-black uppercase outline-none w-full"
                 onChange={(e) => setNoteSearchDate(e.target.value)}
                 value={noteSearchDate}
                 style={{ color: isDarkMode ? 'white' : 'black' }}
               />
               <button
                 onClick={() => setShowModal('note')}
-                className="bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black px-4 py-2.5 rounded-xl text-sm font-black uppercase shadow-lg hover:opacity-90 transition-all"
+                className="bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black px-3 py-2 rounded-xl text-xs font-black uppercase shadow-lg hover:opacity-90 transition-all"
               >
                 Add Note
               </button>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-3">
               {filteredNotes.map((note) => (
                 <div
                   key={note.id}
-                  className={`p-6 rounded-2xl border ${
+                  className={`p-5 rounded-2xl border ${
                     isDarkMode
                       ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/5 shadow-xl"
                       : "bg-white border-gray-200 shadow-lg"
                   }`}
                 >
-                  <div className="flex justify-between items-start mb-4">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2.5 bg-gradient-to-br from-blue-500/10 to-blue-600/10 rounded-lg text-blue-500 border border-blue-500/20">
-                        <BookOpen size={18}/>
+                  <div className="flex justify-between items-start mb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="p-2 bg-gradient-to-br from-blue-500/10 to-blue-600/10 rounded-lg text-blue-500 border border-blue-500/20">
+                        <BookOpen size={16}/>
                       </div>
                       <div>
-                        <div className="flex items-center gap-2">
-                          <Clock size={12} className="opacity-50"/>
-                          <span className="text-xs opacity-60">
+                        <div className="flex items-center gap-1.5">
+                          <Clock size={11} className="opacity-50"/>
+                          <span className="text-[10px] opacity-60">
                             {new Date(note.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                           </span>
                         </div>
-                        <p className="text-xs opacity-40 mt-1">{note.date}</p>
+                        <p className="text-[10px] opacity-40 mt-0.5">{note.date}</p>
                       </div>
                     </div>
                     <button
                       onClick={() => deleteNote(note.id)}
-                      className={`p-2 rounded-lg transition-all ${
+                      className={`p-1.5 rounded-lg transition-all ${
                         isDarkMode
                           ? 'text-red-500/30 hover:text-red-500 hover:bg-red-500/10'
                           : 'text-red-400 hover:text-red-600 hover:bg-red-50'
                       }`}
                     >
-                      <Trash2 size={16}/>
+                      <Trash2 size={14}/>
                     </button>
                   </div>
 
-                  <div className="mt-4">
-                    <p className="text-sm leading-relaxed" style={{ color: isDarkMode ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.8)' }}>
+                  <div className="mt-3">
+                    <p className="text-xs leading-relaxed" style={{ color: isDarkMode ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.8)' }}>
                       {note.text}
                     </p>
                   </div>
@@ -1416,12 +1430,12 @@ export default function App() {
               ))}
 
               {filteredNotes.length === 0 && (
-                <div className="text-center py-12">
-                  <BookOpen size={50} className="mx-auto opacity-20 mb-4" />
-                  <p className="text-sm opacity-30 italic">No notes found for this date</p>
+                <div className="text-center py-8">
+                  <BookOpen size={40} className="mx-auto opacity-20 mb-3" />
+                  <p className="text-xs opacity-30 italic">No notes found for this date</p>
                   <button
                     onClick={() => setShowModal('note')}
-                    className="mt-4 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black px-6 py-3 rounded-xl text-sm font-black uppercase shadow-lg hover:opacity-90 transition-all"
+                    className="mt-3 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black px-4 py-2.5 rounded-xl text-xs font-black uppercase shadow-lg hover:opacity-90 transition-all"
                   >
                     Add Your First Note
                   </button>
@@ -1433,26 +1447,26 @@ export default function App() {
 
         {/* Settings Tab */}
         {activeTab === 'settings' && (
-          <div className="space-y-6 pb-20">
+          <div className="space-y-4 pb-16">
             {/* Profile Settings */}
             <form
               onSubmit={handleSaveProfile}
-              className={`p-6 rounded-2xl border space-y-5 ${
+              className={`p-5 rounded-2xl border space-y-4 ${
                 isDarkMode
                   ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/10 shadow-xl"
                   : "bg-white border-gray-200 shadow-lg"
               }`}
             >
               <div>
-                <h3 className="text-sm font-black text-[#d4af37] uppercase tracking-widest mb-1">Profile Settings</h3>
-                <p className="text-[11px]" style={{ opacity: 0.5, color: isDarkMode ? 'white' : 'black' }}>Update your personal information</p>
+                <h3 className="text-xs font-black text-[#d4af37] uppercase tracking-widest mb-1">Profile Settings</h3>
+                <p className="text-[10px]" style={{ opacity: 0.5, color: isDarkMode ? 'white' : 'black' }}>Update your personal information</p>
               </div>
 
               <input
                 name="repName"
                 defaultValue={data.settings.name}
                 placeholder="YOUR FULL NAME"
-                className={`w-full p-4 rounded-xl border text-sm font-black uppercase outline-none focus:border-[#d4af37] transition-all ${
+                className={`w-full p-3 rounded-xl border text-xs font-black uppercase outline-none focus:border-[#d4af37] transition-all ${
                   isDarkMode
                     ? 'bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5 text-white'
                     : 'bg-gray-50 border-gray-200 text-gray-900'
@@ -1463,178 +1477,201 @@ export default function App() {
                 name="companyName"
                 defaultValue={data.settings.company}
                 placeholder="COMPANY NAME"
-                className={`w-full p-4 rounded-xl border text-sm font-black uppercase outline-none focus:border-[#d4af37] transition-all ${
+                className={`w-full p-3 rounded-xl border text-xs font-black uppercase outline-none focus:border-[#d4af37] transition-all ${
                   isDarkMode
                     ? 'bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5 text-white'
                     : 'bg-gray-50 border-gray-200 text-gray-900'
                 }`}
               />
 
-              <button type="submit" className="w-full py-4 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-black rounded-xl text-sm uppercase flex items-center justify-center gap-2 hover:opacity-90 transition-all">
-                <Save size={18}/> SAVE PROFILE
+              <button type="submit" className="w-full py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-black rounded-xl text-xs uppercase flex items-center justify-center gap-1.5 hover:opacity-90 transition-all">
+                <Save size={16}/> SAVE PROFILE
               </button>
             </form>
 
             {/* Quick Add Buttons */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-3">
               <button
                 onClick={() => setShowModal('route')}
-                className={`py-5 rounded-xl border text-[#d4af37] font-black uppercase text-sm flex flex-col items-center gap-2 hover:border-[#d4af37] transition-all ${
+                className={`py-4 rounded-xl border text-[#d4af37] font-black uppercase text-xs flex flex-col items-center gap-1.5 hover:border-[#d4af37] transition-all ${
                   isDarkMode
                     ? 'bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5'
                     : 'bg-gray-50 border-gray-200'
                 }`}
               >
-                <MapPin size={22}/> ADD ROUTE
+                <MapPin size={20}/> ADD ROUTE
               </button>
               <button
                 onClick={() => setShowModal('brand')}
-                className={`py-5 rounded-xl border text-[#d4af37] font-black uppercase text-sm flex flex-col items-center gap-2 hover:border-[#d4af37] transition-all ${
+                className={`py-4 rounded-xl border text-[#d4af37] font-black uppercase text-xs flex flex-col items-center gap-1.5 hover:border-[#d4af37] transition-all ${
                   isDarkMode
                     ? 'bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5'
                     : 'bg-gray-50 border-gray-200'
                 }`}
               >
-                <Package size={22}/> ADD BRAND
+                <Package size={20}/> ADD BRAND
               </button>
             </div>
 
             {/* Brands List */}
             <div>
-              <div className="flex items-center justify-between mb-4">
-                <h4 className="text-sm font-black text-[#d4af37] uppercase tracking-widest">Brands List</h4>
-                <span className="text-xs" style={{ opacity: 0.5, color: isDarkMode ? 'white' : 'black' }}>{data.brands.length} brands</span>
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-xs font-black text-[#d4af37] uppercase tracking-widest">Brands List</h4>
+                <span className="text-[10px]" style={{ opacity: 0.5, color: isDarkMode ? 'white' : 'black' }}>{data.brands.length} brands</span>
               </div>
 
-              <div className="grid gap-2">
+              <div className="grid gap-1.5">
                 {data.brands.map(b => (
                   <div
                     key={b.id}
-                    className={`p-4 rounded-xl border flex justify-between items-center hover:border-[#d4af37]/30 transition-all ${
+                    className={`p-3 rounded-xl border flex justify-between items-center hover:border-[#d4af37]/30 transition-all ${
                       isDarkMode
                         ? 'bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5'
                         : 'bg-gray-50 border-gray-100'
                     }`}
                   >
-                    <div className="text-sm font-black uppercase">
-                      {editingBrand === b.id ? (
-                        <div className="space-y-2">
+                    {editingBrand === b.id ? (
+                      <div className="flex-1 space-y-2">
+                        <div className="flex gap-2">
                           <input
                             defaultValue={b.name}
-                            className={`p-2.5 rounded-lg w-full text-sm border outline-none ${
+                            className={`p-2 rounded-lg flex-1 text-xs border outline-none ${
                               isDarkMode
                                 ? 'bg-black/50 border-white/10 text-white'
                                 : 'bg-white border-gray-300 text-gray-900'
                             }`}
-                            onBlur={(e) => updateDoc(doc(db, 'brands', b.id), { name: e.target.value.toUpperCase() })}
+                            onBlur={(e) => saveBrandEdit(b.id, 'name', e.target.value)}
                           />
-                          <div className="grid grid-cols-2 gap-2">
-                            <input
-                              defaultValue={b.size}
-                              className={`p-2.5 rounded-lg w-full text-sm border outline-none ${
-                                isDarkMode
-                                  ? 'bg-black/50 border-white/10 text-white'
-                                  : 'bg-white border-gray-300 text-gray-900'
-                              }`}
-                              onBlur={(e) => updateDoc(doc(db, 'brands', b.id), { size: e.target.value.toUpperCase() })}
-                            />
-                            <input
-                              defaultValue={b.price}
-                              type="number"
-                              className={`p-2.5 rounded-lg w-full text-sm border outline-none ${
-                                isDarkMode
-                                  ? 'bg-black/50 border-white/10 text-white'
-                                  : 'bg-white border-gray-300 text-gray-900'
-                              }`}
-                              onBlur={(e) => updateDoc(doc(db, 'brands', b.id), { price: parseFloat(e.target.value) })}
-                            />
-                          </div>
+                          <input
+                            defaultValue={b.size}
+                            className={`p-2 rounded-lg w-20 text-xs border outline-none ${
+                              isDarkMode
+                                ? 'bg-black/50 border-white/10 text-white'
+                                : 'bg-white border-gray-300 text-gray-900'
+                            }`}
+                            onBlur={(e) => saveBrandEdit(b.id, 'size', e.target.value)}
+                          />
+                          <input
+                            defaultValue={b.price}
+                            type="number"
+                            className={`p-2 rounded-lg w-24 text-xs border outline-none ${
+                              isDarkMode
+                                ? 'bg-black/50 border-white/10 text-white'
+                                : 'bg-white border-gray-300 text-gray-900'
+                            }`}
+                            onBlur={(e) => saveBrandEdit(b.id, 'price', e.target.value)}
+                          />
                         </div>
-                      ) : (
-                        <div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => setEditingBrand(null)}
+                            className="flex-1 py-1.5 bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] text-white/60 text-xs font-black rounded-lg border border-white/5 hover:border-white/10 transition-all"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            onClick={() => setEditingBrand(null)}
+                            className="flex-1 py-1.5 bg-gradient-to-r from-green-600 to-emerald-600 text-white text-xs font-black rounded-lg hover:opacity-90 transition-all"
+                          >
+                            Save
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="text-xs font-black uppercase">
                           <span className="block" style={{ color: isDarkMode ? 'white' : 'black' }}>{b.name} ({b.size})</span>
-                          <span className="text-[#d4af37] text-xs mt-1">Rs.{b.price}/unit</span>
+                          <span className="text-[#d4af37] text-[10px] mt-0.5">Rs.{b.price}/unit</span>
                         </div>
-                      )}
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => setEditingBrand(editingBrand === b.id ? null : b.id)}
-                        className={`p-2 rounded-lg transition-all ${
-                          isDarkMode
-                            ? 'text-blue-500/40 hover:text-blue-500 hover:bg-blue-500/10'
-                            : 'text-blue-500 hover:text-blue-600 hover:bg-blue-50'
-                        }`}
-                      >
-                        <Edit2 size={16}/>
-                      </button>
-                      <button
-                        onClick={async () => {
-                          if(window.confirm('Delete this brand?'))
-                            await deleteDoc(doc(db, 'brands', b.id))
-                        }}
-                        className={`p-2 rounded-lg transition-all ${
-                          isDarkMode
-                            ? 'text-red-500/40 hover:text-red-500 hover:bg-red-500/10'
-                            : 'text-red-500 hover:text-red-600 hover:bg-red-50'
-                        }`}
-                      >
-                        <Trash2 size={16}/>
-                      </button>
-                    </div>
+                        <div className="flex gap-1">
+                          <button
+                            onClick={() => setEditingBrand(b.id)}
+                            className={`p-1.5 rounded-lg transition-all ${
+                              isDarkMode
+                                ? 'text-blue-500/40 hover:text-blue-500 hover:bg-blue-500/10'
+                                : 'text-blue-500 hover:text-blue-600 hover:bg-blue-50'
+                            }`}
+                          >
+                            <Edit2 size={14}/>
+                          </button>
+                          <button
+                            onClick={async () => {
+                              if(window.confirm('Delete this brand?'))
+                                await deleteDoc(doc(db, 'brands', b.id))
+                            }}
+                            className={`p-1.5 rounded-lg transition-all ${
+                              isDarkMode
+                                ? 'text-red-500/40 hover:text-red-500 hover:bg-red-500/10'
+                                : 'text-red-500 hover:text-red-600 hover:bg-red-50'
+                            }`}
+                          >
+                            <Trash2 size={14}/>
+                          </button>
+                        </div>
+                      </>
+                    )}
                   </div>
                 ))}
                 {data.brands.length === 0 && (
                   <div className="text-center py-4">
-                    <Package size={30} className="mx-auto opacity-20 mb-2" />
-                    <p className="text-sm opacity-30 italic">No brands added yet</p>
+                    <Package size={25} className="mx-auto opacity-20 mb-1.5" />
+                    <p className="text-xs opacity-30 italic">No brands added yet</p>
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Today's Expenses */}
+            {/* Today's Expenses - WITH DELETE OPTION */}
             <div>
-              <div className="flex items-center justify-between mb-4">
-                <h4 className="text-sm font-black text-[#d4af37] uppercase tracking-widest">Today's Expenses</h4>
-                <span className="text-xs" style={{ opacity: 0.5, color: isDarkMode ? 'white' : 'black' }}>Rs.{stats.expenses.toLocaleString()}</span>
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-xs font-black text-[#d4af37] uppercase tracking-widest">Today's Expenses</h4>
+                <span className="text-[10px]" style={{ opacity: 0.5, color: isDarkMode ? 'white' : 'black' }}>Rs.{stats.expenses.toLocaleString()}</span>
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 {data.expenses
                   .filter(e => e.date === new Date().toISOString().split('T')[0])
                   .map(exp => (
                   <div
                     key={exp.id}
-                    className={`p-4 rounded-xl border flex justify-between items-center hover:border-red-500/30 transition-all ${
+                    className={`p-3 rounded-xl border flex justify-between items-center hover:border-red-500/30 transition-all ${
                       isDarkMode
                         ? 'bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5'
                         : 'bg-gray-50 border-gray-100'
                     }`}
                   >
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        {exp.type === 'fuel' && <Fuel size={14} className="text-red-500" />}
-                        {exp.type === 'food' && <Coffee size={14} className="text-amber-500" />}
-                        {exp.type === 'transport' && <Navigation size={14} className="text-blue-500" />}
-                        {exp.type === 'other' && <AlertCircle size={14} className="text-gray-500" />}
-                        <span className="text-sm font-black uppercase" style={{ color: isDarkMode ? 'white' : 'black' }}>{exp.type}</span>
+                    <div className="flex items-center gap-3">
+                      <div>
+                        <div className="flex items-center gap-1.5 mb-0.5">
+                          {exp.type === 'fuel' && <Fuel size={12} className="text-red-500" />}
+                          {exp.type === 'food' && <Coffee size={12} className="text-amber-500" />}
+                          {exp.type === 'transport' && <Navigation size={12} className="text-blue-500" />}
+                          {exp.type === 'other' && <AlertCircle size={12} className="text-gray-500" />}
+                          <span className="text-xs font-black uppercase" style={{ color: isDarkMode ? 'white' : 'black' }}>{exp.type}</span>
+                        </div>
+                        {exp.note && <p className="text-[10px] mt-0.5" style={{ opacity: 0.6, color: isDarkMode ? 'white' : 'black' }}>{exp.note}</p>}
                       </div>
-                      {exp.note && <p className="text-[11px] mt-1" style={{ opacity: 0.6, color: isDarkMode ? 'white' : 'black' }}>{exp.note}</p>}
                     </div>
-                    <div className="text-right">
-                      <span className="text-lg font-black text-red-500">Rs.{exp.amount.toLocaleString()}</span>
-                      <p className="text-[10px] mt-1" style={{ opacity: 0.4, color: isDarkMode ? 'white' : 'black' }}>
-                        {new Date(exp.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                      </p>
+                    <div className="flex items-center gap-2">
+                      <span className="text-base font-black text-red-500">Rs.{exp.amount.toLocaleString()}</span>
+                      <button
+                        onClick={() => deleteExpense(exp.id)}
+                        className={`p-1 rounded-lg transition-all ${
+                          isDarkMode
+                            ? 'text-red-500/30 hover:text-red-500 hover:bg-red-500/10'
+                            : 'text-red-400 hover:text-red-600 hover:bg-red-50'
+                        }`}
+                      >
+                        <Trash2 size={12}/>
+                      </button>
                     </div>
                   </div>
                 ))}
 
                 {data.expenses.filter(e => e.date === new Date().toISOString().split('T')[0]).length === 0 && (
-                  <div className="text-center py-6">
-                    <CreditCard size={40} className="mx-auto opacity-20 mb-3" />
-                    <p className="text-sm opacity-30 italic">No expenses recorded today</p>
+                  <div className="text-center py-4">
+                    <CreditCard size={30} className="mx-auto opacity-20 mb-1.5" />
+                    <p className="text-xs opacity-30 italic">No expenses recorded today</p>
                   </div>
                 )}
               </div>
@@ -1644,7 +1681,7 @@ export default function App() {
       </main>
 
       {/* Bottom Navigation - UPDATED WITH NOTES TAB */}
-      <nav className={`fixed bottom-8 inset-x-8 h-20 rounded-2xl border flex items-center justify-around z-50 shadow-2xl ${
+      <nav className={`fixed bottom-4 inset-x-4 h-16 rounded-2xl border flex items-center justify-around z-50 shadow-2xl ${
         isDarkMode
           ? "bg-gradient-to-br from-black/95 to-gray-900/95 border-white/10 backdrop-blur-xl"
           : "bg-white/95 border-gray-200 backdrop-blur-xl shadow-lg"
@@ -1659,7 +1696,7 @@ export default function App() {
           <button
             key={t.id}
             onClick={() => setActiveTab(t.id)}
-            className={`p-4 transition-all relative flex flex-col items-center ${
+            className={`p-2 transition-all relative flex flex-col items-center ${
               activeTab === t.id
                 ? 'text-[#d4af37]'
                 : isDarkMode
@@ -1667,103 +1704,100 @@ export default function App() {
                   : 'opacity-40 hover:opacity-70 text-gray-600'
             }`}
           >
-            <div className={`p-2.5 rounded-lg ${
+            <div className={`p-1.5 rounded-lg ${
               activeTab === t.id
                 ? isDarkMode
                   ? 'bg-[#d4af37]/10'
                   : 'bg-[#d4af37]/20'
                 : ''
             }`}>
-              <t.icon size={24} />
+              <t.icon size={20} />
             </div>
-            <span className="text-[9px] font-black uppercase mt-1.5">{t.label}</span>
+            <span className="text-[8px] font-black uppercase mt-1">{t.label}</span>
             {activeTab === t.id && (
-              <div className="absolute -bottom-1 w-8 h-1 bg-gradient-to-r from-[#d4af37] to-[#b8860b] rounded-full"></div>
+              <div className="absolute -bottom-1 w-6 h-0.5 bg-gradient-to-r from-[#d4af37] to-[#b8860b] rounded-full"></div>
             )}
           </button>
         ))}
       </nav>
 
-      {/* --- ADVANCED CALCULATOR MODAL --- */}
+      {/* --- COMPACT CALCULATOR MODAL --- */}
       {showCalculator && (
-        <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-4 backdrop-blur-3xl">
-          <div className="bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] w-full max-w-sm p-6 rounded-3xl border border-[#d4af37]/30 relative shadow-2xl">
+        <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-3 backdrop-blur-3xl">
+          <div className="bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] w-full max-w-xs p-4 rounded-2xl border border-[#d4af37]/30 relative shadow-2xl">
             <button
               onClick={() => setShowCalculator(false)}
-              className="absolute top-4 right-4 text-white/20 hover:text-white/40 transition-all"
+              className="absolute top-2 right-2 text-white/20 hover:text-white/40 transition-all p-1"
             >
-              <X size={24}/>
+              <X size={20}/>
             </button>
 
-            <div className="text-center mb-6">
-              <Calculator size={40} className="text-[#d4af37] mx-auto mb-3" />
-              <h3 className="font-black text-[#d4af37] mb-2 uppercase text-lg tracking-widest">ADVANCED CALCULATOR</h3>
-              <p className="text-xs opacity-50">Calculate totals with discount & tax</p>
+            <div className="text-center mb-4">
+              <Calculator size={30} className="text-[#d4af37] mx-auto mb-2" />
+              <h3 className="font-black text-[#d4af37] mb-1 uppercase text-base tracking-widest">CALCULATOR</h3>
+              <p className="text-[10px] opacity-50">Calculate totals</p>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-3">
               <div>
-                <label className="text-xs font-black uppercase opacity-40 mb-2 block">Subtotal (Rs.)</label>
+                <label className="text-[10px] font-black uppercase opacity-40 mb-1 block">Subtotal (Rs.)</label>
                 <input
                   type="number"
                   value={totalCalculation.subtotal}
                   onChange={(e) => setTotalCalculation({...totalCalculation, subtotal: parseFloat(e.target.value) || 0})}
                   placeholder="0.00"
-                  className="w-full bg-black/40 p-4 rounded-xl border border-white/5 text-white font-bold text-center outline-none text-xl focus:border-[#d4af37] transition-all"
+                  className="w-full bg-black/40 p-3 rounded-lg border border-white/5 text-white font-bold text-center outline-none focus:border-[#d4af37] transition-all text-sm"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-xs font-black uppercase opacity-40 mb-2 block flex items-center gap-1">
-                    <Percent size={12} /> Discount
-                  </label>
+                  <label className="text-[10px] font-black uppercase opacity-40 mb-1 block">Discount</label>
                   <input
                     type="number"
                     value={totalCalculation.discount}
                     onChange={(e) => setTotalCalculation({...totalCalculation, discount: parseFloat(e.target.value) || 0})}
                     placeholder="0.00"
-                    className="w-full bg-black/40 p-3 rounded-xl border border-white/5 text-white font-bold text-center outline-none focus:border-[#d4af37] transition-all"
+                    className="w-full bg-black/40 p-2 rounded-lg border border-white/5 text-white font-bold text-center outline-none focus:border-[#d4af37] transition-all text-sm"
                   />
                 </div>
 
                 <div>
-                  <label className="text-xs font-black uppercase opacity-40 mb-2 block">Tax (Rs.)</label>
+                  <label className="text-[10px] font-black uppercase opacity-40 mb-1 block">Tax (Rs.)</label>
                   <input
                     type="number"
                     value={totalCalculation.tax}
                     onChange={(e) => setTotalCalculation({...totalCalculation, tax: parseFloat(e.target.value) || 0})}
                     placeholder="0.00"
-                    className="w-full bg-black/40 p-3 rounded-xl border border-white/5 text-white font-bold text-center outline-none focus:border-[#d4af37] transition-all"
+                    className="w-full bg-black/40 p-2 rounded-lg border border-white/5 text-white font-bold text-center outline-none focus:border-[#d4af37] transition-all text-sm"
                   />
                 </div>
               </div>
 
-              <div className="bg-gradient-to-br from-black/60 to-black/40 p-4 rounded-xl border border-[#d4af37]/30">
-                <div className="flex justify-between items-center mb-2">
-                  <p className="text-xs font-black uppercase opacity-60">Calculated Total</p>
-                  <Calculator size={16} className="text-[#d4af37] opacity-60" />
+              <div className="bg-gradient-to-br from-black/60 to-black/40 p-3 rounded-lg border border-[#d4af37]/30">
+                <div className="flex justify-between items-center mb-1">
+                  <p className="text-[10px] font-black uppercase opacity-60">Total</p>
                 </div>
-                <p className="text-2xl font-black text-[#d4af37] text-center">
+                <p className="text-lg font-black text-[#d4af37] text-center">
                   Rs.{(totalCalculation.subtotal - totalCalculation.discount + totalCalculation.tax).toLocaleString()}
                 </p>
               </div>
 
-              <div className="space-y-3">
+              <div className="space-y-2">
                 <button
                   onClick={calculateTotal}
-                  className="w-full py-4 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-xl uppercase text-sm tracking-widest hover:opacity-90 transition-all"
+                  className="w-full py-3 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg uppercase text-xs tracking-widest hover:opacity-90 transition-all"
                 >
-                  CALCULATE & SAVE
+                  CALCULATE
                 </button>
 
                 <button
                   onClick={() => {
                     setTotalCalculation({ subtotal: 0, discount: 0, tax: 0, grandTotal: 0 });
                   }}
-                  className="w-full py-3 bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] text-white/60 font-black rounded-xl uppercase text-xs tracking-widest border border-white/5 hover:border-white/10 transition-all"
+                  className="w-full py-2 bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] text-white/60 font-black rounded-lg uppercase text-[10px] tracking-widest border border-white/5 hover:border-white/10 transition-all"
                 >
-                  RESET CALCULATOR
+                  RESET
                 </button>
               </div>
             </div>
@@ -1771,24 +1805,24 @@ export default function App() {
         </div>
       )}
 
-      {/* --- EXPENSE MODAL --- */}
+      {/* --- COMPACT EXPENSE MODAL --- */}
       {showModal === 'expense' && (
-        <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-4 backdrop-blur-3xl">
-          <div className="bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] w-full max-w-sm p-6 rounded-3xl border border-[#d4af37]/30 relative shadow-2xl">
-            <button onClick={() => setShowModal(null)} className="absolute top-4 right-4 text-white/20 hover:text-white/40">
-              <X size={24}/>
+        <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-3 backdrop-blur-3xl">
+          <div className="bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] w-full max-w-xs p-4 rounded-2xl border border-[#d4af37]/30 relative shadow-2xl">
+            <button onClick={() => setShowModal(null)} className="absolute top-2 right-2 text-white/20 hover:text-white/40 p-1">
+              <X size={20}/>
             </button>
 
-            <div className="text-center mb-6">
-              <CreditCard size={40} className="text-[#d4af37] mx-auto mb-3" />
-              <h3 className="font-black text-[#d4af37] mb-2 uppercase text-lg tracking-widest">ADD EXPENSE</h3>
-              <p className="text-xs opacity-50">Record your daily expenses</p>
+            <div className="text-center mb-4">
+              <CreditCard size={30} className="text-[#d4af37] mx-auto mb-2" />
+              <h3 className="font-black text-[#d4af37] mb-1 uppercase text-base tracking-widest">ADD EXPENSE</h3>
+              <p className="text-[10px] opacity-50">Record your expenses</p>
             </div>
 
-            <div className="space-y-5">
+            <div className="space-y-4">
               <div>
-                <p className="text-xs font-black uppercase opacity-40 mb-3">Expense Type</p>
-                <div className="grid grid-cols-4 gap-2">
+                <p className="text-[10px] font-black uppercase opacity-40 mb-2">Expense Type</p>
+                <div className="grid grid-cols-4 gap-1.5">
                   {[
                     {type: 'fuel', icon: Fuel, label: 'Fuel', color: 'text-red-400'},
                     {type: 'food', icon: Coffee, label: 'Food', color: 'text-amber-400'},
@@ -1799,40 +1833,40 @@ export default function App() {
                       key={item.type}
                       type="button"
                       onClick={() => setExpenseType(item.type)}
-                      className={`p-3 rounded-xl border flex flex-col items-center gap-1 transition-all ${expenseType === item.type ? 'bg-black/60 border-[#d4af37]' : 'bg-black/40 border-white/5 hover:border-white/20'}`}
+                      className={`p-2 rounded-lg border flex flex-col items-center gap-0.5 transition-all ${expenseType === item.type ? 'bg-black/60 border-[#d4af37]' : 'bg-black/40 border-white/5 hover:border-white/20'}`}
                     >
-                      <item.icon size={18} className={expenseType === item.type ? 'text-[#d4af37]' : item.color} />
-                      <span className="text-[10px] font-black uppercase">{item.label}</span>
+                      <item.icon size={16} className={expenseType === item.type ? 'text-[#d4af37]' : item.color} />
+                      <span className="text-[9px] font-black uppercase">{item.label}</span>
                     </button>
                   ))}
                 </div>
               </div>
 
               <div>
-                <p className="text-xs font-black uppercase opacity-40 mb-2">Amount (Rs.)</p>
+                <p className="text-[10px] font-black uppercase opacity-40 mb-1">Amount (Rs.)</p>
                 <input
                   type="number"
                   value={expenseAmount}
                   onChange={(e) => setExpenseAmount(e.target.value)}
                   placeholder="0.00"
-                  className="w-full bg-black/40 p-4 rounded-xl border border-white/5 text-white font-bold text-center outline-none text-2xl focus:border-[#d4af37] transition-all"
+                  className="w-full bg-black/40 p-3 rounded-lg border border-white/5 text-white font-bold text-center outline-none focus:border-[#d4af37] transition-all text-base"
                 />
               </div>
 
               <div>
-                <p className="text-xs font-black uppercase opacity-40 mb-2">Note (Optional)</p>
+                <p className="text-[10px] font-black uppercase opacity-40 mb-1">Note (Optional)</p>
                 <textarea
                   value={expenseNote}
                   onChange={(e) => setExpenseNote(e.target.value)}
                   placeholder="Add expense details..."
-                  className="w-full bg-black/40 p-3 rounded-xl border border-white/5 text-white text-sm outline-none resize-none h-20 focus:border-[#d4af37] transition-all"
+                  className="w-full bg-black/40 p-2 rounded-lg border border-white/5 text-white text-xs outline-none resize-none h-16 focus:border-[#d4af37] transition-all"
                 />
               </div>
 
               <button
                 onClick={saveExpense}
                 disabled={isSavingExpense}
-                className={`w-full py-4 rounded-xl uppercase text-sm tracking-widest font-black transition-all ${isSavingExpense ? 'bg-gray-700 text-gray-400' : 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black hover:opacity-90'}`}
+                className={`w-full py-3 rounded-lg uppercase text-xs tracking-widest font-black transition-all ${isSavingExpense ? 'bg-gray-700 text-gray-400' : 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black hover:opacity-90'}`}
               >
                 {isSavingExpense ? 'SAVING...' : 'SAVE EXPENSE'}
               </button>
@@ -1841,34 +1875,34 @@ export default function App() {
         </div>
       )}
 
-      {/* --- NOTE MODAL --- */}
+      {/* --- COMPACT NOTE MODAL --- */}
       {showModal === 'note' && (
-        <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-4 backdrop-blur-3xl">
-          <div className="bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] w-full max-w-sm p-6 rounded-3xl border border-[#d4af37]/30 relative shadow-2xl">
-            <button onClick={() => setShowModal(null)} className="absolute top-4 right-4 text-white/20 hover:text-white/40">
-              <X size={24}/>
+        <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-3 backdrop-blur-3xl">
+          <div className="bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] w-full max-w-xs p-4 rounded-2xl border border-[#d4af37]/30 relative shadow-2xl">
+            <button onClick={() => setShowModal(null)} className="absolute top-2 right-2 text-white/20 hover:text-white/40 p-1">
+              <X size={20}/>
             </button>
 
-            <div className="text-center mb-6">
-              <FileText size={40} className="text-[#d4af37] mx-auto mb-3" />
-              <h3 className="font-black text-[#d4af37] mb-2 uppercase text-lg tracking-widest">ADD NOTE</h3>
-              <p className="text-xs opacity-50">Record important information</p>
+            <div className="text-center mb-4">
+              <FileText size={30} className="text-[#d4af37] mx-auto mb-2" />
+              <h3 className="font-black text-[#d4af37] mb-1 uppercase text-base tracking-widest">ADD NOTE</h3>
+              <p className="text-[10px] opacity-50">Record important information</p>
             </div>
 
-            <div className="space-y-5">
+            <div className="space-y-4">
               <div className="relative">
                 <textarea
                   value={repNote}
                   onChange={(e) => setRepNote(e.target.value)}
-                  placeholder="Type your note here... (Meeting notes, customer feedback, reminders, etc.)"
-                  className="w-full bg-black/40 p-4 rounded-xl border border-white/5 text-white text-sm outline-none resize-none h-32 focus:border-[#d4af37] transition-all"
+                  placeholder="Type your note here..."
+                  className="w-full bg-black/40 p-3 rounded-lg border border-white/5 text-white text-xs outline-none resize-none h-24 focus:border-[#d4af37] transition-all"
                 />
               </div>
 
               <button
                 onClick={saveNote}
                 disabled={isSavingNote}
-                className={`w-full py-4 rounded-xl uppercase text-sm tracking-widest font-black transition-all ${isSavingNote ? 'bg-gray-700 text-gray-400' : 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black hover:opacity-90'}`}
+                className={`w-full py-3 rounded-lg uppercase text-xs tracking-widest font-black transition-all ${isSavingNote ? 'bg-gray-700 text-gray-400' : 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black hover:opacity-90'}`}
               >
                 {isSavingNote ? 'SAVING...' : 'SAVE NOTE'}
               </button>
@@ -1880,37 +1914,37 @@ export default function App() {
       {/* --- INVOICE MODAL --- */}
       {showModal === 'invoice' && selectedShop && (
         <div className="fixed inset-0 bg-black z-[100] overflow-y-auto">
-          <div className="min-h-screen p-4 max-w-lg mx-auto pb-40">
+          <div className="min-h-screen p-3 max-w-lg mx-auto pb-32">
             {/* Header */}
-            <div className="flex justify-between items-center mb-6 sticky top-0 bg-black/95 py-4 border-b border-white/10 backdrop-blur-xl z-10">
+            <div className="flex justify-between items-center mb-4 sticky top-0 bg-black/95 py-3 border-b border-white/10 backdrop-blur-xl z-10">
               <div>
-                <h2 className="text-2xl font-black uppercase text-white">{selectedShop.name}</h2>
-                <p className="text-sm text-[#d4af37] font-black uppercase mt-1">Create New Bill</p>
+                <h2 className="text-xl font-black uppercase text-white">{selectedShop.name}</h2>
+                <p className="text-xs text-[#d4af37] font-black uppercase mt-0.5">Create New Bill</p>
               </div>
               <button
                 onClick={() => { setShowModal(null); setCart({}); }}
-                className="p-3 bg-white/10 rounded-full text-white hover:bg-white/20 transition-all"
+                className="p-2 bg-white/10 rounded-full text-white hover:bg-white/20 transition-all"
               >
-                <X size={24}/>
+                <X size={20}/>
               </button>
             </div>
 
             {/* Brand List */}
-            <div className="space-y-3">
+            <div className="space-y-2">
               {data.brands.map(b => (
                 <div
                   key={b.id}
-                  className="bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] p-4 rounded-2xl border border-white/5 flex items-center justify-between hover:border-[#d4af37]/30 transition-all"
+                  className="bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] p-3 rounded-xl border border-white/5 flex items-center justify-between hover:border-[#d4af37]/30 transition-all"
                 >
                   <div className="flex-1">
-                    <h4 className="text-sm font-black uppercase text-white">{b.name} ({b.size})</h4>
-                    <p className="text-sm text-[#d4af37] font-bold mt-1">Rs.{b.price.toLocaleString()}</p>
+                    <h4 className="text-xs font-black uppercase text-white">{b.name} ({b.size})</h4>
+                    <p className="text-xs text-[#d4af37] font-bold mt-0.5">Rs.{b.price.toLocaleString()}</p>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
                     <button
                       type="button"
                       onClick={() => setCart({...cart, [b.id]: Math.max(0, (Number(cart[b.id])||0)-1)})}
-                      className="w-10 h-10 bg-white/5 rounded-xl text-white font-black hover:bg-white/10 transition-all"
+                      className="w-8 h-8 bg-white/5 rounded-lg text-white font-black hover:bg-white/10 transition-all text-sm"
                     >
                       -
                     </button>
@@ -1918,13 +1952,13 @@ export default function App() {
                       type="number"
                       value={cart[b.id] || ''}
                       onChange={(e) => setCart({...cart, [b.id]: e.target.value})}
-                      className="w-14 bg-transparent text-center font-black text-[#d4af37] text-lg outline-none"
+                      className="w-12 bg-transparent text-center font-black text-[#d4af37] text-base outline-none"
                       placeholder="0"
                     />
                     <button
                       type="button"
                       onClick={() => setCart({...cart, [b.id]: (Number(cart[b.id])||0)+1})}
-                      className="w-10 h-10 bg-white/5 rounded-xl text-white font-black hover:bg-white/10 transition-all"
+                      className="w-8 h-8 bg-white/5 rounded-lg text-white font-black hover:bg-white/10 transition-all text-sm"
                     >
                       +
                     </button>
@@ -1932,26 +1966,26 @@ export default function App() {
                 </div>
               ))}
               {data.brands.length === 0 && (
-                <div className="text-center py-8">
-                  <Package size={40} className="mx-auto opacity-20 mb-3" />
-                  <p className="text-sm opacity-30 italic">No brands added yet. Add brands in Settings.</p>
+                <div className="text-center py-6">
+                  <Package size={30} className="mx-auto opacity-20 mb-2" />
+                  <p className="text-xs opacity-30 italic">No brands added yet. Add brands in Settings.</p>
                 </div>
               )}
             </div>
 
             {/* Fixed Bottom Bar */}
-            <div className="fixed bottom-0 inset-x-0 p-4 bg-black/95 border-t border-white/10 backdrop-blur-2xl z-20">
+            <div className="fixed bottom-0 inset-x-0 p-3 bg-black/95 border-t border-white/10 backdrop-blur-2xl z-20">
               <div className="max-w-lg mx-auto">
-                <div className="flex justify-between items-center mb-4">
+                <div className="flex justify-between items-center mb-3">
                   <div>
-                    <span className="text-xs font-black uppercase opacity-40">Total Items</span>
-                    <p className="text-base font-black text-white">
+                    <span className="text-[10px] font-black uppercase opacity-40">Total Items</span>
+                    <p className="text-sm font-black text-white">
                       {Object.values(cart).filter(q => q > 0).length}
                     </p>
                   </div>
                   <div className="text-right">
-                    <span className="text-xs font-black uppercase opacity-40">Total Amount</span>
-                    <p className="text-2xl font-black text-[#d4af37]">
+                    <span className="text-[10px] font-black uppercase opacity-40">Total Amount</span>
+                    <p className="text-xl font-black text-[#d4af37]">
                       Rs.{calculateCartTotal().toLocaleString()}
                     </p>
                   </div>
@@ -1959,7 +1993,7 @@ export default function App() {
                 <button
                   type="button"
                   onClick={handleCreateOrder}
-                  className="w-full py-4 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-2xl uppercase text-sm tracking-widest hover:opacity-90 transition-all"
+                  className="w-full py-3 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-xl uppercase text-xs tracking-widest hover:opacity-90 transition-all"
                 >
                   CONFIRM ORDER
                 </button>
@@ -1972,29 +2006,29 @@ export default function App() {
       {/* --- MANUAL ORDER MODAL --- */}
       {showModal === 'manual' && (
         <div className="fixed inset-0 bg-black z-[100] overflow-y-auto">
-          <div className="min-h-screen p-4 max-w-lg mx-auto pb-60">
+          <div className="min-h-screen p-3 max-w-lg mx-auto pb-40">
             {/* Header */}
-            <div className="flex justify-between items-center mb-6 sticky top-0 bg-black/95 py-4 border-b border-white/10 backdrop-blur-xl z-10">
+            <div className="flex justify-between items-center mb-4 sticky top-0 bg-black/95 py-3 border-b border-white/10 backdrop-blur-xl z-10">
               <div>
-                <h2 className="text-2xl font-black uppercase text-white">Manual Order</h2>
-                <p className="text-sm text-[#d4af37] font-black uppercase">Add Custom Items</p>
+                <h2 className="text-xl font-black uppercase text-white">Manual Order</h2>
+                <p className="text-xs text-[#d4af37] font-black uppercase">Add Custom Items</p>
               </div>
               <button
                 onClick={() => {
                   setShowModal(null);
                   setManualItems([{ name: '', qty: 1, price: 0, subtotal: 0 }]);
                 }}
-                className="p-3 bg-white/10 rounded-full text-white hover:bg-white/20 transition-all"
+                className="p-2 bg-white/10 rounded-full text-white hover:bg-white/20 transition-all"
               >
-                <X size={24}/>
+                <X size={20}/>
               </button>
             </div>
 
             {/* Shop Selection */}
-            <div className="mb-6">
-              <label className="text-sm font-black uppercase opacity-60 mb-3 block">Select Shop</label>
+            <div className="mb-4">
+              <label className="text-xs font-black uppercase opacity-60 mb-2 block">Select Shop</label>
               <select
-                className="w-full bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] p-4 rounded-2xl border border-white/5 text-white font-bold uppercase outline-none focus:border-[#d4af37] transition-all"
+                className="w-full bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] p-3 rounded-xl border border-white/5 text-white font-bold uppercase outline-none text-xs focus:border-[#d4af37] transition-all"
                 onChange={(e) => {
                   const shopId = e.target.value;
                   const shop = data.shops.find(s => s.id === shopId);
@@ -2002,7 +2036,7 @@ export default function App() {
                 }}
                 defaultValue=""
               >
-                <option value="">-- SELECT A SHOP --</option>
+                <option value="">-- SELECT SHOP --</option>
                 {data.shops.map(s => (
                   <option key={s.id} value={s.id}>{s.name} - {s.area}</option>
                 ))}
@@ -2010,69 +2044,69 @@ export default function App() {
             </div>
 
             {/* Manual Items */}
-            <div className="space-y-4">
+            <div className="space-y-3">
               <div className="flex justify-between items-center">
-                <h3 className="text-sm font-black uppercase opacity-60">Custom Items</h3>
+                <h3 className="text-xs font-black uppercase opacity-60">Custom Items</h3>
                 <button
                   type="button"
                   onClick={addManualItem}
-                  className="text-[#d4af37] text-sm font-black uppercase flex items-center gap-2 hover:opacity-80 transition-all"
+                  className="text-[#d4af37] text-xs font-black uppercase flex items-center gap-1.5 hover:opacity-80 transition-all"
                 >
-                  <Plus size={18}/> ADD ITEM
+                  <Plus size={16}/> ADD ITEM
                 </button>
               </div>
 
               {manualItems.map((item, index) => (
-                <div key={index} className="bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] p-4 rounded-2xl border border-white/5 space-y-3">
+                <div key={index} className="bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] p-3 rounded-xl border border-white/5 space-y-2">
                   <div className="flex justify-between items-center">
-                    <span className="text-xs font-black uppercase opacity-60">Item #{index + 1}</span>
+                    <span className="text-[10px] font-black uppercase opacity-60">Item #{index + 1}</span>
                     {manualItems.length > 1 && (
                       <button
                         type="button"
                         onClick={() => removeManualItem(index)}
-                        className="p-2 text-red-500/60 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
+                        className="p-1.5 text-red-500/60 hover:text-red-500 hover:bg-red-500/10 rounded transition-all"
                       >
-                        <Trash2 size={16}/>
+                        <Trash2 size={14}/>
                       </button>
                     )}
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <p className="text-[11px] font-black uppercase opacity-40 mb-1">Item Name</p>
+                      <p className="text-[10px] font-black uppercase opacity-40 mb-1">Item Name</p>
                       <input
                         value={item.name}
                         onChange={(e) => updateManualItem(index, 'name', e.target.value)}
                         placeholder="PRODUCT NAME"
-                        className="w-full bg-black/40 p-3 rounded-lg border border-white/5 text-white font-bold uppercase outline-none text-sm focus:border-[#d4af37] transition-all"
+                        className="w-full bg-black/40 p-2 rounded border border-white/5 text-white font-bold uppercase outline-none text-xs focus:border-[#d4af37] transition-all"
                       />
                     </div>
 
                     <div>
-                      <p className="text-[11px] font-black uppercase opacity-40 mb-1">Quantity</p>
+                      <p className="text-[10px] font-black uppercase opacity-40 mb-1">Quantity</p>
                       <input
                         type="number"
                         value={item.qty}
                         onChange={(e) => updateManualItem(index, 'qty', e.target.value)}
-                        className="w-full bg-black/40 p-3 rounded-lg border border-white/5 text-white font-bold text-center outline-none text-sm focus:border-[#d4af37] transition-all"
+                        className="w-full bg-black/40 p-2 rounded border border-white/5 text-white font-bold text-center outline-none text-xs focus:border-[#d4af37] transition-all"
                       />
                     </div>
 
                     <div>
-                      <p className="text-[11px] font-black uppercase opacity-40 mb-1">Unit Price (Rs.)</p>
+                      <p className="text-[10px] font-black uppercase opacity-40 mb-1">Unit Price (Rs.)</p>
                       <input
                         type="number"
                         value={item.price}
                         onChange={(e) => updateManualItem(index, 'price', e.target.value)}
                         placeholder="0.00"
-                        className="w-full bg-black/40 p-3 rounded-lg border border-white/5 text-white font-bold text-center outline-none text-sm focus:border-[#d4af37] transition-all"
+                        className="w-full bg-black/40 p-2 rounded border border-white/5 text-white font-bold text-center outline-none text-xs focus:border-[#d4af37] transition-all"
                       />
                     </div>
 
                     <div>
-                      <p className="text-[11px] font-black uppercase opacity-40 mb-1">Subtotal (Rs.)</p>
-                      <div className="w-full bg-black/40 p-3 rounded-lg border border-white/5 text-center">
-                        <span className="text-[#d4af37] font-black text-base">Rs.{item.subtotal.toLocaleString()}</span>
+                      <p className="text-[10px] font-black uppercase opacity-40 mb-1">Subtotal (Rs.)</p>
+                      <div className="w-full bg-black/40 p-2 rounded border border-white/5 text-center">
+                        <span className="text-[#d4af37] font-black text-sm">Rs.{item.subtotal.toLocaleString()}</span>
                       </div>
                     </div>
                   </div>
@@ -2081,18 +2115,18 @@ export default function App() {
             </div>
 
             {/* Fixed Bottom Bar */}
-            <div className="fixed bottom-0 inset-x-0 p-4 bg-black/95 border-t border-white/10 backdrop-blur-2xl z-20">
+            <div className="fixed bottom-0 inset-x-0 p-3 bg-black/95 border-t border-white/10 backdrop-blur-2xl z-20">
               <div className="max-w-lg mx-auto">
-                <div className="flex justify-between items-center mb-4">
+                <div className="flex justify-between items-center mb-2">
                   <div>
-                    <p className="text-[11px] font-black uppercase opacity-40">Selected Shop</p>
-                    <p className="text-base font-black text-white">
+                    <p className="text-[10px] font-black uppercase opacity-40">Selected Shop</p>
+                    <p className="text-sm font-black text-white">
                       {selectedShop?.name || "Not Selected"}
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-[11px] font-black uppercase opacity-40">Order Total</p>
-                    <p className="text-xl font-black text-[#d4af37]">
+                    <p className="text-[10px] font-black uppercase opacity-40">Order Total</p>
+                    <p className="text-lg font-black text-[#d4af37]">
                       Rs.{manualItems.reduce((sum, item) => sum + (item.subtotal || 0), 0).toLocaleString()}
                     </p>
                   </div>
@@ -2101,7 +2135,7 @@ export default function App() {
                   type="button"
                   onClick={saveManualOrder}
                   disabled={!selectedShop}
-                  className={`w-full py-4 font-black rounded-2xl uppercase tracking-widest text-sm transition-all ${selectedShop ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black hover:opacity-90' : 'bg-gray-700 text-gray-400'}`}
+                  className={`w-full py-3 font-black rounded-xl uppercase tracking-widest text-xs transition-all ${selectedShop ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black hover:opacity-90' : 'bg-gray-700 text-gray-400'}`}
                 >
                   {selectedShop ? 'SAVE MANUAL ORDER' : 'SELECT SHOP FIRST'}
                 </button>
@@ -2113,54 +2147,51 @@ export default function App() {
 
       {/* --- PREVIEW MODAL --- */}
       {showModal === 'preview' && lastOrder && (
-        <div className="fixed inset-0 bg-black/95 z-[110] flex items-center justify-center p-4 backdrop-blur-3xl">
-          <div className="bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] w-full max-w-md p-6 rounded-3xl border border-[#d4af37]/30 shadow-2xl">
-            <div className="flex flex-col items-center text-center mb-6">
-              <div className="w-14 h-14 bg-gradient-to-br from-green-500/20 to-emerald-600/20 text-green-500 rounded-full flex items-center justify-center mb-4 border border-green-500/30">
-                <CheckCircle2 size={28}/>
+        <div className="fixed inset-0 bg-black/95 z-[110] flex items-center justify-center p-3 backdrop-blur-3xl">
+          <div className="bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] w-full max-w-sm p-4 rounded-2xl border border-[#d4af37]/30 shadow-2xl">
+            <div className="flex flex-col items-center text-center mb-4">
+              <div className="w-12 h-12 bg-gradient-to-br from-green-500/20 to-emerald-600/20 text-green-500 rounded-full flex items-center justify-center mb-3 border border-green-500/30">
+                <CheckCircle2 size={24}/>
               </div>
-              <h3 className="text-xl font-black text-white uppercase">Bill Confirmed!</h3>
-              <p className="text-sm text-white/60 uppercase font-bold mt-2">{lastOrder.shopName}</p>
-              <p className="text-xs opacity-50 mt-1">
-                {new Date(lastOrder.timestamp).toLocaleString()}
-              </p>
+              <h3 className="text-lg font-black text-white uppercase">Bill Confirmed!</h3>
+              <p className="text-xs text-white/60 uppercase font-bold mt-1">{lastOrder.shopName}</p>
             </div>
 
             {/* Order Summary */}
-            <div className="bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] rounded-2xl p-4 mb-6 border border-white/5">
-              <div className="space-y-3 max-h-40 overflow-y-auto pr-2">
+            <div className="bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] rounded-xl p-3 mb-4 border border-white/5">
+              <div className="space-y-2 max-h-32 overflow-y-auto pr-1">
                 {lastOrder.items && lastOrder.items.map((it, idx) => (
-                  <div key={idx} className="flex justify-between items-center text-sm uppercase font-bold py-2 border-b border-white/5 last:border-0">
+                  <div key={idx} className="flex justify-between items-center text-xs uppercase font-bold py-1 border-b border-white/5 last:border-0">
                     <div>
                       <span className="text-white/80">{it.name}</span>
-                      <span className="text-white text-xs ml-2">x{it.qty} @ Rs.{it.price}</span>
+                      <span className="text-white text-[10px] ml-1">x{it.qty} @ Rs.{it.price}</span>
                     </div>
                     <span className="text-white font-black">Rs.{it.subtotal.toLocaleString()}</span>
                   </div>
                 ))}
               </div>
 
-              <div className="mt-4 pt-3 border-t border-white/10 flex justify-between items-center">
-                <span className="text-sm font-black uppercase text-white">Total Amount</span>
-                <span className="text-xl font-black text-[#d4af37]">Rs.{lastOrder.total.toLocaleString()}</span>
+              <div className="mt-3 pt-2 border-t border-white/10 flex justify-between items-center">
+                <span className="text-xs font-black uppercase text-white">Total</span>
+                <span className="text-lg font-black text-[#d4af37]">Rs.{lastOrder.total.toLocaleString()}</span>
               </div>
             </div>
 
             {/* Action Buttons */}
-            <div className="space-y-3">
+            <div className="space-y-2">
               <button
                 type="button"
                 onClick={() => shareBillWithLocation(lastOrder)}
-                className="w-full py-3 bg-gradient-to-r from-[#25D366] to-[#128C7E] text-white font-black rounded-2xl uppercase text-sm flex items-center justify-center gap-2 hover:opacity-90 transition-all"
+                className="w-full py-2.5 bg-gradient-to-r from-[#25D366] to-[#128C7E] text-white font-black rounded-lg uppercase text-xs flex items-center justify-center gap-1.5 hover:opacity-90 transition-all"
               >
-                <Navigation size={16} /> Share with Location
+                <Navigation size={14} /> Share with Location
               </button>
               <button
                 type="button"
                 onClick={() => shareToWhatsApp(lastOrder)}
-                className="w-full py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-black rounded-2xl uppercase text-sm flex items-center justify-center gap-2 hover:opacity-90 transition-all"
+                className="w-full py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-black rounded-lg uppercase text-xs flex items-center justify-center gap-1.5 hover:opacity-90 transition-all"
               >
-                <Share2 size={16} /> Share Bill Only
+                <Share2 size={14} /> Share Bill Only
               </button>
               <button
                 type="button"
@@ -2168,9 +2199,9 @@ export default function App() {
                   setShowModal(null);
                   setLastOrder(null);
                 }}
-                className="w-full py-3 bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] text-white/60 font-black rounded-2xl uppercase text-sm border border-white/5 hover:border-white/10 transition-all"
+                className="w-full py-2.5 bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] text-white/60 font-black rounded-lg uppercase text-xs border border-white/5 hover:border-white/10 transition-all"
               >
-                Close Preview
+                Close
               </button>
             </div>
           </div>
@@ -2179,21 +2210,21 @@ export default function App() {
 
       {/* --- REGISTER MODALS (Shop, Brand, Route) --- */}
       {['route', 'shop', 'brand'].includes(showModal) && (
-        <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-4 backdrop-blur-3xl">
-          <div className="bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] w-full max-w-sm p-6 rounded-3xl border border-[#d4af37]/30 relative shadow-2xl">
-            <button onClick={() => setShowModal(null)} className="absolute top-4 right-4 text-white/20 hover:text-white/40">
-              <X size={24}/>
+        <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-3 backdrop-blur-3xl">
+          <div className="bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] w-full max-w-xs p-4 rounded-2xl border border-[#d4af37]/30 relative shadow-2xl">
+            <button onClick={() => setShowModal(null)} className="absolute top-2 right-2 text-white/20 hover:text-white/40 p-1">
+              <X size={20}/>
             </button>
 
-            <div className="text-center mb-6">
-              {showModal === 'route' && <MapPin size={36} className="text-[#d4af37] mx-auto mb-3" />}
-              {showModal === 'shop' && <Store size={36} className="text-[#d4af37] mx-auto mb-3" />}
-              {showModal === 'brand' && <Package size={36} className="text-[#d4af37] mx-auto mb-3" />}
+            <div className="text-center mb-4">
+              {showModal === 'route' && <MapPin size={28} className="text-[#d4af37] mx-auto mb-2" />}
+              {showModal === 'shop' && <Store size={28} className="text-[#d4af37] mx-auto mb-2" />}
+              {showModal === 'brand' && <Package size={28} className="text-[#d4af37] mx-auto mb-2" />}
 
-              <h3 className="font-black text-[#d4af37] mb-2 uppercase text-lg tracking-widest">
+              <h3 className="font-black text-[#d4af37] mb-1 uppercase text-base tracking-widest">
                 New {showModal.charAt(0).toUpperCase() + showModal.slice(1)}
               </h3>
-              <p className="text-xs opacity-50">
+              <p className="text-[10px] opacity-50">
                 {showModal === 'route' && 'Add new sales route'}
                 {showModal === 'shop' && 'Register new shop'}
                 {showModal === 'brand' && 'Add new product brand'}
@@ -2243,16 +2274,16 @@ export default function App() {
               } catch (err) {
                 showToast("Error: " + err.message, "error");
               }
-            }} className="space-y-4">
+            }} className="space-y-3">
 
               <input
                 name="name"
                 placeholder={
-                  showModal === 'brand' ? "BRAND NAME (e.g., COCA COLA)" :
-                  showModal === 'shop' ? "SHOP NAME (e.g., SUPERMARKET)" :
-                  "ROUTE NAME (e.g., COLOMBO CITY)"
+                  showModal === 'brand' ? "BRAND NAME" :
+                  showModal === 'shop' ? "SHOP NAME" :
+                  "ROUTE NAME"
                 }
-                className="w-full bg-black/40 p-4 rounded-xl border border-white/5 text-white font-bold uppercase outline-none focus:border-[#d4af37] transition-all"
+                className="w-full bg-black/40 p-3 rounded-lg border border-white/5 text-white font-bold uppercase outline-none text-xs focus:border-[#d4af37] transition-all"
                 required
               />
 
@@ -2260,7 +2291,7 @@ export default function App() {
                 <div className="relative">
                   <select
                     name="area"
-                    className="w-full bg-black/40 p-4 rounded-xl border border-white/5 text-white font-bold uppercase outline-none appearance-none focus:border-[#d4af37] transition-all"
+                    className="w-full bg-black/40 p-3 rounded-lg border border-white/5 text-white font-bold uppercase outline-none appearance-none text-xs focus:border-[#d4af37] transition-all"
                     required
                   >
                     <option value="">SELECT ROUTE AREA</option>
@@ -2268,7 +2299,7 @@ export default function App() {
                       <option key={r.id} value={r.name}>{r.name}</option>
                     ))}
                   </select>
-                  <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 opacity-30" size={20}/>
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 opacity-30" size={16}/>
                 </div>
               )}
 
@@ -2276,8 +2307,8 @@ export default function App() {
                 <>
                   <input
                     name="size"
-                    placeholder="SIZE (e.g., 500ML, 1KG, 2L)"
-                    className="w-full bg-black/40 p-4 rounded-xl border border-white/5 text-white font-bold uppercase outline-none focus:border-[#d4af37] transition-all"
+                    placeholder="SIZE (e.g., 500ML, 1KG)"
+                    className="w-full bg-black/40 p-3 rounded-lg border border-white/5 text-white font-bold uppercase outline-none text-xs focus:border-[#d4af37] transition-all"
                     required
                   />
                   <input
@@ -2285,13 +2316,13 @@ export default function App() {
                     type="number"
                     step="0.01"
                     placeholder="UNIT PRICE (Rs.)"
-                    className="w-full bg-black/40 p-4 rounded-xl border border-white/5 text-white font-bold outline-none focus:border-[#d4af37] transition-all"
+                    className="w-full bg-black/40 p-3 rounded-lg border border-white/5 text-white font-bold outline-none text-xs focus:border-[#d4af37] transition-all"
                     required
                   />
                 </>
               )}
 
-              <button type="submit" className="w-full py-4 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-2xl uppercase text-sm tracking-widest hover:opacity-90 transition-all">
+              <button type="submit" className="w-full py-3 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg uppercase text-xs tracking-widest hover:opacity-90 transition-all">
                 SAVE {showModal.toUpperCase()}
               </button>
             </form>
@@ -2310,7 +2341,7 @@ export default function App() {
           animation: progress 2.5s ease-in-out;
         }
 
-        /* Font Family Fix - NEW */
+        /* Font Family Fix */
         * {
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif !important;
         }
@@ -2319,29 +2350,70 @@ export default function App() {
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
           -webkit-font-smoothing: antialiased;
           -moz-osx-font-smoothing: grayscale;
+          font-size: 14px;
         }
 
         input, button, select, textarea {
           font-family: inherit !important;
+          font-size: 14px;
         }
 
-        /* Search input specific fix */
-        input[type="text"], input[type="search"], input::placeholder {
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif !important;
-          font-weight: 800 !important;
-          letter-spacing: 0.5px !important;
+        /* Mobile Optimizations */
+        @media (max-width: 640px) {
+          body {
+            font-size: 13px;
+          }
+          
+          input, button, select, textarea {
+            font-size: 13px;
+          }
+          
+          .text-xs {
+            font-size: 0.7rem !important;
+          }
+          
+          .text-sm {
+            font-size: 0.75rem !important;
+          }
+          
+          h1, h2, h3, h4 {
+            font-size: 0.9rem !important;
+          }
         }
 
-        /* Fix for uppercase text */
-        .uppercase {
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif !important;
-          font-weight: 900 !important;
-          letter-spacing: 1px !important;
+        @media (max-width: 400px) {
+          body {
+            font-size: 12px;
+          }
+          
+          input, button, select, textarea {
+            font-size: 12px;
+          }
+          
+          main {
+            padding: 0.5rem !important;
+          }
+          
+          .p-3 {
+            padding: 0.6rem !important;
+          }
+          
+          .p-4 {
+            padding: 0.75rem !important;
+          }
+          
+          .p-5 {
+            padding: 1rem !important;
+          }
+          
+          .rounded-2xl {
+            border-radius: 1rem !important;
+          }
         }
 
         /* Custom scrollbar */
         ::-webkit-scrollbar {
-          width: 4px;
+          width: 3px;
         }
 
         ::-webkit-scrollbar-track {
@@ -2354,108 +2426,15 @@ export default function App() {
           border-radius: 10px;
         }
 
-        ::-webkit-scrollbar-thumb:hover {
-          background: rgba(212, 175, 55, 0.8);
-        }
-
-        /* Mobile Optimizations */
-        @media (max-width: 640px) {
-          main {
-            padding: 0.75rem !important;
-          }
-
-          header {
-            padding: 0.75rem !important;
-          }
-
-          nav {
-            bottom: 1rem !important;
-            inset-x: 1rem !important;
-            height: 4.5rem !important;
-            border-radius: 1.5rem !important;
-          }
-
-          h1 {
-            font-size: 1.2rem !important;
-          }
-
-          h2 {
-            font-size: 1.5rem !important;
-          }
-
-          h3 {
-            font-size: 1.1rem !important;
-          }
-
-          .text-xs {
-            font-size: 0.7rem !important;
-          }
-
-          .text-sm {
-            font-size: 0.8rem !important;
-          }
-
-          .text-base {
-            font-size: 0.9rem !important;
-          }
-
-          .fixed.inset-0 {
-            padding: 0.5rem !important;
-          }
-
-          .rounded-3xl {
-            border-radius: 1.5rem !important;
-          }
-
-          .p-8 {
-            padding: 1.5rem !important;
-          }
-        }
-
-        @media (max-width: 400px) {
-          nav {
-            bottom: 0.5rem !important;
-            inset-x: 0.5rem !important;
-            height: 4rem !important;
-          }
-
-          .grid-cols-4 {
-            grid-template-columns: repeat(2, 1fr) !important;
-          }
-
-          .grid-cols-2 {
-            grid-template-columns: 1fr !important;
-          }
-
-          button, input, select, textarea {
-            font-size: 0.8rem !important;
-          }
-        }
-
         /* Touch-friendly buttons */
         button, input[type="button"], input[type="submit"] {
-          min-height: 44px;
-          min-width: 44px;
-        }
-
-        /* Prevent text selection on buttons */
-        button {
-          user-select: none;
-          -webkit-user-select: none;
+          min-height: 40px;
+          min-width: 40px;
         }
 
         /* Better touch feedback */
         .transition-all {
           transition: all 0.2s ease;
-        }
-
-        /* Prevent zoom on input focus on iOS */
-        @media screen and (-webkit-min-device-pixel-ratio:0) {
-          select,
-          textarea,
-          input {
-            font-size: 16px !important;
-          }
         }
       `}</style>
     </div>
