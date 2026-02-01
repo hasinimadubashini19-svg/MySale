@@ -4,7 +4,7 @@ import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, on
 import { getFirestore, doc, collection, onSnapshot, addDoc, deleteDoc, query, orderBy, where, enableIndexedDbPersistence, setDoc, updateDoc } from 'firebase/firestore';
 import {
   LayoutDashboard, Store, Plus, X, Trash2, Crown, Settings, LogOut,
-  MapPin, Package, History, Calendar, Sun, Moon, Save, Star, Search, 
+  MapPin, Package, History, Calendar, Sun, Moon, Save, Star, Search,
   CheckCircle2, ChevronDown, Share2, TrendingUp, Edit2, Calculator,
   ShoppingBag, DollarSign, Layers, ListOrdered, Fuel, FileText,
   Navigation, Pin, AlertCircle, CreditCard, Coffee, Home, Wifi
@@ -32,11 +32,11 @@ export default function App() {
   const [isSplash, setIsSplash] = useState(true);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isDarkMode, setIsDarkMode] = useState(true);
-  const [data, setData] = useState({ 
-    routes: [], 
-    shops: [], 
-    orders: [], 
-    brands: [], 
+  const [data, setData] = useState({
+    routes: [],
+    shops: [],
+    orders: [],
+    brands: [],
     settings: { name: '', company: '' },
     expenses: [],
     notes: [],
@@ -139,6 +139,7 @@ export default function App() {
       alert("Expense saved!");
       setExpenseAmount('');
       setExpenseNote('');
+      setShowModal(null);
     } catch (err) {
       alert("Error saving expense: " + err.message);
     }
@@ -160,8 +161,42 @@ export default function App() {
       });
       alert("Note saved!");
       setRepNote('');
+      setShowModal(null);
     } catch (err) {
       alert("Error saving note: " + err.message);
+    }
+  };
+
+  // NEW: Save manual order
+  const saveManualOrder = async () => {
+    const validItems = manualItems.filter(item => item.name && item.qty > 0 && item.price > 0);
+    if (!validItems.length) return alert("Please add at least one valid item!");
+    
+    if (!selectedShop) return alert("Please select a shop first!");
+
+    const orderData = {
+      shopName: selectedShop.name,
+      companyName: data.settings.company || "MONARCH",
+      items: validItems.map(item => ({
+        name: item.name,
+        qty: Number(item.qty),
+        price: Number(item.price),
+        subtotal: Number(item.subtotal)
+      })),
+      total: validItems.reduce((sum, item) => sum + item.subtotal, 0),
+      userId: user.uid,
+      timestamp: Date.now(),
+      dateString: new Date().toLocaleDateString(),
+      isManual: true
+    };
+
+    try {
+      await addDoc(collection(db, 'orders'), orderData);
+      setLastOrder(orderData);
+      setShowModal('preview');
+      setManualItems([{ name: '', qty: 1, price: 0, subtotal: 0 }]);
+    } catch (err) {
+      alert("Error saving order: " + err.message);
     }
   };
 
@@ -195,8 +230,8 @@ export default function App() {
     const todayExpenses = data.expenses.filter(e => e.date === todayStr);
     const totalExpenses = todayExpenses.reduce((sum, e) => sum + e.amount, 0);
 
-    return { 
-      daily: getStats(dailyOrders), 
+    return {
+      daily: getStats(dailyOrders),
       monthly: getStats(monthlyOrders),
       expenses: totalExpenses
     };
@@ -218,13 +253,13 @@ export default function App() {
   const updateManualItem = (index, field, value) => {
     const updated = [...manualItems];
     updated[index][field] = value;
-    
+
     if (field === 'qty' || field === 'price') {
       const qty = parseFloat(updated[index].qty) || 0;
       const price = parseFloat(updated[index].price) || 0;
       updated[index].subtotal = qty * price;
     }
-    
+
     setManualItems(updated);
   };
 
@@ -496,17 +531,17 @@ export default function App() {
                     <div className="text-xs font-black uppercase">
                       {editingBrand === b.id ? (
                         <div className="space-y-1">
-                          <input 
+                          <input
                             defaultValue={b.name}
                             className="bg-black/30 p-1.5 rounded w-full text-xs"
                             onBlur={(e) => updateDoc(doc(db, 'brands', b.id), { name: e.target.value.toUpperCase() })}
                           />
-                          <input 
+                          <input
                             defaultValue={b.size}
                             className="bg-black/30 p-1.5 rounded w-full text-xs"
                             onBlur={(e) => updateDoc(doc(db, 'brands', b.id), { size: e.target.value.toUpperCase() })}
                           />
-                          <input 
+                          <input
                             defaultValue={b.price}
                             type="number"
                             className="bg-black/30 p-1.5 rounded w-full text-xs"
@@ -538,7 +573,7 @@ export default function App() {
                         <div className="flex items-center gap-1">
                           {exp.type === 'fuel' && <Fuel size={12} className="text-[#d4af37]" />}
                           {exp.type === 'food' && <Coffee size={12} className="text-[#d4af37]" />}
-                          {exp.type === 'transport' && <Car size={12} className="text-[#d4af37]" />}
+                          {exp.type === 'transport' && <Navigation size={12} className="text-[#d4af37]" />}
                           {exp.type === 'other' && <AlertCircle size={12} className="text-[#d4af37]" />}
                           <span className="text-xs font-black uppercase">{exp.type}</span>
                         </div>
@@ -558,7 +593,7 @@ export default function App() {
 
       {/* Bottom Navigation */}
       <nav className={`fixed bottom-6 inset-x-6 h-18 rounded-2xl border flex items-center justify-around z-50 shadow-xl ${isDarkMode ? "bg-black/90 border-white/10" : "bg-white/95 border-black/10"}`}>
-        {[ 
+        {[
           {id: 'dashboard', icon: LayoutDashboard, label: 'Home'},
           {id: 'shops', icon: Store, label: 'Shops'},
           {id: 'history', icon: History, label: 'History'},
@@ -578,7 +613,7 @@ export default function App() {
           <div className="bg-[#0f0f0f] w-full max-w-sm p-8 rounded-2xl border border-[#d4af37]/30 relative">
             <button onClick={() => setShowModal(null)} className="absolute top-6 right-6 text-white/20"><X size={20}/></button>
             <h3 className="text-center font-black text-[#d4af37] mb-6 uppercase text-xs tracking-widest">ADD EXPENSE</h3>
-            
+
             <div className="space-y-4">
               <div>
                 <p className="text-xs font-black uppercase opacity-40 mb-1">Expense Type</p>
@@ -586,7 +621,7 @@ export default function App() {
                   {[
                     {type: 'fuel', icon: Fuel, label: 'Fuel'},
                     {type: 'food', icon: Coffee, label: 'Food'},
-                    {type: 'transport', icon: Car, label: 'Travel'},
+                    {type: 'transport', icon: Navigation, label: 'Travel'},
                     {type: 'other', icon: AlertCircle, label: 'Other'}
                   ].map(item => (
                     <button
@@ -600,7 +635,7 @@ export default function App() {
                   ))}
                 </div>
               </div>
-              
+
               <div>
                 <p className="text-xs font-black uppercase opacity-40 mb-1">Amount (Rs.)</p>
                 <input
@@ -611,7 +646,7 @@ export default function App() {
                   className="w-full bg-black/40 p-4 rounded-xl border border-white/5 text-white font-bold text-center outline-none text-lg"
                 />
               </div>
-              
+
               <div>
                 <p className="text-xs font-black uppercase opacity-40 mb-1">Note (Optional)</p>
                 <textarea
@@ -621,8 +656,8 @@ export default function App() {
                   className="w-full bg-black/40 p-4 rounded-xl border border-white/5 text-white text-sm outline-none resize-none h-20"
                 />
               </div>
-              
-              <button 
+
+              <button
                 onClick={saveExpense}
                 className="w-full py-4 bg-[#d4af37] text-black font-black rounded-xl uppercase text-xs tracking-widest"
               >
@@ -639,7 +674,7 @@ export default function App() {
           <div className="bg-[#0f0f0f] w-full max-w-sm p-8 rounded-2xl border border-[#d4af37]/30 relative">
             <button onClick={() => setShowModal(null)} className="absolute top-6 right-6 text-white/20"><X size={20}/></button>
             <h3 className="text-center font-black text-[#d4af37] mb-6 uppercase text-xs tracking-widest">ADD NOTE</h3>
-            
+
             <div className="space-y-4">
               <textarea
                 value={repNote}
@@ -647,8 +682,8 @@ export default function App() {
                 placeholder="Type your note here..."
                 className="w-full bg-black/40 p-4 rounded-xl border border-white/5 text-white text-sm outline-none resize-none h-32"
               />
-              
-              <button 
+
+              <button
                 onClick={saveNote}
                 className="w-full py-4 bg-[#d4af37] text-black font-black rounded-xl uppercase text-xs tracking-widest"
               >
@@ -670,7 +705,7 @@ export default function App() {
               </div>
               <button onClick={() => { setShowModal(null); setCart({}); }} className="p-3 bg-white/10 rounded-full text-white"><X size={20}/></button>
             </div>
-            
+
             <div className="space-y-3">
               {data.brands.map(b => (
                 <div key={b.id} className="bg-[#0f0f0f] p-4 rounded-xl border border-white/5 flex items-center justify-between">
@@ -679,14 +714,14 @@ export default function App() {
                     <p className="text-xs text-[#d4af37] font-bold">Rs.{b.price.toLocaleString()}</p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <button onClick={() => setCart({...cart, [b.id]: Math.max(0, (Number(cart[b.id])||0)-1})} className="w-10 h-10 bg-white/5 rounded-xl text-white font-black">-</button>
+                    <button onClick={() => setCart({...cart, [b.id]: Math.max(0, (Number(cart[b.id])||0)-1)})} className="w-10 h-10 bg-white/5 rounded-xl text-white font-black">-</button>
                     <input type="number" value={cart[b.id] || ''} onChange={(e) => setCart({...cart, [b.id]: e.target.value})} className="w-10 bg-transparent text-center font-black text-[#d4af37] text-lg outline-none" placeholder="0" />
                     <button onClick={() => setCart({...cart, [b.id]: (Number(cart[b.id])||0)+1})} className="w-10 h-10 bg-white/5 rounded-xl text-white font-black">+</button>
                   </div>
                 </div>
               ))}
             </div>
-            
+
             <div className="fixed bottom-0 inset-x-0 p-6 bg-black/95 border-t border-white/10 backdrop-blur-xl">
               <div className="max-w-lg mx-auto">
                 <div className="flex justify-between items-center mb-4">
@@ -712,6 +747,127 @@ export default function App() {
                   setCart({}); setLastOrder(orderData); setShowModal('preview');
                 }} className="w-full py-4 bg-[#d4af37] text-black font-black rounded-xl uppercase text-xs tracking-widest">
                   CONFIRM ORDER
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- MANUAL ORDER MODAL --- */}
+      {showModal === 'manual' && (
+        <div className="fixed inset-0 bg-black z-[100] animate-in slide-in-from-bottom overflow-y-auto p-6">
+          <div className="max-w-lg mx-auto pb-60">
+            <div className="flex justify-between items-center mb-8 sticky top-0 bg-black py-4 border-b border-white/10">
+              <div>
+                <h2 className="text-2xl font-black uppercase text-white">Manual Order</h2>
+                <p className="text-xs text-[#d4af37] font-black uppercase">Add Custom Items</p>
+              </div>
+              <button onClick={() => { setShowModal(null); setManualItems([{ name: '', qty: 1, price: 0, subtotal: 0 }]); }} className="p-3 bg-white/10 rounded-full text-white"><X size={20}/></button>
+            </div>
+
+            {/* Shop Selection */}
+            <div className="mb-6">
+              <p className="text-xs font-black uppercase opacity-60 mb-2">Select Shop</p>
+              <select 
+                className="w-full bg-[#0f0f0f] p-4 rounded-xl border border-white/5 text-white font-bold uppercase outline-none"
+                onChange={(e) => {
+                  const shopId = e.target.value;
+                  const shop = data.shops.find(s => s.id === shopId);
+                  setSelectedShop(shop);
+                }}
+              >
+                <option value="">-- SELECT SHOP --</option>
+                {data.shops.map(s => (
+                  <option key={s.id} value={s.id}>{s.name} - {s.area}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Manual Items */}
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <h3 className="text-xs font-black uppercase opacity-60">Items</h3>
+                <button onClick={addManualItem} className="text-[#d4af37] text-xs font-black uppercase flex items-center gap-1">
+                  <Plus size={14}/> ADD ITEM
+                </button>
+              </div>
+              
+              {manualItems.map((item, index) => (
+                <div key={index} className="bg-[#0f0f0f] p-4 rounded-xl border border-white/5 space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs font-black uppercase opacity-60">Item #{index + 1}</span>
+                    {manualItems.length > 1 && (
+                      <button onClick={() => removeManualItem(index)} className="text-red-500/60 hover:text-red-500 p-1">
+                        <Trash2 size={14}/>
+                      </button>
+                    )}
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <p className="text-[10px] font-black uppercase opacity-40 mb-1">Item Name</p>
+                      <input
+                        value={item.name}
+                        onChange={(e) => updateManualItem(index, 'name', e.target.value)}
+                        placeholder="PRODUCT NAME"
+                        className="w-full bg-black/40 p-3 rounded-lg border border-white/5 text-white font-bold uppercase outline-none text-xs"
+                      />
+                    </div>
+                    
+                    <div>
+                      <p className="text-[10px] font-black uppercase opacity-40 mb-1">Quantity</p>
+                      <input
+                        type="number"
+                        value={item.qty}
+                        onChange={(e) => updateManualItem(index, 'qty', e.target.value)}
+                        className="w-full bg-black/40 p-3 rounded-lg border border-white/5 text-white font-bold text-center outline-none text-xs"
+                      />
+                    </div>
+                    
+                    <div>
+                      <p className="text-[10px] font-black uppercase opacity-40 mb-1">Unit Price</p>
+                      <input
+                        type="number"
+                        value={item.price}
+                        onChange={(e) => updateManualItem(index, 'price', e.target.value)}
+                        placeholder="0.00"
+                        className="w-full bg-black/40 p-3 rounded-lg border border-white/5 text-white font-bold text-center outline-none text-xs"
+                      />
+                    </div>
+                    
+                    <div>
+                      <p className="text-[10px] font-black uppercase opacity-40 mb-1">Subtotal</p>
+                      <div className="w-full bg-black/40 p-3 rounded-lg border border-white/5 text-center">
+                        <span className="text-[#d4af37] font-black text-xs">Rs.{item.subtotal.toLocaleString()}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Total Calculation */}
+            <div className="fixed bottom-0 inset-x-0 p-6 bg-black/95 border-t border-white/10 backdrop-blur-2xl">
+              <div className="max-w-lg mx-auto">
+                <div className="flex justify-between items-center mb-4">
+                  <div>
+                    <p className="text-[10px] font-black uppercase opacity-40">Shop</p>
+                    <p className="text-sm font-black">{selectedShop?.name || "Not Selected"}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[10px] font-black uppercase opacity-40">Total</p>
+                    <p className="text-xl font-black text-[#d4af37]">
+                      Rs.{manualItems.reduce((sum, item) => sum + (item.subtotal || 0), 0).toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+                <button 
+                  onClick={saveManualOrder}
+                  disabled={!selectedShop}
+                  className={`w-full py-4 font-black rounded-xl uppercase tracking-widest text-xs ${selectedShop ? 'bg-[#d4af37] text-black' : 'bg-gray-700 text-gray-400'}`}
+                >
+                  {selectedShop ? 'SAVE MANUAL ORDER' : 'SELECT SHOP FIRST'}
                 </button>
               </div>
             </div>
@@ -772,9 +928,9 @@ export default function App() {
               if(showModal==='brand') await addDoc(collection(db, 'brands'), { ...payload, name: f.name.value.toUpperCase(), size: f.size.value.toUpperCase(), price: parseFloat(f.price.value) });
               setShowModal(null);
             }} className="space-y-3">
-              <input name="name" placeholder={showModal === 'brand' ? "BRAND NAME" : showModal === 'shop' ? "SHOP NAME" : "ROUTE NAME"} 
+              <input name="name" placeholder={showModal === 'brand' ? "BRAND NAME" : showModal === 'shop' ? "SHOP NAME" : "ROUTE NAME"}
                 className="w-full bg-black/40 p-4 rounded-xl border border-white/5 text-white font-bold uppercase outline-none focus:border-[#d4af37]" required />
-              
+
               {showModal==='shop' && (
                 <div className="relative">
                   <select name="area" className="w-full bg-black/40 p-4 rounded-xl border border-white/5 text-white font-bold uppercase outline-none appearance-none" required>
@@ -784,16 +940,16 @@ export default function App() {
                   <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 opacity-30" size={16}/>
                 </div>
               )}
-              
+
               {showModal==='brand' && (
                 <>
-                  <input name="size" placeholder="SIZE (500ML, 1KG)" 
+                  <input name="size" placeholder="SIZE (500ML, 1KG)"
                     className="w-full bg-black/40 p-4 rounded-xl border border-white/5 text-white font-bold uppercase outline-none focus:border-[#d4af37]" required />
-                  <input name="price" type="number" step="0.01" placeholder="UNIT PRICE" 
+                  <input name="price" type="number" step="0.01" placeholder="UNIT PRICE"
                     className="w-full bg-black/40 p-4 rounded-xl border border-white/5 text-white font-bold outline-none focus:border-[#d4af37]" required />
                 </>
               )}
-              
+
               <button className="w-full py-4 bg-[#d4af37] text-black font-black rounded-xl uppercase text-xs tracking-widest">
                 SAVE
               </button>
@@ -803,10 +959,10 @@ export default function App() {
       )}
 
       <style>{`
-        .animate-progress { animation: progress 2.5s ease-in-out; } 
-        @keyframes progress { 0% { width: 0%; } 100% { width: 100%; } } 
+        .animate-progress { animation: progress 2.5s ease-in-out; }
+        @keyframes progress { 0% { width: 0%; } 100% { width: 100%; } }
         .scrollbar-hide::-webkit-scrollbar { display: none; }
-        
+
         /* Mobile Optimizations */
         @media (max-width: 640px) {
           main { font-size: 0.8rem !important; padding: 0.75rem !important; }
