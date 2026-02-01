@@ -93,7 +93,7 @@ export default function App() {
 
     const dailyOrders = data.orders.filter(o => o.dateString === todayStr);
     const dailyExps = data.expenses.filter(e => new Date(e.timestamp).toLocaleDateString() === todayStr);
-    
+
     const monthlyOrders = data.orders.filter(o => {
       const d = new Date(o.timestamp);
       return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
@@ -148,7 +148,7 @@ export default function App() {
           const email = e.target.email.value;
           const password = e.target.password.value;
           try {
-            if(isRegisterMode) { await createUserWithEmailAndPassword(auth, email, password); } 
+            if(isRegisterMode) { await createUserWithEmailAndPassword(auth, email, password); }
             else { await signInWithEmailAndPassword(auth, email, password); }
           } catch (err) { alert(err.message); }
         }} className="space-y-4">
@@ -308,7 +308,7 @@ export default function App() {
               <button onClick={() => setShowModal('brand')} className="py-5 rounded-2xl border border-white/5 bg-[#0f0f0f] text-[#d4af37] font-black uppercase text-[9px] flex flex-col items-center gap-1"><Package size={18}/> Brand</button>
             </div>
 
-            {/* EXPENSES SECTION */}
+            {/* --- DAILY EXPENSES SECTION --- */}
             <div className={`p-6 rounded-[2rem] border ${isDarkMode ? "bg-[#0f0f0f] border-white/10" : "bg-white border-black/10"}`}>
                 <div className="flex justify-between items-center mb-4">
                     <h3 className="text-[9px] font-black text-red-500 uppercase tracking-widest">Daily Expenses</h3>
@@ -412,7 +412,7 @@ export default function App() {
         </div>
       )}
 
-      {/* --- REGISTER / EDIT MODALS --- */}
+      {/* --- ADD / EDIT / EXPENSE MODALS --- */}
       {['route', 'shop', 'brand', 'editBrand', 'expense'].includes(showModal) && (
         <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-6 backdrop-blur-2xl">
           <div className="bg-[#0f0f0f] w-full max-w-sm p-8 rounded-[2.5rem] border border-white/10 relative">
@@ -421,13 +421,13 @@ export default function App() {
             <form onSubmit={async (e) => {
               e.preventDefault(); const f = e.target;
               const payload = { userId: user.uid, timestamp: Date.now() };
-              
+
               if(showModal==='route') await addDoc(collection(db, 'routes'), { ...payload, name: f.name.value.toUpperCase() });
               if(showModal==='shop') await addDoc(collection(db, 'shops'), { ...payload, name: f.name.value.toUpperCase(), area: f.area.value });
               if(showModal==='brand') await addDoc(collection(db, 'brands'), { ...payload, name: f.name.value.toUpperCase(), size: f.size.value.toUpperCase(), price: parseFloat(f.price.value) });
               if(showModal==='editBrand') await updateDoc(doc(db, 'brands', editItem.id), { name: f.name.value.toUpperCase(), size: f.size.value.toUpperCase(), price: parseFloat(f.price.value) });
               if(showModal==='expense') await addDoc(collection(db, 'expenses'), { ...payload, note: f.note.value.toUpperCase(), amount: parseFloat(f.amount.value) });
-              
+
               setShowModal(null); setEditItem(null);
             }} className="space-y-4">
               {showModal === 'expense' ? (
@@ -440,7 +440,7 @@ export default function App() {
                   <input name="name" defaultValue={editItem?.name || ''} placeholder="NAME" className="w-full bg-black/40 p-4 rounded-xl border border-white/5 text-white text-[10px] font-bold uppercase outline-none focus:border-[#d4af37]" required />
                   {showModal==='shop' && (
                     <div className="relative">
-                        <select name="area" className="w-full bg-black/40 p-4 rounded-xl border border-white/5 text-white text-[10px] font-bold uppercase outline-none appearance-none" required>
+                        <select name="area" className="w-full bg-black/40 p-4 rounded-xl border border-white/5 text-white text-[10px] font-bold uppercase appearance-none" required>
                             <option value="">SELECT ROUTE</option>
                             {data.routes.map(r => <option key={r.id} value={r.name}>{r.name}</option>)}
                         </select>
@@ -461,7 +461,6 @@ export default function App() {
         </div>
       )}
 
-      {/* Preview Modal placeholder for brevity - same as original */}
       {showModal === 'preview' && lastOrder && (
         <div className="fixed inset-0 bg-black z-[110] flex items-center justify-center p-6 backdrop-blur-3xl">
           <div className="bg-[#0f0f0f] w-full max-w-sm p-8 rounded-[2.5rem] border border-[#d4af37]/30 shadow-2xl text-center">
