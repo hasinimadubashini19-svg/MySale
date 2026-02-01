@@ -1116,32 +1116,33 @@ export default function App() {
               </div>
 
               <div className="flex gap-2 overflow-x-auto pb-2">
-                <button
-                  onClick={() => setSelectedRouteFilter('ALL')}
-                 className={`px-5 py-2.5 rounded-full text-xs font-black uppercase transition-all whitespace-nowrap border ${
-                    selectedRouteFilter === 'ALL'
-                      ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black border-[#d4af37]'
-                      : isDarkMode
-                        ? 'bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/10 text-white/60'
-                        : 'bg-gray-100 border-gray-200 text-gray-600'
-                  }`}
-                >
-                  ALL
-                </button>
-                {data.routes.map(r => (
-                  <button
-                    key={r.id}
-                    onClick={() => setSelectedRouteFilter(r.name)}
-                    className={`px-6 py-2 rounded-full min-w-[60px] w-auto h-auto inline-flex items-center justify-center text-[10px] font-black uppercase transition-all whitespace-nowrap border ${
-                      selectedRouteFilter === r.name
-                        ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black border-[#d4af37]'
-                        : isDarkMode
-                          ? 'bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/10 text-white/60'
-                          : 'bg-gray-100 border-gray-200 text-gray-600'
-                    }`}
-                  >
-                    {r.name}
-                  </button>
+                       
+    <button
+      onClick={() => setSelectedRouteFilter('ALL')}
+      className={`px-5 py-2.5 rounded-full text-xs font-black uppercase transition-all whitespace-nowrap border flex-shrink-0 ${
+        selectedRouteFilter === 'ALL'
+          ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black border-[#d4af37]'
+          : isDarkMode
+            ? 'bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/10 text-white/60'
+            : 'bg-gray-100 border-gray-200 text-gray-600'
+      }`}
+    >
+      ALL
+    </button>
+    {data.routes.map((r) => (
+      <button
+        key={r.id}
+        onClick={() => setSelectedRouteFilter(r.name)}
+        className={`px-5 py-2.5 rounded-full text-xs font-black uppercase transition-all whitespace-nowrap border flex-shrink-0 ${
+          selectedRouteFilter === r.name
+            ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black border-[#d4af37]'
+            : isDarkMode
+              ? 'bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/10 text-white/60'
+              : 'bg-gray-100 border-gray-200 text-gray-600'
+        }`}
+      >
+        {r.name}
+      </button>
                 ))}
               </div>
             </div>
