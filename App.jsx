@@ -1132,7 +1132,7 @@ export default function App() {
                   <button
                     key={r.id}
                     onClick={() => setSelectedRouteFilter(r.name)}
-                    className={`px-4 py-2 rounded-full min-w-[60px] w-auto h-auto inline-flex items-center justify-center text-[10px] font-black uppercase transition-all whitespace-nowrap border ${
+                    className={`px-6 py-2 rounded-full min-w-[60px] w-auto h-auto inline-flex items-center justify-center text-[10px] font-black uppercase transition-all whitespace-nowrap border ${
                       selectedRouteFilter === r.name
                         ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black border-[#d4af37]'
                         : isDarkMode
