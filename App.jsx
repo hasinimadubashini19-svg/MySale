@@ -1,10 +1,23 @@
-import React, { useState, useEffect, useMemo } from 'react';
+මට ඔබගේ අවශ්‍යතා තේරෙනවා. ඔබට පහත දේවල් අවශ්‍ය:
+
+1. **රෙප්ගේ අතින් විකුණන දේවල් (Add products manually)** - දැනට brands list එකෙන් පමණක් නොව, අතින් දාන්න පුළුවන් වීම
+2. **එකතුව (Total) බලාගන්න option එක** - වෙනම total calculation පිටුවක්
+3. **එකතු කරන brands edit කරන්න option එක** - brands update/delete කිරීම
+4. **Font size කුඩා කර තිරයට ගැලපෙන පරිදි** - responsive improvements
+5. **වෙනත් දේවල් එකතු කරන්න** - අමතර features
+
+මම ඔබගේ සම්පූර්ණ කේතය යාවත්කාලීන කර පහත වෙනස්කම් ඇතුළත් කරනවා:
+
+```jsx
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from 'firebase/auth';
-import { getFirestore, doc, collection, onSnapshot, addDoc, deleteDoc, query, orderBy, where, enableIndexedDbPersistence, setDoc } from 'firebase/firestore';
+import { getFirestore, doc, collection, onSnapshot, addDoc, deleteDoc, query, orderBy, where, enableIndexedDbPersistence, setDoc, updateDoc } from 'firebase/firestore';
 import {
   LayoutDashboard, Store, Plus, X, Trash2, Crown, Settings, LogOut,
-  MapPin, Package, History, Calendar, Sun, Moon, Save, Star, Search, CheckCircle2, ChevronDown, Share2, TrendingUp
+  MapPin, Package, History, Calendar, Sun, Moon, Save, Star, Search, 
+  CheckCircle2, ChevronDown, Share2, TrendingUp, Edit2, Calculator,
+  ListOrdered, DollarSign, ShoppingBag, Layers
 } from 'lucide-react';
 
 // --- FIREBASE CONFIG ---
@@ -39,6 +52,12 @@ export default function App() {
   const [isRegisterMode, setIsRegisterMode] = useState(false);
   const [shopSearch, setShopSearch] = useState('');
   const [selectedRouteFilter, setSelectedRouteFilter] = useState('ALL');
+
+  // NEW STATES
+  const [manualItems, setManualItems] = useState([{ name: '', qty: 1, price: 0, subtotal: 0 }]);
+  const [showTotalCalculator, setShowTotalCalculator] = useState(false);
+  const [editingBrand, setEditingBrand] = useState(null);
+  const [totalCalculation, setTotalCalculation] = useState({ subtotal: 0, discount: 0, tax: 0, grandTotal: 0 });
 
   useEffect(() => {
     const timer = setTimeout(() => setIsSplash(false), 2500);
@@ -105,6 +124,93 @@ export default function App() {
       return matchesSearch && matchesRoute;
     });
   }, [data.shops, shopSearch, selectedRouteFilter]);
+
+  // NEW: Manual Items Handlers
+  const addManualItem = () => {
+    setManualItems([...manualItems, { name: '', qty: 1, price: 0, subtotal: 0 }]);
+  };
+
+  const updateManualItem = (index, field, value) => {
+    const updated = [...manualItems];
+    updated[index][field] = value;
+    
+    // Calculate subtotal
+    if (field === 'qty' || field === 'price') {
+      const qty = parseFloat(updated[index].qty) || 0;
+      const price = parseFloat(updated[index].price) || 0;
+      updated[index].subtotal = qty * price;
+    }
+    
+    setManualItems(updated);
+  };
+
+  const removeManualItem = (index) => {
+    if (manualItems.length > 1) {
+      setManualItems(manualItems.filter((_, i) => i !== index));
+    }
+  };
+
+  // NEW: Calculate total for manual items
+  const calculateManualTotal = () => {
+    const subtotal = manualItems.reduce((sum, item) => sum + (item.subtotal || 0), 0);
+    const discount = parseFloat(totalCalculation.discount) || 0;
+    const tax = parseFloat(totalCalculation.tax) || 0;
+    const grandTotal = subtotal - discount + tax;
+    
+    setTotalCalculation({
+      subtotal,
+      discount,
+      tax,
+      grandTotal
+    });
+  };
+
+  // NEW: Save manual order
+  const saveManualOrder = async () => {
+    const validItems = manualItems.filter(item => item.name && item.qty > 0 && item.price > 0);
+    if (!validItems.length) return alert("Please add at least one valid item!");
+    
+    if (!selectedShop) return alert("Please select a shop first!");
+
+    const orderData = {
+      shopName: selectedShop.name,
+      companyName: data.settings.company || "MONARCH",
+      items: validItems.map(item => ({
+        name: item.name,
+        qty: Number(item.qty),
+        price: Number(item.price),
+        subtotal: Number(item.subtotal)
+      })),
+      total: validItems.reduce((sum, item) => sum + item.subtotal, 0),
+      userId: user.uid,
+      timestamp: Date.now(),
+      dateString: new Date().toLocaleDateString(),
+      isManual: true
+    };
+
+    try {
+      await addDoc(collection(db, 'orders'), orderData);
+      setLastOrder(orderData);
+      setShowModal('preview');
+      setManualItems([{ name: '', qty: 1, price: 0, subtotal: 0 }]);
+    } catch (err) {
+      alert("Error saving order: " + err.message);
+    }
+  };
+
+  // NEW: Edit Brand Function
+  const handleEditBrand = async (brandId, updatedData) => {
+    try {
+      await updateDoc(doc(db, 'brands', brandId), {
+        ...updatedData,
+        updatedAt: Date.now()
+      });
+      setEditingBrand(null);
+      alert("Brand updated successfully!");
+    } catch (err) {
+      alert("Error updating brand: " + err.message);
+    }
+  };
 
   const shareToWhatsApp = (order) => {
     let msg = `*${order.companyName} - INVOICE*\n`;
@@ -174,11 +280,12 @@ export default function App() {
         </div>
         <div className="flex gap-2">
           <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-3 rounded-2xl border border-white/10 bg-white/5 text-[#d4af37]">{isDarkMode ? <Sun size={20}/> : <Moon size={20}/>}</button>
+          <button onClick={() => setShowTotalCalculator(true)} className="p-3 rounded-2xl border border-white/10 bg-white/5 text-[#d4af37]"><Calculator size={20}/></button>
           <button onClick={() => signOut(auth)} className="p-3 bg-red-500/10 text-red-500 rounded-2xl border border-red-500/20"><LogOut size={20}/></button>
         </div>
       </header>
 
-      <main className="p-5 max-w-lg mx-auto space-y-8">
+      <main className="p-5 max-w-lg mx-auto space-y-8" style={{ fontSize: '0.9rem' }}>
         {activeTab === 'dashboard' && (
           <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
             <div className="bg-gradient-to-br from-[#d4af37] to-[#b8860b] p-8 rounded-[3rem] text-black shadow-2xl relative overflow-hidden">
@@ -253,9 +360,14 @@ export default function App() {
                 </div>
             </div>
 
-            <button onClick={() => setShowModal('shop')} className="w-full py-5 rounded-3xl border-2 border-dashed border-[#d4af37]/40 text-[#d4af37] font-black uppercase text-xs flex items-center justify-center gap-2 bg-[#d4af37]/5">
-              <Plus size={18}/> New Shop Entry
-            </button>
+            <div className="flex gap-2">
+              <button onClick={() => setShowModal('shop')} className="flex-1 py-5 rounded-3xl border-2 border-dashed border-[#d4af37]/40 text-[#d4af37] font-black uppercase text-xs flex items-center justify-center gap-2 bg-[#d4af37]/5">
+                <Plus size={18}/> New Shop
+              </button>
+              <button onClick={() => { setSelectedShop(null); setShowModal('manual'); }} className="flex-1 py-5 rounded-3xl border-2 border-dashed border-green-500/40 text-green-500 font-black uppercase text-xs flex items-center justify-center gap-2 bg-green-500/5">
+                <ShoppingBag size={18}/> Manual Order
+              </button>
+            </div>
 
             <div className="grid gap-3">
                 {filteredShops.map(s => (
@@ -289,6 +401,7 @@ export default function App() {
                   <div>
                     <h4 className="text-xs font-black uppercase text-[#d4af37]">{o.shopName}</h4>
                     <p className="text-[9px] opacity-40 font-black uppercase">{o.companyName}</p>
+                    {o.isManual && <span className="text-[8px] bg-green-500/20 text-green-500 px-2 py-1 rounded-full">MANUAL</span>}
                   </div>
                   <div className="flex gap-1">
                     <button onClick={() => shareToWhatsApp(o)} className="text-[#d4af37] p-2"><Share2 size={18}/></button>
@@ -332,8 +445,36 @@ export default function App() {
                     <div className="grid gap-2">
                     {data.brands.map(b => (
                         <div key={b.id} className="flex justify-between items-center p-4 bg-white/5 rounded-2xl border border-white/5">
-                        <span className="text-[11px] font-black uppercase">{b.name} ({b.size}) @ {b.price}</span>
-                        <button onClick={async () => { if(window.confirm('Delete Brand?')) await deleteDoc(doc(db, 'brands', b.id)) }} className="text-red-500/40 p-2"><Trash2 size={16}/></button>
+                        <div className="text-[11px] font-black uppercase">
+                          {editingBrand === b.id ? (
+                            <div className="space-y-2">
+                              <input 
+                                defaultValue={b.name}
+                                className="bg-black/30 p-2 rounded w-full text-xs"
+                                onBlur={(e) => handleEditBrand(b.id, { ...b, name: e.target.value.toUpperCase() })}
+                              />
+                              <input 
+                                defaultValue={b.size}
+                                className="bg-black/30 p-2 rounded w-full text-xs"
+                                onBlur={(e) => handleEditBrand(b.id, { ...b, size: e.target.value.toUpperCase() })}
+                              />
+                              <input 
+                                defaultValue={b.price}
+                                type="number"
+                                className="bg-black/30 p-2 rounded w-full text-xs"
+                                onBlur={(e) => handleEditBrand(b.id, { ...b, price: parseFloat(e.target.value) })}
+                              />
+                            </div>
+                          ) : (
+                            <span>{b.name} ({b.size}) @ Rs.{b.price}</span>
+                          )}
+                        </div>
+                        <div className="flex gap-1">
+                          <button onClick={() => setEditingBrand(editingBrand === b.id ? null : b.id)} className="text-blue-500/40 hover:text-blue-500 p-2">
+                            <Edit2 size={16}/>
+                          </button>
+                          <button onClick={async () => { if(window.confirm('Delete Brand?')) await deleteDoc(doc(db, 'brands', b.id)) }} className="text-red-500/40 hover:text-red-500 p-2"><Trash2 size={16}/></button>
+                        </div>
                         </div>
                     ))}
                     </div>
@@ -385,114 +526,4 @@ export default function App() {
                     <div className="flex items-center gap-4">
                       <button onClick={() => setCart({...cart, [b.id]: Math.max(0, (Number(cart[b.id])||0)-1)})} className="w-12 h-12 bg-white/5 rounded-2xl text-white font-black text-xl">-</button>
                       <input type="number" value={cart[b.id] || ''} onChange={(e) => setCart({...cart, [b.id]: e.target.value})} className="w-12 bg-transparent text-center font-black text-[#d4af37] text-xl outline-none" placeholder="0" />
-                      <button onClick={() => setCart({...cart, [b.id]: (Number(cart[b.id])||0)+1})} className="w-12 h-12 bg-white/5 rounded-2xl text-white font-black text-xl">+</button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="fixed bottom-0 inset-x-0 p-10 bg-black/95 border-t border-white/10 backdrop-blur-2xl flex flex-col items-center">
-                 <div className="flex justify-between w-full mb-6 px-4 text-white">
-                   <span className="font-black uppercase text-xs opacity-40">Total Amount</span>
-                   <span className="font-black text-3xl">Rs.{Object.entries(cart).reduce((acc, [id, q]) => acc + (data.brands.find(b=>b.id===id)?.price||0) * Number(q), 0).toLocaleString()}</span>
-                 </div>
-                 <button onClick={async () => {
-                   const items = Object.entries(cart).filter(([_, q]) => q > 0).map(([id, q]) => {
-                     const b = data.brands.find(x => x.id === id);
-                     return { name: `${b.name} ${b.size}`, qty: Number(q), price: b.price, subtotal: b.price * Number(q) };
-                   });
-                   if (!items.length) return alert("Empty Cart!");
-                   const orderData = {
-                     shopName: selectedShop.name,
-                     companyName: data.settings.company || "MONARCH",
-                     items,
-                     total: items.reduce((s, i) => s + i.subtotal, 0),
-                     userId: user.uid,
-                     timestamp: Date.now(),
-                     dateString: new Date().toLocaleDateString()
-                   };
-                   await addDoc(collection(db, 'orders'), orderData);
-                   setCart({}); setLastOrder(orderData); setShowModal('preview');
-                 }} className="w-full py-6 bg-[#d4af37] text-black font-black rounded-3xl uppercase tracking-widest text-xs">Confirm Order</button>
-              </div>
-            </div>
-        </div>
-      )}
-
-      {/* --- PREVIEW MODAL --- */}
-      {showModal === 'preview' && lastOrder && (
-        <div className="fixed inset-0 bg-black z-[110] flex items-center justify-center p-6 backdrop-blur-3xl animate-in fade-in">
-          <div className="bg-[#0f0f0f] w-full max-w-sm p-8 rounded-[3.5rem] border border-[#d4af37]/30 shadow-2xl flex flex-col">
-            <div className="flex flex-col items-center text-center mb-6">
-                <div className="w-16 h-16 bg-green-500/10 text-green-500 rounded-full flex items-center justify-center mb-4"><CheckCircle2 size={32}/></div>
-                <h3 className="text-xl font-black text-white uppercase tracking-tight">Bill Confirmed!</h3>
-                <p className="text-[10px] text-white/40 uppercase font-bold tracking-widest mt-1">{lastOrder.shopName}</p>
-            </div>
-
-            <div className="flex-1 bg-white/5 rounded-3xl p-6 mb-8 max-h-60 overflow-y-auto border border-white/5">
-                <p className="text-[9px] font-black uppercase text-[#d4af37] mb-3 opacity-60">Invoice Details</p>
-                <div className="space-y-3">
-                   {lastOrder.items.map((it, idx) => (
-                       <div key={idx} className="flex justify-between items-center text-[10px] uppercase font-bold">
-                           <span className="text-white/60">{it.name} <span className="text-white ml-1">x{it.qty}</span></span>
-                           <span className="text-white">Rs.{it.subtotal.toLocaleString()}</span>
-                       </div>
-                   ))}
-                </div>
-                <div className="mt-4 pt-4 border-t border-white/10 flex justify-between items-center">
-                    <span className="text-[10px] font-black uppercase text-white">Grand Total</span>
-                    <span className="text-lg font-black text-[#d4af37]">Rs.{lastOrder.total.toLocaleString()}</span>
-                </div>
-            </div>
-
-            <div className="space-y-4">
-              <button onClick={() => shareToWhatsApp(lastOrder)} className="w-full py-5 bg-[#25D366] text-white font-black rounded-2xl uppercase text-[10px] flex items-center justify-center gap-3 shadow-lg active:scale-95 transition-all">
-                <Share2 size={18} /> Share to WhatsApp
-              </button>
-              <button onClick={() => { setShowModal(null); setLastOrder(null); }} className="w-full py-5 bg-white/5 text-white/60 font-black rounded-2xl uppercase text-[10px] border border-white/5">
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* --- REGISTER MODALS --- */}
-      {['route', 'shop', 'brand'].includes(showModal) && (
-        <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-8 backdrop-blur-2xl">
-          <div className="bg-[#0f0f0f] w-full max-w-sm p-10 rounded-[3.5rem] border border-[#d4af37]/30 relative">
-            <button onClick={() => setShowModal(null)} className="absolute top-8 right-8 text-white/20"><X size={24}/></button>
-            <h3 className="text-center font-black text-[#d4af37] mb-10 uppercase text-[10px] tracking-[0.4em]">New {showModal}</h3>
-            <form onSubmit={async (e) => {
-              e.preventDefault(); const f = e.target;
-              const payload = { userId: user.uid, timestamp: Date.now() };
-              if(showModal==='route') await addDoc(collection(db, 'routes'), { ...payload, name: f.name.value.toUpperCase() });
-              if(showModal==='shop') await addDoc(collection(db, 'shops'), { ...payload, name: f.name.value.toUpperCase(), area: f.area.value });
-              if(showModal==='brand') await addDoc(collection(db, 'brands'), { ...payload, name: f.name.value.toUpperCase(), size: f.size.value.toUpperCase(), price: parseFloat(f.price.value) });
-              setShowModal(null);
-            }} className="space-y-5">
-              <input name="name" placeholder="BRAND NAME" className="w-full bg-black/40 p-6 rounded-3xl border border-white/5 text-white font-bold uppercase outline-none focus:border-[#d4af37]" required />
-              {showModal==='shop' && (
-                <div className="relative">
-                    <select name="area" className="w-full bg-black/40 p-6 rounded-3xl border border-white/5 text-white font-bold uppercase outline-none appearance-none" required>
-                        <option value="">SELECT ROUTE</option>
-                        {data.routes.map(r => <option key={r.id} value={r.name}>{r.name}</option>)}
-                    </select>
-                    <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 opacity-30" size={18}/>
-                </div>
-              )}
-              {showModal==='brand' && (
-                <>
-                  <input name="size" placeholder="SIZE (E.G. 500ML, 1KG)" className="w-full bg-black/40 p-6 rounded-3xl border border-white/5 text-white font-bold uppercase outline-none focus:border-[#d4af37]" required />
-                  <input name="price" type="number" step="0.01" placeholder="UNIT PRICE" className="w-full bg-black/40 p-6 rounded-3xl border border-white/5 text-white font-bold outline-none focus:border-[#d4af37]" required />
-                </>
-              )}
-              <button className="w-full py-6 bg-[#d4af37] text-black font-black rounded-3xl uppercase text-[10px] tracking-widest">Save Entry</button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      <style>{`.animate-progress { animation: progress 2.5s ease-in-out; } @keyframes progress { 0% { width: 0%; } 100% { width: 100%; } } .scrollbar-hide::-webkit-scrollbar { display: none; }`}</style>
-    </div>
-  );
-}
+                      <button onClick={() => setCart({...cart, [b.id]: (Number(cart[b.id
