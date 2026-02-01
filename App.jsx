@@ -1,15 +1,4 @@
-මට ඔබගේ අවශ්‍යතා තේරෙනවා. ඔබට පහත දේවල් අවශ්‍ය:
-
-1. **රෙප්ගේ අතින් විකුණන දේවල් (Add products manually)** - දැනට brands list එකෙන් පමණක් නොව, අතින් දාන්න පුළුවන් වීම
-2. **එකතුව (Total) බලාගන්න option එක** - වෙනම total calculation පිටුවක්
-3. **එකතු කරන brands edit කරන්න option එක** - brands update/delete කිරීම
-4. **Font size කුඩා කර තිරයට ගැලපෙන පරිදි** - responsive improvements
-5. **වෙනත් දේවල් එකතු කරන්න** - අමතර features
-
-මම ඔබගේ සම්පූර්ණ කේතය යාවත්කාලීන කර පහත වෙනස්කම් ඇතුළත් කරනවා:
-
-```jsx
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from 'firebase/auth';
 import { getFirestore, doc, collection, onSnapshot, addDoc, deleteDoc, query, orderBy, where, enableIndexedDbPersistence, setDoc, updateDoc } from 'firebase/firestore';
@@ -17,7 +6,7 @@ import {
   LayoutDashboard, Store, Plus, X, Trash2, Crown, Settings, LogOut,
   MapPin, Package, History, Calendar, Sun, Moon, Save, Star, Search, 
   CheckCircle2, ChevronDown, Share2, TrendingUp, Edit2, Calculator,
-  ListOrdered, DollarSign, ShoppingBag, Layers
+  ShoppingBag, DollarSign, Layers, ListOrdered
 } from 'lucide-react';
 
 // --- FIREBASE CONFIG ---
@@ -134,7 +123,6 @@ export default function App() {
     const updated = [...manualItems];
     updated[index][field] = value;
     
-    // Calculate subtotal
     if (field === 'qty' || field === 'price') {
       const qty = parseFloat(updated[index].qty) || 0;
       const price = parseFloat(updated[index].price) || 0;
@@ -212,6 +200,7 @@ export default function App() {
     }
   };
 
+  // CORRECTED: WhatsApp share function
   const shareToWhatsApp = (order) => {
     let msg = `*${order.companyName} - INVOICE*\n`;
     msg += `--------------------------\n`;
@@ -228,14 +217,18 @@ export default function App() {
     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
   };
 
+  // CORRECTED: Splash screen
   if (isSplash || loading) return (
     <div className="h-screen bg-[#050505] flex flex-col items-center justify-center">
       <Crown size={80} className="text-[#d4af37] animate-bounce" />
       <h1 className="mt-6 text-[#d4af37] text-3xl font-black tracking-widest italic uppercase">Monarch Pro</h1>
-      <div className="mt-4 w-48 h-1 bg-white/10 rounded-full overflow-hidden"><div className="h-full bg-[#d4af37] animate-progress shadow-[0_0_15px_#d4af37]"></div></div>
+      <div className="mt-4 w-48 h-1 bg-white/10 rounded-full overflow-hidden">
+        <div className="h-full bg-[#d4af37] animate-progress shadow-[0_0_15px_#d4af37]"></div>
+      </div>
     </div>
   );
 
+  // CORRECTED: Login screen
   if (!user) return (
     <div className="h-screen bg-black flex items-center justify-center p-8">
       <div className="w-full max-sm space-y-8 text-center">
@@ -526,4 +519,305 @@ export default function App() {
                     <div className="flex items-center gap-4">
                       <button onClick={() => setCart({...cart, [b.id]: Math.max(0, (Number(cart[b.id])||0)-1)})} className="w-12 h-12 bg-white/5 rounded-2xl text-white font-black text-xl">-</button>
                       <input type="number" value={cart[b.id] || ''} onChange={(e) => setCart({...cart, [b.id]: e.target.value})} className="w-12 bg-transparent text-center font-black text-[#d4af37] text-xl outline-none" placeholder="0" />
-                      <button onClick={() => setCart({...cart, [b.id]: (Number(cart[b.id
+                      <button onClick={() => setCart({...cart, [b.id]: (Number(cart[b.id])||0)+1})} className="w-12 h-12 bg-white/5 rounded-2xl text-white font-black text-xl">+</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="fixed bottom-0 inset-x-0 p-10 bg-black/95 border-t border-white/10 backdrop-blur-2xl flex flex-col items-center">
+                 <div className="flex justify-between w-full mb-6 px-4 text-white">
+                   <span className="font-black uppercase text-xs opacity-40">Total Amount</span>
+                   <span className="font-black text-3xl">Rs.{Object.entries(cart).reduce((acc, [id, q]) => acc + (data.brands.find(b=>b.id===id)?.price||0) * Number(q), 0).toLocaleString()}</span>
+                 </div>
+                 <button onClick={async () => {
+                   const items = Object.entries(cart).filter(([_, q]) => q > 0).map(([id, q]) => {
+                     const b = data.brands.find(x => x.id === id);
+                     return { name: `${b.name} ${b.size}`, qty: Number(q), price: b.price, subtotal: b.price * Number(q) };
+                   });
+                   if (!items.length) return alert("Empty Cart!");
+                   const orderData = {
+                     shopName: selectedShop.name,
+                     companyName: data.settings.company || "MONARCH",
+                     items,
+                     total: items.reduce((s, i) => s + i.subtotal, 0),
+                     userId: user.uid,
+                     timestamp: Date.now(),
+                     dateString: new Date().toLocaleDateString()
+                   };
+                   await addDoc(collection(db, 'orders'), orderData);
+                   setCart({}); setLastOrder(orderData); setShowModal('preview');
+                 }} className="w-full py-6 bg-[#d4af37] text-black font-black rounded-3xl uppercase tracking-widest text-xs">Confirm Order</button>
+              </div>
+            </div>
+        </div>
+      )}
+
+      {/* --- MANUAL ORDER MODAL --- */}
+      {showModal === 'manual' && (
+        <div className="fixed inset-0 bg-black z-[100] animate-in slide-in-from-bottom overflow-y-auto p-8">
+          <div className="max-w-lg mx-auto pb-60">
+            <div className="flex justify-between items-center mb-10 sticky top-0 bg-black py-4 border-b border-white/10">
+              <div>
+                <h2 className="text-3xl font-black uppercase text-white">Manual Order</h2>
+                <p className="text-[11px] text-[#d4af37] font-black uppercase italic">Add Custom Items</p>
+              </div>
+              <button onClick={() => { setShowModal(null); setManualItems([{ name: '', qty: 1, price: 0, subtotal: 0 }]); }} className="p-4 bg-white/10 rounded-full text-white"><X size={24}/></button>
+            </div>
+
+            {/* Shop Selection */}
+            <div className="mb-8">
+              <p className="text-[11px] font-black uppercase opacity-60 mb-3">Select Shop</p>
+              <select 
+                className="w-full bg-[#0f0f0f] p-6 rounded-3xl border border-white/5 text-white font-bold uppercase outline-none"
+                onChange={(e) => {
+                  const shopId = e.target.value;
+                  const shop = data.shops.find(s => s.id === shopId);
+                  setSelectedShop(shop);
+                }}
+              >
+                <option value="">-- SELECT SHOP --</option>
+                {data.shops.map(s => (
+                  <option key={s.id} value={s.id}>{s.name} - {s.area}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Manual Items */}
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <h3 className="text-[11px] font-black uppercase opacity-60">Items</h3>
+                <button onClick={addManualItem} className="text-[#d4af37] text-[10px] font-black uppercase flex items-center gap-1">
+                  <Plus size={14}/> ADD ITEM
+                </button>
+              </div>
+              
+              {manualItems.map((item, index) => (
+                <div key={index} className="bg-[#0f0f0f] p-6 rounded-[2.5rem] border border-white/5 space-y-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs font-black uppercase opacity-60">Item #{index + 1}</span>
+                    {manualItems.length > 1 && (
+                      <button onClick={() => removeManualItem(index)} className="text-red-500/60 hover:text-red-500 p-2">
+                        <Trash2 size={16}/>
+                      </button>
+                    )}
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-[10px] font-black uppercase opacity-40 mb-2">Item Name</p>
+                      <input
+                        value={item.name}
+                        onChange={(e) => updateManualItem(index, 'name', e.target.value)}
+                        placeholder="PRODUCT NAME"
+                        className="w-full bg-black/40 p-4 rounded-2xl border border-white/5 text-white font-bold uppercase outline-none"
+                      />
+                    </div>
+                    
+                    <div>
+                      <p className="text-[10px] font-black uppercase opacity-40 mb-2">Quantity</p>
+                      <input
+                        type="number"
+                        value={item.qty}
+                        onChange={(e) => updateManualItem(index, 'qty', e.target.value)}
+                        className="w-full bg-black/40 p-4 rounded-2xl border border-white/5 text-white font-bold text-center outline-none"
+                      />
+                    </div>
+                    
+                    <div>
+                      <p className="text-[10px] font-black uppercase opacity-40 mb-2">Unit Price</p>
+                      <input
+                        type="number"
+                        value={item.price}
+                        onChange={(e) => updateManualItem(index, 'price', e.target.value)}
+                        placeholder="0.00"
+                        className="w-full bg-black/40 p-4 rounded-2xl border border-white/5 text-white font-bold text-center outline-none"
+                      />
+                    </div>
+                    
+                    <div>
+                      <p className="text-[10px] font-black uppercase opacity-40 mb-2">Subtotal</p>
+                      <div className="w-full bg-black/40 p-4 rounded-2xl border border-white/5 text-center">
+                        <span className="text-[#d4af37] font-black">Rs.{item.subtotal.toLocaleString()}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Total Calculation */}
+            <div className="fixed bottom-0 inset-x-0 p-10 bg-black/95 border-t border-white/10 backdrop-blur-2xl">
+              <div className="max-w-lg mx-auto">
+                <div className="flex justify-between items-center mb-6">
+                  <div>
+                    <p className="text-[10px] font-black uppercase opacity-40">Shop</p>
+                    <p className="text-sm font-black">{selectedShop?.name || "Not Selected"}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[10px] font-black uppercase opacity-40">Total</p>
+                    <p className="text-2xl font-black text-[#d4af37]">
+                      Rs.{manualItems.reduce((sum, item) => sum + (item.subtotal || 0), 0).toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+                <button 
+                  onClick={saveManualOrder}
+                  disabled={!selectedShop}
+                  className={`w-full py-6 font-black rounded-3xl uppercase tracking-widest text-xs ${selectedShop ? 'bg-[#d4af37] text-black' : 'bg-gray-700 text-gray-400'}`}
+                >
+                  {selectedShop ? 'SAVE MANUAL ORDER' : 'SELECT SHOP FIRST'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- PREVIEW MODAL --- */}
+      {showModal === 'preview' && lastOrder && (
+        <div className="fixed inset-0 bg-black z-[110] flex items-center justify-center p-6 backdrop-blur-3xl animate-in fade-in">
+          <div className="bg-[#0f0f0f] w-full max-w-sm p-8 rounded-[3.5rem] border border-[#d4af37]/30 shadow-2xl flex flex-col">
+            <div className="flex flex-col items-center text-center mb-6">
+                <div className="w-16 h-16 bg-green-500/10 text-green-500 rounded-full flex items-center justify-center mb-4"><CheckCircle2 size={32}/></div>
+                <h3 className="text-xl font-black text-white uppercase tracking-tight">Bill Confirmed!</h3>
+                <p className="text-[10px] text-white/40 uppercase font-bold tracking-widest mt-1">{lastOrder.shopName}</p>
+            </div>
+
+            <div className="flex-1 bg-white/5 rounded-3xl p-6 mb-8 max-h-60 overflow-y-auto border border-white/5">
+                <p className="text-[9px] font-black uppercase text-[#d4af37] mb-3 opacity-60">Invoice Details</p>
+                <div className="space-y-3">
+                   {lastOrder.items.map((it, idx) => (
+                       <div key={idx} className="flex justify-between items-center text-[10px] uppercase font-bold">
+                           <span className="text-white/60">{it.name} <span className="text-white ml-1">x{it.qty}</span></span>
+                           <span className="text-white">Rs.{it.subtotal.toLocaleString()}</span>
+                       </div>
+                   ))}
+                </div>
+                <div className="mt-4 pt-4 border-t border-white/10 flex justify-between items-center">
+                    <span className="text-[10px] font-black uppercase text-white">Grand Total</span>
+                    <span className="text-lg font-black text-[#d4af37]">Rs.{lastOrder.total.toLocaleString()}</span>
+                </div>
+            </div>
+
+            <div className="space-y-4">
+              <button onClick={() => shareToWhatsApp(lastOrder)} className="w-full py-5 bg-[#25D366] text-white font-black rounded-2xl uppercase text-[10px] flex items-center justify-center gap-3 shadow-lg active:scale-95 transition-all">
+                <Share2 size={18} /> Share to WhatsApp
+              </button>
+              <button onClick={() => { setShowModal(null); setLastOrder(null); }} className="w-full py-5 bg-white/5 text-white/60 font-black rounded-2xl uppercase text-[10px] border border-white/5">
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- TOTAL CALCULATOR MODAL --- */}
+      {showTotalCalculator && (
+        <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-8 backdrop-blur-2xl">
+          <div className="bg-[#0f0f0f] w-full max-w-sm p-10 rounded-[3.5rem] border border-[#d4af37]/30 relative">
+            <button onClick={() => setShowTotalCalculator(false)} className="absolute top-8 right-8 text-white/20"><X size={24}/></button>
+            <h3 className="text-center font-black text-[#d4af37] mb-10 uppercase text-[10px] tracking-[0.4em]">TOTAL CALCULATOR</h3>
+            
+            <div className="space-y-6">
+              <div>
+                <p className="text-[10px] font-black uppercase opacity-40 mb-2">Subtotal</p>
+                <input
+                  type="number"
+                  value={totalCalculation.subtotal}
+                  onChange={(e) => setTotalCalculation({...totalCalculation, subtotal: parseFloat(e.target.value) || 0})}
+                  className="w-full bg-black/40 p-6 rounded-3xl border border-white/5 text-white font-bold text-center outline-none text-2xl"
+                />
+              </div>
+              
+              <div>
+                <p className="text-[10px] font-black uppercase opacity-40 mb-2">Discount</p>
+                <input
+                  type="number"
+                  value={totalCalculation.discount}
+                  onChange={(e) => setTotalCalculation({...totalCalculation, discount: parseFloat(e.target.value) || 0})}
+                  className="w-full bg-black/40 p-6 rounded-3xl border border-white/5 text-white font-bold text-center outline-none"
+                />
+              </div>
+              
+              <div>
+                <p className="text-[10px] font-black uppercase opacity-40 mb-2">Tax</p>
+                <input
+                  type="number"
+                  value={totalCalculation.tax}
+                  onChange={(e) => setTotalCalculation({...totalCalculation, tax: parseFloat(e.target.value) || 0})}
+                  className="w-full bg-black/40 p-6 rounded-3xl border border-white/5 text-white font-bold text-center outline-none"
+                />
+              </div>
+              
+              <div className="bg-black/60 p-6 rounded-3xl border border-[#d4af37]/30">
+                <p className="text-[10px] font-black uppercase opacity-60 mb-2">GRAND TOTAL</p>
+                <p className="text-3xl font-black text-[#d4af37] text-center">
+                  Rs.{(totalCalculation.subtotal - totalCalculation.discount + totalCalculation.tax).toLocaleString()}
+                </p>
+              </div>
+              
+              <button 
+                onClick={calculateManualTotal}
+                className="w-full py-6 bg-[#d4af37] text-black font-black rounded-3xl uppercase text-[10px] tracking-widest"
+              >
+                CALCULATE
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- REGISTER MODALS --- */}
+      {['route', 'shop', 'brand'].includes(showModal) && (
+        <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-8 backdrop-blur-2xl">
+          <div className="bg-[#0f0f0f] w-full max-w-sm p-10 rounded-[3.5rem] border border-[#d4af37]/30 relative">
+            <button onClick={() => setShowModal(null)} className="absolute top-8 right-8 text-white/20"><X size={24}/></button>
+            <h3 className="text-center font-black text-[#d4af37] mb-10 uppercase text-[10px] tracking-[0.4em]">New {showModal}</h3>
+            <form onSubmit={async (e) => {
+              e.preventDefault(); const f = e.target;
+              const payload = { userId: user.uid, timestamp: Date.now() };
+              if(showModal==='route') await addDoc(collection(db, 'routes'), { ...payload, name: f.name.value.toUpperCase() });
+              if(showModal==='shop') await addDoc(collection(db, 'shops'), { ...payload, name: f.name.value.toUpperCase(), area: f.area.value });
+              if(showModal==='brand') await addDoc(collection(db, 'brands'), { ...payload, name: f.name.value.toUpperCase(), size: f.size.value.toUpperCase(), price: parseFloat(f.price.value) });
+              setShowModal(null);
+            }} className="space-y-5">
+              <input name="name" placeholder="BRAND NAME" className="w-full bg-black/40 p-6 rounded-3xl border border-white/5 text-white font-bold uppercase outline-none focus:border-[#d4af37]" required />
+              {showModal==='shop' && (
+                <div className="relative">
+                    <select name="area" className="w-full bg-black/40 p-6 rounded-3xl border border-white/5 text-white font-bold uppercase outline-none appearance-none" required>
+                        <option value="">SELECT ROUTE</option>
+                        {data.routes.map(r => <option key={r.id} value={r.name}>{r.name}</option>)}
+                    </select>
+                    <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 opacity-30" size={18}/>
+                </div>
+              )}
+              {showModal==='brand' && (
+                <>
+                  <input name="size" placeholder="SIZE (E.G. 500ML, 1KG)" className="w-full bg-black/40 p-6 rounded-3xl border border-white/5 text-white font-bold uppercase outline-none focus:border-[#d4af37]" required />
+                  <input name="price" type="number" step="0.01" placeholder="UNIT PRICE" className="w-full bg-black/40 p-6 rounded-3xl border border-white/5 text-white font-bold outline-none focus:border-[#d4af37]" required />
+                </>
+              )}
+              <button className="w-full py-6 bg-[#d4af37] text-black font-black rounded-3xl uppercase text-[10px] tracking-widest">Save Entry</button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      <style>{`
+        .animate-progress { animation: progress 2.5s ease-in-out; } 
+        @keyframes progress { 0% { width: 0%; } 100% { width: 100%; } } 
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        
+        /* Smaller font sizes for better mobile fit */
+        @media (max-width: 640px) {
+          main { font-size: 0.85rem !important; }
+          h1 { font-size: 1.5rem !important; }
+          h2 { font-size: 1.25rem !important; }
+          h3 { font-size: 1rem !important; }
+          .text-xs { font-size: 0.75rem !important; }
+          .text-sm { font-size: 0.875rem !important; }
+        }
+      `}</style>
+    </div>
+  );
+}
