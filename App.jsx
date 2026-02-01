@@ -1462,7 +1462,7 @@ export default function App() {
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      onClick={() => setCart({...cart, [b.id]: Math.max(0, (Number(cart[b.id])||0)-1})}
+                      onClick={() => setCart({...cart, [b.id]: Math.max(0, (Number(cart[b.id])||0)-1)})}
                       className="w-10 h-10 bg-white/5 rounded-xl text-white font-black hover:bg-white/10 transition-all"
                     >
                       -
