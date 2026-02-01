@@ -75,7 +75,7 @@ export default function App() {
     const currentMonth = new Date().getMonth();
     const currentYear = new Date().getFullYear();
 
-    const getStats = (list, expenseList) => {
+    const getStats = (list, expList = []) => {
       const summary = {};
       let totalSales = 0;
       list.forEach(o => {
@@ -86,24 +86,24 @@ export default function App() {
           summary[i.name].rev += i.subtotal;
         });
       });
-      const totalExp = expenseList.reduce((acc, curr) => acc + curr.amount, 0);
+      const totalExp = expList.reduce((acc, curr) => acc + (curr.amount || 0), 0);
       const topBrand = Object.entries(summary).sort((a,b) => b[1].units - a[1].units)[0];
       return { totalSales, totalExp, summary: Object.entries(summary), topBrand: topBrand ? topBrand[0] : 'N/A' };
     };
 
     const dailyOrders = data.orders.filter(o => o.dateString === todayStr);
-    const dailyExps = data.expenses.filter(e => new Date(e.timestamp).toLocaleDateString() === todayStr);
-
+    const dailyExp = data.expenses.filter(e => new Date(e.timestamp).toLocaleDateString() === todayStr);
+    
     const monthlyOrders = data.orders.filter(o => {
       const d = new Date(o.timestamp);
       return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
     });
-    const monthlyExps = data.expenses.filter(e => {
+    const monthlyExp = data.expenses.filter(e => {
         const d = new Date(e.timestamp);
         return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
     });
 
-    return { daily: getStats(dailyOrders, dailyExps), monthly: getStats(monthlyOrders, monthlyExps) };
+    return { daily: getStats(dailyOrders, dailyExp), monthly: getStats(monthlyOrders, monthlyExp) };
   }, [data.orders, data.expenses]);
 
   const filteredShops = useMemo(() => {
@@ -152,9 +152,9 @@ export default function App() {
             else { await signInWithEmailAndPassword(auth, email, password); }
           } catch (err) { alert(err.message); }
         }} className="space-y-4">
-          <input name="email" type="email" placeholder="EMAIL" className="w-full bg-[#111] p-4 rounded-2xl border border-white/10 text-white text-xs font-bold outline-none focus:border-[#d4af37]" required />
-          <input name="password" type="password" placeholder="PASSWORD" className="w-full bg-[#111] p-4 rounded-2xl border border-white/10 text-white text-xs font-bold outline-none focus:border-[#d4af37]" required />
-          <button className="w-full py-4 bg-[#d4af37] text-black font-black rounded-2xl shadow-lg text-xs uppercase">{isRegisterMode ? "Sign Up" : "Login"}</button>
+          <input name="email" type="email" placeholder="EMAIL" className="w-full bg-[#111] p-4 rounded-2xl border border-white/10 text-white text-[10px] font-bold outline-none focus:border-[#d4af37]" required />
+          <input name="password" type="password" placeholder="PASSWORD" className="w-full bg-[#111] p-4 rounded-2xl border border-white/10 text-white text-[10px] font-bold outline-none focus:border-[#d4af37]" required />
+          <button className="w-full py-4 bg-[#d4af37] text-black font-black rounded-2xl shadow-lg text-[10px] uppercase">{isRegisterMode ? "Sign Up" : "Login"}</button>
           <button type="button" onClick={() => setIsRegisterMode(!isRegisterMode)} className="text-[#d4af37] text-[9px] font-black uppercase tracking-widest opacity-60">
             {isRegisterMode ? "Already have an account? Login" : "New User? Create Account"}
           </button>
@@ -193,33 +193,27 @@ export default function App() {
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-                <div className={`p-5 rounded-[2rem] border ${isDarkMode ? "bg-[#0f0f0f] border-white/10" : "bg-white border-black/5 shadow-sm"}`}>
-                    <div className="flex items-center gap-2 mb-2">
-                        <Wallet size={14} className="text-red-500" />
-                        <p className="text-[8px] font-black opacity-40 uppercase">Today Exp.</p>
-                    </div>
+            <div className="grid grid-cols-2 gap-3">
+                <div className={`p-4 rounded-[2rem] border ${isDarkMode ? "bg-[#0f0f0f] border-white/10" : "bg-white border-black/5"}`}>
+                    <p className="text-[8px] font-black opacity-40 uppercase mb-1">Daily Expenses</p>
                     <p className="text-sm font-black text-red-500">Rs.{stats.daily.totalExp.toLocaleString()}</p>
                 </div>
-                <div className={`p-5 rounded-[2rem] border ${isDarkMode ? "bg-[#0f0f0f] border-white/10" : "bg-white border-black/5 shadow-sm"}`}>
-                    <div className="flex items-center gap-2 mb-2">
-                        <TrendingUp size={14} className="text-green-500" />
-                        <p className="text-[8px] font-black opacity-40 uppercase">Net Profit</p>
-                    </div>
+                <div className={`p-4 rounded-[2rem] border ${isDarkMode ? "bg-[#0f0f0f] border-white/10" : "bg-white border-black/5"}`}>
+                    <p className="text-[8px] font-black opacity-40 uppercase mb-1">Net Profit</p>
                     <p className="text-sm font-black text-green-500">Rs.{(stats.daily.totalSales - stats.daily.totalExp).toLocaleString()}</p>
                 </div>
             </div>
 
-            <div className={`p-6 rounded-[2.5rem] border ${isDarkMode ? "bg-[#0f0f0f] border-white/10" : "bg-white border-black/5 shadow-md"}`}>
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-[9px] font-black text-[#d4af37] uppercase tracking-widest">Monthly Summary</h3>
-                  <TrendingUp size={14} className="text-[#d4af37] opacity-50" />
-                </div>
+            <div className={`p-6 rounded-[2.5rem] border ${isDarkMode ? "bg-[#0f0f0f] border-white/10" : "bg-white border-black/10"}`}>
+                <h3 className="text-[9px] font-black text-[#d4af37] uppercase tracking-widest mb-4">Monthly Performance</h3>
                 <div className="space-y-2">
-                  {stats.monthly.summary.slice(0, 5).map(([name, s]) => (
+                  {stats.monthly.summary.map(([name, s]) => (
                     <div key={name} className="flex justify-between items-center p-3 rounded-xl bg-white/5 border border-white/5">
                         <span className="text-[10px] font-black uppercase">{name}</span>
-                        <span className="text-[10px] font-black text-[#d4af37]">{s.units} U</span>
+                        <div className="text-right">
+                          <p className="text-[10px] font-black text-[#d4af37]">{s.units} U</p>
+                          <p className="text-[8px] opacity-40 font-bold">Rs.{s.rev.toLocaleString()}</p>
+                        </div>
                     </div>
                   ))}
                 </div>
@@ -266,7 +260,7 @@ export default function App() {
                 <input type="date" className="bg-transparent text-[10px] font-black uppercase outline-none w-full [color-scheme:dark]" onChange={(e) => setSearchDate(e.target.value)} value={searchDate}/>
             </div>
             {data.orders.filter(o => new Date(o.timestamp).toISOString().split('T')[0] === searchDate).map((o) => (
-              <div key={o.id} className={`p-5 rounded-[2rem] border ${isDarkMode ? "bg-[#0f0f0f] border-white/5" : "bg-white border-black/5 shadow-lg"}`}>
+              <div key={o.id} className={`p-5 rounded-[2rem] border ${isDarkMode ? "bg-[#0f0f0f] border-white/5" : "bg-white border-black/5"}`}>
                 <div className="flex justify-between items-start mb-4">
                   <div>
                     <h4 className="text-[10px] font-black uppercase text-[#d4af37]">{o.shopName}</h4>
@@ -308,14 +302,14 @@ export default function App() {
               <button onClick={() => setShowModal('brand')} className="py-5 rounded-2xl border border-white/5 bg-[#0f0f0f] text-[#d4af37] font-black uppercase text-[9px] flex flex-col items-center gap-1"><Package size={18}/> Brand</button>
             </div>
 
-            {/* --- DAILY EXPENSES SECTION --- */}
+            {/* --- DAILY EXPENSES --- */}
             <div className={`p-6 rounded-[2rem] border ${isDarkMode ? "bg-[#0f0f0f] border-white/10" : "bg-white border-black/10"}`}>
                 <div className="flex justify-between items-center mb-4">
                     <h3 className="text-[9px] font-black text-red-500 uppercase tracking-widest">Daily Expenses</h3>
                     <button onClick={() => setShowModal('expense')} className="p-1.5 bg-red-500/10 text-red-500 rounded-lg"><Plus size={14}/></button>
                 </div>
-                <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
-                    {data.expenses.slice(0, 10).map(e => (
+                <div className="space-y-2 max-h-40 overflow-y-auto">
+                    {data.expenses.map(e => (
                         <div key={e.id} className="flex justify-between items-center p-3 bg-white/5 rounded-xl border border-white/5">
                             <div>
                                 <p className="text-[10px] font-black uppercase">{e.note}</p>
@@ -327,11 +321,10 @@ export default function App() {
                             </div>
                         </div>
                     ))}
-                    {data.expenses.length === 0 && <p className="text-[9px] opacity-30 italic text-center py-2">No expenses recorded</p>}
                 </div>
             </div>
 
-            <div>
+            <div className="space-y-4">
                 <h4 className="text-[9px] font-black opacity-30 uppercase px-4 mb-2">Manage Brands</h4>
                 <div className="grid gap-2">
                 {data.brands.map(b => (
@@ -432,7 +425,7 @@ export default function App() {
             }} className="space-y-4">
               {showModal === 'expense' ? (
                 <>
-                  <input name="note" placeholder="EXPENSE NOTE (E.G. FUEL)" className="w-full bg-black/40 p-4 rounded-xl border border-white/5 text-white text-[10px] font-bold uppercase outline-none focus:border-red-500" required />
+                  <input name="note" placeholder="EXPENSE NOTE (FUEL, MEALS)" className="w-full bg-black/40 p-4 rounded-xl border border-white/5 text-white text-[10px] font-bold uppercase outline-none focus:border-red-500" required />
                   <input name="amount" type="number" step="0.01" placeholder="AMOUNT" className="w-full bg-black/40 p-4 rounded-xl border border-white/5 text-white text-[10px] font-bold outline-none focus:border-red-500" required />
                 </>
               ) : (
