@@ -272,6 +272,18 @@ export default function App() {
     }
   };
 
+  // Delete Route
+  const deleteRoute = async (routeId) => {
+    if (window.confirm('Are you sure you want to delete this route?')) {
+      try {
+        await deleteDoc(doc(db, 'routes', routeId));
+        showToast("Route deleted successfully!", "success");
+      } catch (err) {
+        showToast("Error deleting route: " + err.message, "error");
+      }
+    }
+  };
+
   // Save Note
   const saveNote = async () => {
     if (!user) {
@@ -1513,6 +1525,48 @@ export default function App() {
               </button>
             </div>
 
+            {/* Routes Management Section */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-xs font-black text-[#d4af37] uppercase tracking-widest">Routes List</h4>
+                <span className="text-[10px]" style={{ opacity: 0.5, color: isDarkMode ? 'white' : 'black' }}>{data.routes.length} routes</span>
+              </div>
+
+              <div className="grid gap-1.5 mb-4">
+                {data.routes.map(r => (
+                  <div
+                    key={r.id}
+                    className={`p-3 rounded-xl border flex justify-between items-center transition-all ${
+                      isDarkMode
+                        ? 'bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5 hover:border-[#d4af37]/30'
+                        : 'bg-gray-50 border-gray-100 hover:border-[#d4af37]'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <MapPin size={14} className="text-[#d4af37]" />
+                      <span className="text-xs font-black uppercase" style={{ color: isDarkMode ? 'white' : 'black' }}>{r.name}</span>
+                    </div>
+                    <button
+                      onClick={() => deleteRoute(r.id)}
+                      className={`p-1.5 rounded-lg transition-all ${
+                        isDarkMode
+                          ? 'text-red-500/40 hover:text-red-500 hover:bg-red-500/10'
+                          : 'text-red-500 hover:text-red-600 hover:bg-red-50'
+                      }`}
+                    >
+                      <Trash2 size={14}/>
+                    </button>
+                  </div>
+                ))}
+                {data.routes.length === 0 && (
+                  <div className="text-center py-4">
+                    <MapPin size={25} className="mx-auto opacity-20 mb-1.5" />
+                    <p className="text-xs opacity-30 italic">No routes added yet</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
             {/* Brands List */}
             <div>
               <div className="flex items-center justify-between mb-3">
@@ -1541,6 +1595,7 @@ export default function App() {
                                 : 'bg-white border-gray-300 text-gray-900'
                             }`}
                             onBlur={(e) => saveBrandEdit(b.id, 'name', e.target.value)}
+                            autoFocus
                           />
                           <input
                             defaultValue={b.size}
@@ -1565,7 +1620,11 @@ export default function App() {
                         <div className="flex gap-2">
                           <button
                             onClick={() => setEditingBrand(null)}
-                            className="flex-1 py-1.5 bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] text-white/60 text-xs font-black rounded-lg border border-white/5 hover:border-white/10 transition-all"
+                            className={`flex-1 py-1.5 text-xs font-black rounded-lg border transition-all ${
+                              isDarkMode
+                                ? 'bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] text-white/60 border-white/5 hover:border-white/10'
+                                : 'bg-gray-100 text-gray-600 border-gray-200 hover:border-gray-300'
+                            }`}
                           >
                             Cancel
                           </button>
@@ -1724,7 +1783,11 @@ export default function App() {
       {/* --- COMPACT CALCULATOR MODAL --- */}
       {showCalculator && (
         <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-3 backdrop-blur-3xl">
-          <div className="bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] w-full max-w-xs p-4 rounded-2xl border border-[#d4af37]/30 relative shadow-2xl">
+          <div className={`w-full max-w-xs p-4 rounded-2xl border relative shadow-2xl ${
+            isDarkMode 
+              ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/30 text-white"
+              : "bg-gradient-to-br from-white to-gray-50 border-[#d4af37]/50 text-gray-900"
+          }`}>
             <button
               onClick={() => setShowCalculator(false)}
               className="absolute top-2 right-2 text-white/20 hover:text-white/40 transition-all p-1"
@@ -1746,7 +1809,11 @@ export default function App() {
                   value={totalCalculation.subtotal}
                   onChange={(e) => setTotalCalculation({...totalCalculation, subtotal: parseFloat(e.target.value) || 0})}
                   placeholder="0.00"
-                  className="w-full bg-black/40 p-3 rounded-lg border border-white/5 text-white font-bold text-center outline-none focus:border-[#d4af37] transition-all text-sm"
+                  className={`w-full p-3 rounded-lg border text-white font-bold text-center outline-none focus:border-[#d4af37] transition-all text-sm ${
+                    isDarkMode 
+                      ? "bg-black/40 border-white/5" 
+                      : "bg-gray-100 border-gray-300 text-gray-900"
+                  }`}
                 />
               </div>
 
@@ -1758,7 +1825,11 @@ export default function App() {
                     value={totalCalculation.discount}
                     onChange={(e) => setTotalCalculation({...totalCalculation, discount: parseFloat(e.target.value) || 0})}
                     placeholder="0.00"
-                    className="w-full bg-black/40 p-2 rounded-lg border border-white/5 text-white font-bold text-center outline-none focus:border-[#d4af37] transition-all text-sm"
+                    className={`w-full p-2 rounded-lg border text-white font-bold text-center outline-none focus:border-[#d4af37] transition-all text-sm ${
+                      isDarkMode 
+                        ? "bg-black/40 border-white/5" 
+                        : "bg-gray-100 border-gray-300 text-gray-900"
+                    }`}
                   />
                 </div>
 
@@ -1769,12 +1840,20 @@ export default function App() {
                     value={totalCalculation.tax}
                     onChange={(e) => setTotalCalculation({...totalCalculation, tax: parseFloat(e.target.value) || 0})}
                     placeholder="0.00"
-                    className="w-full bg-black/40 p-2 rounded-lg border border-white/5 text-white font-bold text-center outline-none focus:border-[#d4af37] transition-all text-sm"
+                    className={`w-full p-2 rounded-lg border text-white font-bold text-center outline-none focus:border-[#d4af37] transition-all text-sm ${
+                      isDarkMode 
+                        ? "bg-black/40 border-white/5" 
+                        : "bg-gray-100 border-gray-300 text-gray-900"
+                    }`}
                   />
                 </div>
               </div>
 
-              <div className="bg-gradient-to-br from-black/60 to-black/40 p-3 rounded-lg border border-[#d4af37]/30">
+              <div className={`p-3 rounded-lg border ${
+                isDarkMode
+                  ? "bg-gradient-to-br from-black/60 to-black/40 border-[#d4af37]/30"
+                  : "bg-gradient-to-br from-gray-100 to-gray-50 border-[#d4af37]/30"
+              }`}>
                 <div className="flex justify-between items-center mb-1">
                   <p className="text-[10px] font-black uppercase opacity-60">Total</p>
                 </div>
@@ -1795,7 +1874,11 @@ export default function App() {
                   onClick={() => {
                     setTotalCalculation({ subtotal: 0, discount: 0, tax: 0, grandTotal: 0 });
                   }}
-                  className="w-full py-2 bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] text-white/60 font-black rounded-lg uppercase text-[10px] tracking-widest border border-white/5 hover:border-white/10 transition-all"
+                  className={`w-full py-2 font-black rounded-lg uppercase text-[10px] tracking-widest border transition-all ${
+                    isDarkMode
+                      ? "bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] text-white/60 border-white/5 hover:border-white/10"
+                      : "bg-gradient-to-br from-gray-100 to-gray-200 text-gray-600 border-gray-300 hover:border-gray-400"
+                  }`}
                 >
                   RESET
                 </button>
@@ -1808,7 +1891,11 @@ export default function App() {
       {/* --- COMPACT EXPENSE MODAL --- */}
       {showModal === 'expense' && (
         <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-3 backdrop-blur-3xl">
-          <div className="bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] w-full max-w-xs p-4 rounded-2xl border border-[#d4af37]/30 relative shadow-2xl">
+          <div className={`w-full max-w-xs p-4 rounded-2xl border relative shadow-2xl ${
+            isDarkMode
+              ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/30 text-white"
+              : "bg-gradient-to-br from-white to-gray-50 border-[#d4af37]/50 text-gray-900"
+          }`}>
             <button onClick={() => setShowModal(null)} className="absolute top-2 right-2 text-white/20 hover:text-white/40 p-1">
               <X size={20}/>
             </button>
@@ -1833,7 +1920,9 @@ export default function App() {
                       key={item.type}
                       type="button"
                       onClick={() => setExpenseType(item.type)}
-                      className={`p-2 rounded-lg border flex flex-col items-center gap-0.5 transition-all ${expenseType === item.type ? 'bg-black/60 border-[#d4af37]' : 'bg-black/40 border-white/5 hover:border-white/20'}`}
+                      className={`p-2 rounded-lg border flex flex-col items-center gap-0.5 transition-all ${expenseType === item.type ? 'border-[#d4af37]' : 'border-white/5 hover:border-white/20'} ${
+                        isDarkMode ? 'bg-black/40' : 'bg-gray-100'
+                      }`}
                     >
                       <item.icon size={16} className={expenseType === item.type ? 'text-[#d4af37]' : item.color} />
                       <span className="text-[9px] font-black uppercase">{item.label}</span>
@@ -1849,7 +1938,9 @@ export default function App() {
                   value={expenseAmount}
                   onChange={(e) => setExpenseAmount(e.target.value)}
                   placeholder="0.00"
-                  className="w-full bg-black/40 p-3 rounded-lg border border-white/5 text-white font-bold text-center outline-none focus:border-[#d4af37] transition-all text-base"
+                  className={`w-full p-3 rounded-lg border text-white font-bold text-center outline-none focus:border-[#d4af37] transition-all text-base ${
+                    isDarkMode ? 'bg-black/40 border-white/5' : 'bg-gray-100 border-gray-300 text-gray-900'
+                  }`}
                 />
               </div>
 
@@ -1859,7 +1950,9 @@ export default function App() {
                   value={expenseNote}
                   onChange={(e) => setExpenseNote(e.target.value)}
                   placeholder="Add expense details..."
-                  className="w-full bg-black/40 p-2 rounded-lg border border-white/5 text-white text-xs outline-none resize-none h-16 focus:border-[#d4af37] transition-all"
+                  className={`w-full p-2 rounded-lg border text-white text-xs outline-none resize-none h-16 focus:border-[#d4af37] transition-all ${
+                    isDarkMode ? 'bg-black/40 border-white/5' : 'bg-gray-100 border-gray-300 text-gray-900'
+                  }`}
                 />
               </div>
 
@@ -1878,7 +1971,11 @@ export default function App() {
       {/* --- COMPACT NOTE MODAL --- */}
       {showModal === 'note' && (
         <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-3 backdrop-blur-3xl">
-          <div className="bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] w-full max-w-xs p-4 rounded-2xl border border-[#d4af37]/30 relative shadow-2xl">
+          <div className={`w-full max-w-xs p-4 rounded-2xl border relative shadow-2xl ${
+            isDarkMode
+              ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/30 text-white"
+              : "bg-gradient-to-br from-white to-gray-50 border-[#d4af37]/50 text-gray-900"
+          }`}>
             <button onClick={() => setShowModal(null)} className="absolute top-2 right-2 text-white/20 hover:text-white/40 p-1">
               <X size={20}/>
             </button>
@@ -1895,7 +1992,9 @@ export default function App() {
                   value={repNote}
                   onChange={(e) => setRepNote(e.target.value)}
                   placeholder="Type your note here..."
-                  className="w-full bg-black/40 p-3 rounded-lg border border-white/5 text-white text-xs outline-none resize-none h-24 focus:border-[#d4af37] transition-all"
+                  className={`w-full p-3 rounded-lg border text-white text-xs outline-none resize-none h-24 focus:border-[#d4af37] transition-all ${
+                    isDarkMode ? 'bg-black/40 border-white/5' : 'bg-gray-100 border-gray-300 text-gray-900'
+                  }`}
                 />
               </div>
 
@@ -2021,7 +2120,7 @@ export default function App() {
                 className="p-2 bg-white/10 rounded-full text-white hover:bg-white/20 transition-all"
               >
                 <X size={20}/>
-              </button>
+            </button>
             </div>
 
             {/* Shop Selection */}
@@ -2211,7 +2310,11 @@ export default function App() {
       {/* --- REGISTER MODALS (Shop, Brand, Route) --- */}
       {['route', 'shop', 'brand'].includes(showModal) && (
         <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-3 backdrop-blur-3xl">
-          <div className="bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] w-full max-w-xs p-4 rounded-2xl border border-[#d4af37]/30 relative shadow-2xl">
+          <div className={`w-full max-w-xs p-4 rounded-2xl border relative shadow-2xl ${
+            isDarkMode
+              ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/30 text-white"
+              : "bg-gradient-to-br from-white to-gray-50 border-[#d4af37]/50 text-gray-900"
+          }`}>
             <button onClick={() => setShowModal(null)} className="absolute top-2 right-2 text-white/20 hover:text-white/40 p-1">
               <X size={20}/>
             </button>
@@ -2283,7 +2386,9 @@ export default function App() {
                   showModal === 'shop' ? "SHOP NAME" :
                   "ROUTE NAME"
                 }
-                className="w-full bg-black/40 p-3 rounded-lg border border-white/5 text-white font-bold uppercase outline-none text-xs focus:border-[#d4af37] transition-all"
+                className={`w-full p-3 rounded-lg border text-white font-bold uppercase outline-none text-xs focus:border-[#d4af37] transition-all ${
+                  isDarkMode ? 'bg-black/40 border-white/5' : 'bg-gray-100 border-gray-300 text-gray-900'
+                }`}
                 required
               />
 
@@ -2291,7 +2396,9 @@ export default function App() {
                 <div className="relative">
                   <select
                     name="area"
-                    className="w-full bg-black/40 p-3 rounded-lg border border-white/5 text-white font-bold uppercase outline-none appearance-none text-xs focus:border-[#d4af37] transition-all"
+                    className={`w-full p-3 rounded-lg border text-white font-bold uppercase outline-none appearance-none text-xs focus:border-[#d4af37] transition-all ${
+                      isDarkMode ? 'bg-black/40 border-white/5' : 'bg-gray-100 border-gray-300 text-gray-900'
+                    }`}
                     required
                   >
                     <option value="">SELECT ROUTE AREA</option>
@@ -2308,7 +2415,9 @@ export default function App() {
                   <input
                     name="size"
                     placeholder="SIZE (e.g., 500ML, 1KG)"
-                    className="w-full bg-black/40 p-3 rounded-lg border border-white/5 text-white font-bold uppercase outline-none text-xs focus:border-[#d4af37] transition-all"
+                    className={`w-full p-3 rounded-lg border text-white font-bold uppercase outline-none text-xs focus:border-[#d4af37] transition-all ${
+                      isDarkMode ? 'bg-black/40 border-white/5' : 'bg-gray-100 border-gray-300 text-gray-900'
+                    }`}
                     required
                   />
                   <input
@@ -2316,7 +2425,9 @@ export default function App() {
                     type="number"
                     step="0.01"
                     placeholder="UNIT PRICE (Rs.)"
-                    className="w-full bg-black/40 p-3 rounded-lg border border-white/5 text-white font-bold outline-none text-xs focus:border-[#d4af37] transition-all"
+                    className={`w-full p-3 rounded-lg border text-white font-bold outline-none text-xs focus:border-[#d4af37] transition-all ${
+                      isDarkMode ? 'bg-black/40 border-white/5' : 'bg-gray-100 border-gray-300 text-gray-900'
+                    }`}
                     required
                   />
                 </>
@@ -2343,11 +2454,12 @@ export default function App() {
 
         /* Font Family Fix */
         * {
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif !important;
+          font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif !important;
+          font-weight: 500;
         }
 
         body {
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+          font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
           -webkit-font-smoothing: antialiased;
           -moz-osx-font-smoothing: grayscale;
           font-size: 14px;
@@ -2356,6 +2468,11 @@ export default function App() {
         input, button, select, textarea {
           font-family: inherit !important;
           font-size: 14px;
+          font-weight: 600;
+        }
+
+        .font-black {
+          font-weight: 700 !important;
         }
 
         /* Mobile Optimizations */
@@ -2408,6 +2525,44 @@ export default function App() {
           
           .rounded-2xl {
             border-radius: 1rem !important;
+          }
+        }
+
+        @media (max-width: 320px) {
+          body {
+            font-size: 11px;
+          }
+          
+          .text-xs {
+            font-size: 0.65rem !important;
+          }
+          
+          .p-2 {
+            padding: 0.4rem !important;
+          }
+          
+          .gap-2 {
+            gap: 0.5rem !important;
+          }
+        }
+
+        /* Better button sizing for mobile */
+        button {
+          min-height: 44px;
+          min-width: 44px;
+        }
+
+        /* Improve input readability */
+        input, select, textarea {
+          font-size: 16px !important; /* Prevents iOS zoom on focus */
+        }
+
+        /* Better modal positioning for small screens */
+        @media (max-height: 600px) {
+          .fixed.inset-0 {
+            align-items: flex-start;
+            padding-top: 1rem;
+            overflow-y: auto;
           }
         }
 
