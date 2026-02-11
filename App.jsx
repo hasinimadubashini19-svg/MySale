@@ -1,6 +1,13 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { initializeApp } from 'firebase/app';
-import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from 'firebase/auth';
+import { 
+  getAuth, 
+  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword, 
+  onAuthStateChanged, 
+  signOut,
+  sendPasswordResetEmail 
+} from 'firebase/auth';
 import { getFirestore, doc, collection, onSnapshot, addDoc, deleteDoc, query, orderBy, where, enableIndexedDbPersistence, setDoc, updateDoc } from 'firebase/firestore';
 import {
   LayoutDashboard, Store, Plus, X, Trash2, Crown, Settings, LogOut,
@@ -8,7 +15,7 @@ import {
   CheckCircle2, ChevronDown, Share2, TrendingUp, Edit2, Calculator,
   ShoppingBag, DollarSign, Fuel, FileText, Navigation, AlertCircle,
   CreditCard, Coffee, Target, Percent, BarChart3, Hash, Package2,
-  BookOpen, Filter, Eye, Clock, Download
+  BookOpen, Filter, Eye, Clock, Download, Mail, Lock, User
 } from 'lucide-react';
 
 // --- FIREBASE CONFIG ---
@@ -75,6 +82,12 @@ export default function App() {
   const [showCalculator, setShowCalculator] = useState(false);
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
   const [showAllMonthlyBrands, setShowAllMonthlyBrands] = useState(false);
+  
+  // NEW: Forgot password states
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [isSendingReset, setIsSendingReset] = useState(false);
+  const [resetSuccess, setResetSuccess] = useState(false);
 
   // Toast Notification
   const showToast = (message, type = 'success') => {
@@ -219,7 +232,8 @@ export default function App() {
       await setDoc(doc(db, "settings", user.uid), {
         name,
         company,
-        userId: user.uid
+        userId: user.uid,
+        updatedAt: Date.now()
       });
       showToast("✅ Profile Saved Successfully!", "success");
     } catch (err) {
@@ -371,6 +385,40 @@ export default function App() {
     }));
 
     showToast(`💰 Grand Total: Rs.${grandTotal.toLocaleString()}`, "info");
+  };
+
+  // Forgot Password Handler
+  const handleForgotPassword = async () => {
+    if (!resetEmail.trim()) {
+      showToast("Please enter your email address", "error");
+      return;
+    }
+
+    // Email format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(resetEmail)) {
+      showToast("Please enter a valid email address", "error");
+      return;
+    }
+
+    setIsSendingReset(true);
+    try {
+      await sendPasswordResetEmail(auth, resetEmail);
+      setResetSuccess(true);
+      showToast("📧 Password reset link sent! Check your email.", "success");
+    } catch (err) {
+      let errorMessage = "Error sending reset email";
+      if (err.code === 'auth/user-not-found') {
+        errorMessage = "No account found with this email";
+      } else if (err.code === 'auth/too-many-requests') {
+        errorMessage = "Too many attempts. Please try again later";
+      } else if (err.code === 'auth/invalid-email') {
+        errorMessage = "Invalid email address";
+      }
+      showToast(errorMessage, "error");
+    } finally {
+      setIsSendingReset(false);
+    }
   };
 
   // FIXED Statistics Calculation
@@ -582,14 +630,58 @@ export default function App() {
 
     try {
       if (isRegisterMode) {
+        // Password strength validation for registration
+        if (password.length < 6) {
+          showToast("Password must be at least 6 characters", "error");
+          return;
+        }
+        
         await createUserWithEmailAndPassword(auth, email, password);
-        showToast("Account created successfully!", "success");
+        showToast("🎉 Account created successfully!", "success");
+        
+        // Optional: Set initial profile
+        try {
+          await setDoc(doc(db, "settings", auth.currentUser.uid), {
+            name: email.split('@')[0].toUpperCase(),
+            company: "MONARCH",
+            userId: auth.currentUser.uid,
+            createdAt: Date.now()
+          });
+        } catch (profileErr) {
+          console.log("Profile setup skipped:", profileErr);
+        }
       } else {
         await signInWithEmailAndPassword(auth, email, password);
-        showToast("Welcome back!", "success");
+        showToast("👑 Welcome back!", "success");
       }
     } catch (err) {
-      showToast(err.message, "error");
+      // User-friendly error messages
+      let errorMessage = "Authentication failed";
+      
+      switch (err.code) {
+        case 'auth/user-not-found':
+          errorMessage = "No account found with this email";
+          break;
+        case 'auth/wrong-password':
+          errorMessage = "Incorrect password";
+          break;
+        case 'auth/too-many-requests':
+          errorMessage = "Too many failed attempts. Try again later";
+          break;
+        case 'auth/email-already-in-use':
+          errorMessage = "Email already registered. Try login instead";
+          break;
+        case 'auth/invalid-email':
+          errorMessage = "Invalid email address";
+          break;
+        case 'auth/weak-password':
+          errorMessage = "Password should be at least 6 characters";
+          break;
+        default:
+          errorMessage = err.message;
+      }
+      
+      showToast(errorMessage, "error");
     }
   };
 
@@ -694,6 +786,101 @@ export default function App() {
     </div>
   );
 
+  // Forgot Password Screen
+  if (!user && showForgotPassword) {
+    return (
+      <div className="h-screen bg-gradient-to-br from-black to-gray-900 flex items-center justify-center p-4">
+        <div className="w-full max-w-sm p-6 space-y-6 text-center bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] rounded-2xl border border-white/10">
+          <div className="space-y-3">
+            <Crown size={50} className="text-[#d4af37] mx-auto" />
+            <h2 className="text-white font-black text-xl tracking-widest uppercase">
+              Reset Password
+            </h2>
+            <p className="text-white/60 text-sm">
+              Enter your email to receive a password reset link
+            </p>
+          </div>
+
+          {resetSuccess ? (
+            <div className="space-y-4">
+              <div className="p-4 bg-gradient-to-r from-green-500/10 to-emerald-600/10 rounded-xl border border-green-500/20">
+                <CheckCircle2 size={30} className="text-green-500 mx-auto mb-2" />
+                <p className="text-green-500 text-sm font-bold">
+                  Password reset link sent successfully!
+                </p>
+                <p className="text-white/50 text-xs mt-2">
+                  Check your email inbox and spam folder
+                </p>
+              </div>
+              
+              <div className="space-y-2">
+                <button
+                  onClick={() => {
+                    setShowForgotPassword(false);
+                    setResetSuccess(false);
+                    setResetEmail('');
+                  }}
+                  className="w-full py-3 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-xl uppercase text-sm tracking-widest hover:opacity-90 transition-all"
+                >
+                  Back to Login
+                </button>
+                
+                <button
+                  onClick={() => {
+                    setResetSuccess(false);
+                    setResetEmail('');
+                  }}
+                  className="w-full py-2.5 bg-white/5 text-white/60 font-bold rounded-xl border border-white/10 text-xs hover:border-white/20 transition-all"
+                >
+                  Send Another Link
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div>
+                <input
+                  type="email"
+                  value={resetEmail}
+                  onChange={(e) => setResetEmail(e.target.value)}
+                  placeholder="YOUR EMAIL ADDRESS"
+                  className="w-full bg-white/5 backdrop-blur-sm p-4 rounded-2xl border border-white/10 text-white font-bold outline-none focus:border-[#d4af37] transition-all"
+                />
+                <p className="text-white/40 text-xs text-left mt-1">
+                  Enter the email you used to register
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <button
+                  onClick={handleForgotPassword}
+                  disabled={isSendingReset}
+                  className={`w-full py-4 font-black rounded-2xl uppercase text-sm tracking-widest transition-all ${
+                    isSendingReset
+                      ? 'bg-gray-700 text-gray-400'
+                      : 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black hover:opacity-90'
+                  }`}
+                >
+                  {isSendingReset ? 'SENDING...' : 'SEND RESET LINK'}
+                </button>
+
+                <button
+                  onClick={() => {
+                    setShowForgotPassword(false);
+                    setResetEmail('');
+                  }}
+                  className="w-full py-3 text-white/60 font-bold rounded-xl text-sm hover:text-white transition-all"
+                >
+                  ← Back to Login
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   // Login Screen
   if (!user) return (
     <div className="h-screen bg-gradient-to-br from-black to-gray-900 flex items-center justify-center p-4">
@@ -732,13 +919,25 @@ export default function App() {
             {isRegisterMode ? "Sign Up" : "Login"}
           </button>
 
-          <button
-            type="button"
-            onClick={() => setIsRegisterMode(!isRegisterMode)}
-            className="text-[#d4af37] text-sm font-bold uppercase tracking-widest opacity-80 hover:opacity-100 transition-all"
-          >
-            {isRegisterMode ? "Already have an account? Login" : "New User? Create Account"}
-          </button>
+          <div className="flex justify-between items-center">
+            <button
+              type="button"
+              onClick={() => setIsRegisterMode(!isRegisterMode)}
+              className="text-[#d4af37] text-sm font-bold uppercase tracking-widest opacity-80 hover:opacity-100 transition-all"
+            >
+              {isRegisterMode ? "Already have an account?" : "New User?"}
+            </button>
+            
+            {!isRegisterMode && (
+              <button
+                type="button"
+                onClick={() => setShowForgotPassword(true)}
+                className="text-white/60 text-sm font-bold uppercase tracking-widest opacity-80 hover:opacity-100 hover:text-[#d4af37] transition-all"
+              >
+                Forgot Password?
+              </button>
+            )}
+          </div>
         </form>
       </div>
     </div>
@@ -1162,9 +1361,9 @@ export default function App() {
                     className={`px-4 py-2 rounded-full text-[10px] font-black uppercase transition-all whitespace-nowrap border flex-shrink-0 ${
                       selectedRouteFilter === r.name
                         ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black border-[#d4af37]'
-                        : isDarkMode
-                          ? 'bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/10 text-white/60'
-                          : 'bg-gray-100 border-gray-200 text-gray-600'
+                      : isDarkMode
+                        ? 'bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/10 text-white/60'
+                        : 'bg-gray-100 border-gray-200 text-gray-600'
                     }`}
                   >
                     {r.name}
@@ -1567,21 +1766,21 @@ export default function App() {
               </div>
             </div>
 
-            {/* Brands List */}
+            {/* Brands List - IMPROVED WITH SEQUENTIAL DISPLAY */}
             <div>
               <div className="flex items-center justify-between mb-3">
                 <h4 className="text-xs font-black text-[#d4af37] uppercase tracking-widest">Brands List</h4>
                 <span className="text-[10px]" style={{ opacity: 0.5, color: isDarkMode ? 'white' : 'black' }}>{data.brands.length} brands</span>
               </div>
 
-              <div className="grid gap-1.5">
-                {data.brands.map(b => (
+              <div className="space-y-2">
+                {data.brands.map((b, index) => (
                   <div
                     key={b.id}
-                    className={`p-3 rounded-xl border flex justify-between items-center hover:border-[#d4af37]/30 transition-all ${
+                    className={`p-3 rounded-xl border flex justify-between items-center transition-all ${
                       isDarkMode
-                        ? 'bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5'
-                        : 'bg-gray-50 border-gray-100'
+                        ? 'bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5 hover:border-[#d4af37]/30'
+                        : 'bg-gray-50 border-gray-100 hover:border-[#d4af37]'
                     }`}
                   >
                     {editingBrand === b.id ? (
@@ -1638,34 +1837,57 @@ export default function App() {
                       </div>
                     ) : (
                       <>
-                        <div className="text-xs font-black uppercase">
-                          <span className="block" style={{ color: isDarkMode ? 'white' : 'black' }}>{b.name} ({b.size})</span>
-                          <span className="text-[#d4af37] text-[10px] mt-0.5">Rs.{b.price}/unit</span>
+                        <div className="flex items-center gap-3">
+                          <div className={`w-6 h-6 rounded-md flex items-center justify-center ${
+                            isDarkMode ? 'bg-white/10' : 'bg-gray-200'
+                          }`}>
+                            <span className="text-xs font-black">{index + 1}</span>
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-black uppercase" style={{ color: isDarkMode ? 'white' : 'black' }}>
+                                {b.name}
+                              </span>
+                              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gradient-to-r from-[#d4af37]/20 to-[#b8860b]/20 text-[#d4af37] border border-[#d4af37]/30">
+                                {b.size}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-[10px] opacity-50">Added:</span>
+                              <span className="text-[10px] text-[#d4af37]">
+                                {b.timestamp ? new Date(b.timestamp).toLocaleDateString() : 'Recently'}
+                              </span>
+                            </div>
+                          </div>
                         </div>
-                        <div className="flex gap-1">
-                          <button
-                            onClick={() => setEditingBrand(b.id)}
-                            className={`p-1.5 rounded-lg transition-all ${
-                              isDarkMode
-                                ? 'text-blue-500/40 hover:text-blue-500 hover:bg-blue-500/10'
-                                : 'text-blue-500 hover:text-blue-600 hover:bg-blue-50'
-                            }`}
-                          >
-                            <Edit2 size={14}/>
-                          </button>
-                          <button
-                            onClick={async () => {
-                              if(window.confirm('Delete this brand?'))
-                                await deleteDoc(doc(db, 'brands', b.id))
-                            }}
-                            className={`p-1.5 rounded-lg transition-all ${
-                              isDarkMode
-                                ? 'text-red-500/40 hover:text-red-500 hover:bg-red-500/10'
-                                : 'text-red-500 hover:text-red-600 hover:bg-red-50'
-                            }`}
-                          >
-                            <Trash2 size={14}/>
-                          </button>
+                        
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-black text-[#d4af37]">Rs.{b.price}</span>
+                          <div className="flex gap-1">
+                            <button
+                              onClick={() => setEditingBrand(b.id)}
+                              className={`p-1.5 rounded-lg transition-all ${
+                                isDarkMode
+                                  ? 'text-blue-500/40 hover:text-blue-500 hover:bg-blue-500/10'
+                                  : 'text-blue-500 hover:text-blue-600 hover:bg-blue-50'
+                              }`}
+                            >
+                              <Edit2 size={14}/>
+                            </button>
+                            <button
+                              onClick={async () => {
+                                if(window.confirm(`Delete ${b.name} (${b.size})?`))
+                                  await deleteDoc(doc(db, 'brands', b.id))
+                              }}
+                              className={`p-1.5 rounded-lg transition-all ${
+                                isDarkMode
+                                  ? 'text-red-500/40 hover:text-red-500 hover:bg-red-500/10'
+                                  : 'text-red-500 hover:text-red-600 hover:bg-red-50'
+                              }`}
+                            >
+                              <Trash2 size={14}/>
+                            </button>
+                          </div>
                         </div>
                       </>
                     )}
@@ -2441,7 +2663,7 @@ export default function App() {
         </div>
       )}
 
-      {/* Custom Styles - FIXED FONT ISSUES */}
+      {/* Custom Styles */}
       <style>{`
         @keyframes progress {
           0% { width: 0%; }
@@ -2452,7 +2674,6 @@ export default function App() {
           animation: progress 2.5s ease-in-out;
         }
 
-        /* Font Family Fix */
         * {
           font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif !important;
           font-weight: 500;
@@ -2475,7 +2696,6 @@ export default function App() {
           font-weight: 700 !important;
         }
 
-        /* Mobile Optimizations */
         @media (max-width: 640px) {
           body {
             font-size: 13px;
@@ -2546,18 +2766,15 @@ export default function App() {
           }
         }
 
-        /* Better button sizing for mobile */
         button {
           min-height: 44px;
           min-width: 44px;
         }
 
-        /* Improve input readability */
         input, select, textarea {
-          font-size: 16px !important; /* Prevents iOS zoom on focus */
+          font-size: 16px !important;
         }
 
-        /* Better modal positioning for small screens */
         @media (max-height: 600px) {
           .fixed.inset-0 {
             align-items: flex-start;
@@ -2566,7 +2783,6 @@ export default function App() {
           }
         }
 
-        /* Custom scrollbar */
         ::-webkit-scrollbar {
           width: 3px;
         }
@@ -2581,13 +2797,11 @@ export default function App() {
           border-radius: 10px;
         }
 
-        /* Touch-friendly buttons */
         button, input[type="button"], input[type="submit"] {
           min-height: 40px;
           min-width: 40px;
         }
 
-        /* Better touch feedback */
         .transition-all {
           transition: all 0.2s ease;
         }
