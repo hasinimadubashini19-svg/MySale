@@ -14,9 +14,10 @@ import {
   MapPin, Package, History, Calendar, Sun, Moon, Save, Star, Search,
   CheckCircle2, ChevronDown, Share2, TrendingUp, Edit2, Calculator,
   ShoppingBag, DollarSign, Fuel, FileText, Navigation, AlertCircle,
-  CreditCard, Coffee, Target, BarChart3, Hash, Package2,
-  BookOpen, Clock, Printer, Wifi, WifiOff, Award, Briefcase, Activity,
-  Phone, Mail, User, Map, Home, ChevronLeft, Info, Gamepad2
+  CreditCard, Coffee, Target, Percent, BarChart3, Hash, Package2,
+  BookOpen, Filter, Eye, Clock, Download, Mail, Lock, User, Printer,
+  Wifi, WifiOff, Award, Briefcase, Activity, Phone, Info,
+  ChevronLeft, ChevronRight, Home, UserCircle, Gamepad2
 } from 'lucide-react';
 
 // --- FIREBASE CONFIG ---
@@ -34,6 +35,7 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 
 // Enable offline persistence
+let offlineMode = false;
 try {
   enableIndexedDbPersistence(db).catch((err) => {
     if (err.code === 'failed-precondition') {
@@ -104,35 +106,42 @@ export default function App() {
   const [isSendingReset, setIsSendingReset] = useState(false);
   const [resetSuccess, setResetSuccess] = useState(false);
   const [pendingOrders, setPendingOrders] = useState([]);
+  const [brandSequence, setBrandSequence] = useState(0);
   const [showPrintPreview, setShowPrintPreview] = useState(false);
   const [printOrder, setPrintOrder] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState({ show: false, id: null, type: '', name: '' });
   const [brandError, setBrandError] = useState('');
   const [loginError, setLoginError] = useState('');
-  const [targetUnits, setTargetUnits] = useState('');
+  const [targetAmount, setTargetAmount] = useState('');
   const [targetMonth, setTargetMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [shopProfileData, setShopProfileData] = useState({
+    ownerName: '', phone: '', email: '', address: '', gst: '', notes: ''
+  });
   
-  // ===== NEW: Kolho Asa Game (Flappy Bird Style) =====
-  const [showAsaGame, setShowAsaGame] = useState(false);
-  const [birdPosition, setBirdPosition] = useState(250);
-  const [obstacle, setObstacle] = useState({ x: 400, height: 150 });
+  // ===== NEW: Shop Details View =====
+  const [shopDetailsView, setShopDetailsView] = useState(null);
+  
+  // ===== NEW: Snake Game State =====
+  const [showSnakeGame, setShowSnakeGame] = useState(false);
+  const [snake, setSnake] = useState([{x: 10, y: 10}]);
+  const [food, setFood] = useState({x: 15, y: 15});
+  const [direction, setDirection] = useState('RIGHT');
   const [gameOver, setGameOver] = useState(false);
   const [score, setScore] = useState(0);
-  const [gameStarted, setGameStarted] = useState(false);
 
   // Network Status Listener
   useEffect(() => {
     const handleOnline = () => {
       setIsOffline(false);
       enableNetwork(db).then(() => {
-        showToast("📶 Back online", "success");
+        showToast("📶 Back online - Syncing data...", "success");
         syncPendingOrders();
       });
     };
     const handleOffline = () => {
       setIsOffline(true);
       disableNetwork(db);
-      showToast("📴 Offline mode", "info");
+      showToast("📴 Offline mode - Changes saved locally", "info");
     };
 
     window.addEventListener('online', handleOnline);
@@ -144,73 +153,79 @@ export default function App() {
     };
   }, []);
 
-  // ===== KOLHO ASA GAME LOGIC =====
+  // Snake Game Logic
   useEffect(() => {
-    if (!showAsaGame || !gameStarted || gameOver) return;
+    if (!showSnakeGame || gameOver) return;
 
-    const gameLoop = setInterval(() => {
-      // Gravity
-      setBirdPosition(p => p + 5);
-      
-      // Move obstacle
-      setObstacle(o => ({
-        ...o,
-        x: o.x - 3
-      }));
-
-      // Reset obstacle
-      setObstacle(o => {
-        if (o.x < -50) {
-          setScore(s => s + 1);
-          return {
-            x: 400,
-            height: Math.floor(Math.random() * 200) + 100
-          };
-        }
-        return o;
-      });
-
-      // Collision detection
-      if (birdPosition < 0 || birdPosition > 500) {
-        setGameOver(true);
-      }
-      
-      if (obstacle.x < 70 && obstacle.x > 20) {
-        if (birdPosition < obstacle.height - 50 || birdPosition > obstacle.height + 150) {
-          setGameOver(true);
-        }
-      }
-    }, 30);
+    const gameInterval = setInterval(() => {
+      moveSnake();
+    }, 150);
 
     const handleKeyPress = (e) => {
-      if (e.code === 'Space') {
-        e.preventDefault();
-        setBirdPosition(p => p - 40);
-      }
-    };
-
-    const handleTouch = () => {
-      setBirdPosition(p => p - 40);
+      const key = e.key;
+      if (key === 'ArrowUp' && direction !== 'DOWN') setDirection('UP');
+      if (key === 'ArrowDown' && direction !== 'UP') setDirection('DOWN');
+      if (key === 'ArrowLeft' && direction !== 'RIGHT') setDirection('LEFT');
+      if (key === 'ArrowRight' && direction !== 'LEFT') setDirection('RIGHT');
     };
 
     window.addEventListener('keydown', handleKeyPress);
-    window.addEventListener('click', handleTouch);
-    window.addEventListener('touchstart', handleTouch);
-
     return () => {
-      clearInterval(gameLoop);
+      clearInterval(gameInterval);
       window.removeEventListener('keydown', handleKeyPress);
-      window.removeEventListener('click', handleTouch);
-      window.removeEventListener('touchstart', handleTouch);
     };
-  }, [showAsaGame, gameStarted, gameOver, birdPosition, obstacle.x]);
+  }, [showSnakeGame, snake, direction, gameOver]);
 
-  const startAsaGame = () => {
-    setBirdPosition(250);
-    setObstacle({ x: 400, height: 150 });
+  const moveSnake = () => {
+    const newSnake = [...snake];
+    const head = { ...newSnake[0] };
+
+    switch (direction) {
+      case 'UP': head.y -= 1; break;
+      case 'DOWN': head.y += 1; break;
+      case 'LEFT': head.x -= 1; break;
+      case 'RIGHT': head.x += 1; break;
+    }
+
+    // Check collision with walls
+    if (head.x < 0 || head.x > 20 || head.y < 0 || head.y > 20) {
+      setGameOver(true);
+      return;
+    }
+
+    // Check collision with self
+    if (newSnake.some(segment => segment.x === head.x && segment.y === head.y)) {
+      setGameOver(true);
+      return;
+    }
+
+    newSnake.unshift(head);
+
+    // Check if food eaten
+    if (head.x === food.x && head.y === food.y) {
+      setScore(score + 10);
+      generateFood();
+    } else {
+      newSnake.pop();
+    }
+
+    setSnake(newSnake);
+  };
+
+  const generateFood = () => {
+    const newFood = {
+      x: Math.floor(Math.random() * 20),
+      y: Math.floor(Math.random() * 20)
+    };
+    setFood(newFood);
+  };
+
+  const resetGame = () => {
+    setSnake([{x: 10, y: 10}]);
+    setFood({x: 15, y: 15});
+    setDirection('RIGHT');
     setGameOver(false);
     setScore(0);
-    setGameStarted(true);
   };
 
   // Toast Notification
@@ -218,12 +233,12 @@ export default function App() {
     setToast({ show: true, message, type });
     setTimeout(() => {
       setToast({ show: false, message: '', type: 'success' });
-    }, 2000);
+    }, 3000);
   };
 
   // Splash Screen & Auth Listener
   useEffect(() => {
-    const timer = setTimeout(() => setIsSplash(false), 1000);
+    const timer = setTimeout(() => setIsSplash(false), 1500);
     const unsubAuth = onAuthStateChanged(auth, (user) => {
       setUser(user);
       setLoading(false);
@@ -319,7 +334,7 @@ export default function App() {
     for (const order of pending) {
       try {
         await addDoc(collection(db, 'orders'), order);
-        showToast("✅ Synced order", "success");
+        showToast("✅ Synced order for " + order.shopName, "success");
       } catch (err) {
         console.error("Sync failed:", err);
       }
@@ -360,17 +375,17 @@ export default function App() {
             showToast("📍 Location saved offline", "info");
           } else {
             addDoc(collection(db, 'locations'), locationData)
-              .then(() => showToast("📍 Location saved", "success"))
+              .then(() => showToast("📍 Location saved successfully!", "success"))
               .catch(err => showToast("Error saving location", "error"));
           }
         },
         (error) => {
           console.error("Error getting location:", error);
-          showToast("Location access denied", "error");
+          showToast("Location access denied or unavailable", "error");
         }
       );
     } else {
-      showToast("Geolocation not supported", "error");
+      showToast("Geolocation is not supported by this browser.", "error");
     }
   };
 
@@ -391,7 +406,7 @@ export default function App() {
         userId: user.uid,
         updatedAt: Date.now()
       });
-      showToast("✅ Profile Saved", "success");
+      showToast("✅ Profile Saved Successfully!", "success");
     } catch (err) {
       showToast("Error: " + err.message, "error");
     }
@@ -427,7 +442,7 @@ export default function App() {
         showToast("✅ Expense saved offline", "info");
       } else {
         await addDoc(collection(db, 'expenses'), expenseData);
-        showToast("✅ Expense saved", "success");
+        showToast("✅ Expense saved successfully!", "success");
       }
 
       setExpenseAmount('');
@@ -459,11 +474,21 @@ export default function App() {
       if (type === 'target') await deleteDoc(doc(db, 'targets', id));
       if (type === 'shopProfile') await deleteDoc(doc(db, 'shopProfiles', id));
       
-      showToast(`✅ ${type} deleted`, 'success');
+      showToast(`✅ ${type} deleted successfully!`, 'success');
       setShowDeleteConfirm({ show: false, id: null, type: '', name: '' });
     } catch (err) {
       showToast(`Error deleting ${type}: ` + err.message, 'error');
     }
+  };
+
+  // Delete Expense
+  const deleteExpense = async (expenseId) => {
+    confirmDelete(expenseId, 'expense', '');
+  };
+
+  // Delete Route
+  const deleteRoute = async (routeId) => {
+    confirmDelete(routeId, 'route', '');
   };
 
   // Save Note
@@ -494,7 +519,7 @@ export default function App() {
         showToast("✅ Note saved offline", "info");
       } else {
         await addDoc(collection(db, 'notes'), noteData);
-        showToast("✅ Note saved", "success");
+        showToast("✅ Note saved successfully!", "success");
       }
 
       setRepNote('');
@@ -546,7 +571,7 @@ export default function App() {
         const pending = JSON.parse(localStorage.getItem('pendingOrders') || '[]');
         pending.push(orderData);
         localStorage.setItem('pendingOrders', JSON.stringify(pending));
-        showToast("✅ Order saved offline", "info");
+        showToast("✅ Order saved offline - Will sync when online", "info");
       } else {
         await addDoc(collection(db, 'orders'), orderData);
       }
@@ -578,7 +603,7 @@ export default function App() {
       grandTotal: grandTotal
     }));
 
-    showToast(`💰 Total: Rs.${grandTotal.toLocaleString()}`, "info");
+    showToast(`💰 Grand Total: Rs.${grandTotal.toLocaleString()}`, "info");
   };
 
   // Reset calculator
@@ -610,7 +635,7 @@ export default function App() {
     try {
       await sendPasswordResetEmail(auth, resetEmail);
       setResetSuccess(true);
-      showToast("📧 Reset link sent!", "success");
+      showToast("📧 Password reset link sent! Check your email.", "success");
     } catch (err) {
       let errorMessage = "Error sending reset email";
       if (err.code === 'auth/user-not-found') {
@@ -626,7 +651,7 @@ export default function App() {
     }
   };
 
-  // ===== UPDATED: STATISTICS WITH TARGET (UNITS) =====
+  // ===== UPDATED: STATISTICS WITH TARGET AND EXPENSES =====
   const stats = useMemo(() => {
     const todayStr = new Date().toLocaleDateString();
     const currentMonth = new Date().getMonth();
@@ -643,6 +668,7 @@ export default function App() {
         if (o.items && Array.isArray(o.items)) {
           o.items.forEach(i => {
             const qty = i.qty || 0;
+            const price = i.price || 0;
             const subtotal = i.subtotal || 0;
             const itemName = i.name.split('(')[0].trim();
 
@@ -651,7 +677,8 @@ export default function App() {
             if (!summary[itemName]) {
               summary[itemName] = {
                 units: 0,
-                revenue: 0
+                revenue: 0,
+                price: price
               };
             }
             summary[itemName].units += qty;
@@ -660,11 +687,18 @@ export default function App() {
         }
       });
 
+      const sortedByUnits = Object.entries(summary).sort((a, b) => b[1].units - a[1].units);
+      const topBrandByUnits = sortedByUnits[0];
+
+      const sortedByRevenue = Object.entries(summary).sort((a, b) => b[1].revenue - a[1].revenue);
+      const topBrandByRevenue = sortedByRevenue[0];
+
       const allBrandsSorted = Object.entries(summary)
         .map(([name, data]) => ({
           name,
           units: data.units,
-          revenue: data.revenue
+          revenue: data.revenue,
+          avgPrice: data.units > 0 ? data.revenue / data.units : 0
         }))
         .sort((a, b) => b.revenue - a.revenue);
 
@@ -672,14 +706,22 @@ export default function App() {
         totalSales,
         totalUnits,
         summary: allBrandsSorted,
-        topBrand: allBrandsSorted[0]?.name || 'N/A',
-        topBrandUnits: allBrandsSorted[0]?.units || 0,
+        topBrand: topBrandByUnits ? topBrandByUnits[0] : 'N/A',
+        topBrandUnits: topBrandByUnits ? topBrandByUnits[1].units : 0,
+        topBrandRevenue: topBrandByRevenue ? topBrandByRevenue[1].revenue : 0,
         avgPrice: totalUnits > 0 ? totalSales / totalUnits : 0,
         allBrands: allBrandsSorted
       };
     };
 
-    const dailyOrders = data.orders.filter(o => o.dateString === todayStr);
+    const dailyOrders = data.orders.filter(o => {
+      try {
+        return o.dateString === todayStr;
+      } catch {
+        return false;
+      }
+    });
+
     const monthlyOrders = data.orders.filter(o => {
       try {
         const d = new Date(o.timestamp);
@@ -703,18 +745,10 @@ export default function App() {
 
     const todayNotes = data.notes.filter(n => n.date === todayStr);
     
-    // Current month target (UNITS)
-    const monthTargets = data.targets?.filter(t => t.month === currentMonthStr) || [];
-    const totalTargetUnits = monthTargets.reduce((sum, t) => sum + (t.units || 0), 0);
-    
-    const monthlyTotalUnits = monthlyOrders.reduce((sum, o) => {
-      if (o.items) {
-        return sum + o.items.reduce((itemSum, i) => itemSum + (i.qty || 0), 0);
-      }
-      return sum;
-    }, 0);
-    
-    const targetProgress = totalTargetUnits > 0 ? (monthlyTotalUnits / totalTargetUnits) * 100 : 0;
+    // Current month target
+    const currentTarget = data.targets?.find(t => t.month === currentMonthStr) || { amount: 0 };
+    const monthlySales = monthlyOrders.reduce((sum, o) => sum + (o.total || 0), 0);
+    const targetProgress = currentTarget.amount > 0 ? (monthlySales / currentTarget.amount) * 100 : 0;
 
     // Daily expenses breakdown
     const dailyExpensesByType = todayExpenses.reduce((acc, expense) => {
@@ -728,37 +762,37 @@ export default function App() {
       daily: getStats(dailyOrders),
       monthly: getStats(monthlyOrders),
       expenses: totalExpenses,
-      monthlyExpenses,
+      monthlyExpenses: monthlyExpenses,
       notes: todayNotes.length,
-      todayExpenses,
+      todayExpenses: todayExpenses,
       dailyExpensesByType,
-      monthlySales: monthlyOrders.reduce((sum, o) => sum + (o.total || 0), 0),
-      monthlyUnits: monthlyTotalUnits,
-      monthlyTargetUnits: totalTargetUnits,
-      targetProgress,
-      targetRemaining: Math.max(0, totalTargetUnits - monthlyTotalUnits)
+      monthlySales: monthlySales,
+      monthlyTarget: currentTarget.amount || 0,
+      targetProgress: targetProgress,
+      targetRemaining: Math.max(0, (currentTarget.amount || 0) - monthlySales)
     };
   }, [data.orders, data.expenses, data.notes, data.targets]);
 
   // Shop Statistics
   const getShopStats = (shopId) => {
-    if (!shopId) return { totalSales: 0, orderCount: 0, lastOrder: null, totalUnits: 0 };
+    if (!shopId) return { totalSales: 0, orderCount: 0, lastOrder: null, items: {} };
     
     const shopOrders = data.orders.filter(o => o.shopId === shopId || o.shopName === shopId);
     const totalSales = shopOrders.reduce((sum, o) => sum + (o.total || 0), 0);
     const orderCount = shopOrders.length;
     const lastOrder = shopOrders.length > 0 ? shopOrders[0] : null;
     
-    let totalUnits = 0;
+    const items = {};
     shopOrders.forEach(o => {
       if (o.items) {
         o.items.forEach(i => {
-          totalUnits += i.qty || 0;
+          if (!items[i.name]) items[i.name] = 0;
+          items[i.name] += i.qty || 0;
         });
       }
     });
     
-    return { totalSales, orderCount, lastOrder, totalUnits };
+    return { totalSales, orderCount, lastOrder, items };
   };
 
   // Get Shop Profile
@@ -782,7 +816,13 @@ export default function App() {
 
   // Filter Notes by Date
   const filteredNotes = useMemo(() => {
-    return data.notes.filter(note => note.date === noteSearchDate);
+    return data.notes.filter(note => {
+      try {
+        return note.date === noteSearchDate;
+      } catch {
+        return false;
+      }
+    });
   }, [data.notes, noteSearchDate]);
 
   // Manual Items Handlers
@@ -814,20 +854,53 @@ export default function App() {
     if (!order) return;
 
     let msg = `*${order.companyName || "MONARCH"} - INVOICE*\n`;
-    msg += `─────────────────\n`;
-    msg += `🏪 *Shop:* ${order.shopName}\n`;
-    msg += `📅 *Date:* ${new Date(order.timestamp).toLocaleString()}\n`;
+    msg += `⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯\n`;
+    msg += `🏪 *Shop:* ${order.shopName || "Unknown Shop"}\n`;
+    msg += `📅 *Date:* ${order.timestamp ? new Date(order.timestamp).toLocaleString() : new Date().toLocaleString()}\n`;
+
+    if (currentLocation) {
+      const mapsUrl = `https://www.google.com/maps?q=${currentLocation.lat},${currentLocation.lng}`;
+      msg += `📍 *Location:* ${mapsUrl}\n`;
+    }
+
     msg += `\n*ITEMS:*\n`;
-    
-    order.items.forEach(i => {
-      msg += `• ${i.name} (${i.qty} x Rs.${i.price}) = *Rs.${i.subtotal.toLocaleString()}*\n`;
-    });
-    
-    msg += `\n─────────────────\n`;
-    msg += `💰 *TOTAL: Rs.${order.total.toLocaleString()}*\n`;
-    msg += `─────────────────\n`;
-    msg += `_Monarch Pro_`;
-    
+    if (order.items && Array.isArray(order.items)) {
+      order.items.forEach(i => {
+        msg += `• ${i.name || "Item"} (${i.qty || 0} x Rs.${i.price || 0}) = *Rs.${(i.subtotal || 0).toLocaleString()}*\n`;
+      });
+    }
+    msg += `\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯\n`;
+    msg += `💰 *TOTAL BILL: Rs.${(order.total || 0).toLocaleString()}*\n`;
+    msg += `⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯\n`;
+    msg += `_Generated by Monarch Pro_`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+  };
+
+  const shareBillWithLocation = (order) => {
+    if (!order) return;
+
+    let msg = `*${order.companyName || "MONARCH"} - INVOICE*\n`;
+    msg += `⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯\n`;
+    msg += `🏪 *Shop:* ${order.shopName || "Unknown Shop"}\n`;
+    msg += `📅 *Date:* ${order.timestamp ? new Date(order.timestamp).toLocaleString() : new Date().toLocaleString()}\n`;
+
+    if (currentLocation) {
+      const mapsUrl = `https://www.google.com/maps?q=${currentLocation.lat},${currentLocation.lng}`;
+      msg += `📍 *Delivery Location:* ${mapsUrl}\n`;
+    } else {
+      showToast("Location not available. Sending bill without location.", "info");
+    }
+
+    msg += `\n*ITEMS:*\n`;
+    if (order.items && Array.isArray(order.items)) {
+      order.items.forEach(i => {
+        msg += `• ${i.name || "Item"} (${i.qty || 0} x Rs.${i.price || 0}) = *Rs.${(i.subtotal || 0).toLocaleString()}*\n`;
+      });
+    }
+    msg += `\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯\n`;
+    msg += `💰 *TOTAL BILL: Rs.${(order.total || 0).toLocaleString()}*\n`;
+    msg += `⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯\n`;
+    msg += `_Generated by Monarch Pro_`;
     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
   };
 
@@ -841,27 +914,83 @@ export default function App() {
   const generateBillHTML = (order) => {
     const companyName = order.companyName || data.settings.company || "MONARCH";
     const shopName = order.shopName || "Unknown Shop";
-    const date = new Date(order.timestamp).toLocaleString();
+    const date = order.timestamp ? new Date(order.timestamp).toLocaleString() : new Date().toLocaleString();
     const billNumber = order.id ? order.id.slice(-6) : Math.floor(Math.random() * 1000000);
     
-    return `
+    let html = `
       <!DOCTYPE html>
       <html>
       <head>
         <title>Bill - ${shopName}</title>
         <style>
-          body { font-family: 'Courier New', monospace; margin: 0; padding: 10px; background: white; color: black; }
-          .bill { max-width: 80mm; margin: 0 auto; padding: 10px; }
-          .header { text-align: center; border-bottom: 2px dashed #000; padding-bottom: 10px; margin-bottom: 10px; }
-          .company { font-size: 18px; font-weight: bold; color: #d4af37; margin: 0; text-transform: uppercase; }
-          .shop { font-size: 16px; font-weight: bold; margin: 5px 0; }
-          .details { font-size: 11px; margin: 3px 0; }
-          .items { width: 100%; border-collapse: collapse; margin: 10px 0; }
-          .items th { border-bottom: 1px solid #000; padding: 5px; font-size: 11px; text-align: left; }
-          .items td { padding: 5px; font-size: 11px; }
-          .total { border-top: 2px solid #000; margin-top: 10px; padding-top: 10px; text-align: right; font-size: 14px; font-weight: bold; }
-          .footer { margin-top: 15px; text-align: center; font-size: 9px; color: #666; border-top: 1px dashed #000; padding-top: 8px; }
-          @media print { body { margin: 0; padding: 5px; } }
+          body {
+            font-family: 'Courier New', monospace;
+            margin: 0;
+            padding: 10px;
+            background: white;
+            color: black;
+          }
+          .bill {
+            max-width: 80mm;
+            margin: 0 auto;
+            padding: 10px;
+          }
+          .header {
+            text-align: center;
+            border-bottom: 2px dashed #000;
+            padding-bottom: 10px;
+            margin-bottom: 10px;
+          }
+          .company {
+            font-size: 18px;
+            font-weight: bold;
+            color: #d4af37;
+            margin: 0;
+            text-transform: uppercase;
+          }
+          .shop {
+            font-size: 16px;
+            font-weight: bold;
+            margin: 5px 0;
+          }
+          .details {
+            font-size: 11px;
+            margin: 3px 0;
+          }
+          .items {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+          }
+          .items th {
+            border-bottom: 1px solid #000;
+            padding: 5px;
+            font-size: 11px;
+            text-align: left;
+          }
+          .items td {
+            padding: 5px;
+            font-size: 11px;
+          }
+          .total {
+            border-top: 2px solid #000;
+            margin-top: 10px;
+            padding-top: 10px;
+            text-align: right;
+            font-size: 14px;
+            font-weight: bold;
+          }
+          .footer {
+            margin-top: 15px;
+            text-align: center;
+            font-size: 9px;
+            color: #666;
+            border-top: 1px dashed #000;
+            padding-top: 8px;
+          }
+          @media print {
+            body { margin: 0; padding: 5px; }
+          }
         </style>
       </head>
       <body>
@@ -872,6 +1001,9 @@ export default function App() {
             <div class="details">${date}</div>
             <div class="details">Bill #: ${billNumber}</div>
           </div>
+    `;
+
+    html += `
           <table class="items">
             <thead>
               <tr>
@@ -882,28 +1014,42 @@ export default function App() {
               </tr>
             </thead>
             <tbody>
-              ${order.items.map(item => `
-                <tr>
-                  <td>${item.name}</td>
-                  <td>${item.qty}</td>
-                  <td>Rs.${item.price}</td>
-                  <td>Rs.${item.subtotal.toLocaleString()}</td>
-                </tr>
-              `).join('')}
+    `;
+
+    if (order.items && Array.isArray(order.items)) {
+      order.items.forEach(item => {
+        html += `
+              <tr>
+                <td>${item.name || 'Item'}</td>
+                <td>${item.qty || 0}</td>
+                <td>${(item.price || 0).toLocaleString()}</td>
+                <td>${(item.subtotal || 0).toLocaleString()}</td>
+              </tr>
+        `;
+      });
+    }
+
+    html += `
             </tbody>
           </table>
+          
           <div class="total">
-            TOTAL: Rs.${order.total.toLocaleString()}
+            TOTAL: Rs.${(order.total || 0).toLocaleString()}
           </div>
+          
           <div class="footer">
             Thank you for your business!<br>
             Generated by Monarch Pro
           </div>
         </div>
-        <script>window.onload = function() { window.print(); window.onafterprint = function() { window.close(); } }</script>
+        <script>
+          window.onload = function() { window.print(); window.onafterprint = function() { window.close(); } }
+        </script>
       </body>
       </html>
     `;
+
+    return html;
   };
 
   // Execute Print
@@ -928,7 +1074,7 @@ export default function App() {
         }
         
         await createUserWithEmailAndPassword(auth, email, password);
-        showToast("🎉 Account created!", "success");
+        showToast("🎉 Account created successfully!", "success");
         
         try {
           await setDoc(doc(db, "settings", auth.currentUser.uid), {
@@ -949,11 +1095,13 @@ export default function App() {
       
       switch (err.code) {
         case 'auth/user-not-found':
+          errorMessage = "❌ Wrong Password or Email";
+          break;
         case 'auth/wrong-password':
           errorMessage = "❌ Wrong Password or Email";
           break;
         case 'auth/too-many-requests':
-          errorMessage = "❌ Too many attempts. Try again later";
+          errorMessage = "❌ Too many failed attempts. Try again later";
           break;
         case 'auth/email-already-in-use':
           errorMessage = "❌ Email already registered. Try login instead";
@@ -1031,7 +1179,7 @@ export default function App() {
         const pending = JSON.parse(localStorage.getItem('pendingOrders') || '[]');
         pending.push(orderData);
         localStorage.setItem('pendingOrders', JSON.stringify(pending));
-        showToast("✅ Order saved offline", "info");
+        showToast("✅ Order saved offline - Will sync when online", "info");
       } else {
         await addDoc(collection(db, 'orders'), orderData);
       }
@@ -1039,9 +1187,26 @@ export default function App() {
       setCart({});
       setLastOrder(orderData);
       setShowModal('preview');
-      showToast("Order saved!", "success");
+      showToast("Order saved successfully!", "success");
     } catch (err) {
       showToast("Error saving order: " + err.message, "error");
+    }
+  };
+
+  // Delete Note
+  const deleteNote = async (noteId) => {
+    confirmDelete(noteId, 'note', '');
+  };
+
+  // Save Brand Edit
+  const saveBrandEdit = async (brandId, field, value) => {
+    try {
+      await updateDoc(doc(db, 'brands', brandId), { 
+        [field]: field === 'price' ? parseFloat(value) : value.toUpperCase()
+      });
+      showToast("Brand updated successfully!", "success");
+    } catch (err) {
+      showToast("Error updating brand: " + err.message, "error");
     }
   };
 
@@ -1086,10 +1251,10 @@ export default function App() {
       const brandData = {
         userId: user.uid,
         timestamp: Date.now(),
-        name,
-        size,
-        price,
-        sequence,
+        name: name,
+        size: size,
+        price: price,
+        sequence: sequence,
         displayNumber: sequence
       };
 
@@ -1098,10 +1263,10 @@ export default function App() {
         cached.unshift({ ...brandData, id: 'temp_' + Date.now() });
         cached.sort((a, b) => (a.sequence || 999) - (b.sequence || 999));
         localStorage.setItem(`brands_${user.uid}`, JSON.stringify(cached));
-        showToast("✅ Brand added offline", "info");
+        showToast("✅ Brand added offline (Number: " + sequence + ")", "info");
       } else {
         await addDoc(collection(db, 'brands'), brandData);
-        showToast(`✅ Brand #${sequence} added`, "success");
+        showToast(`✅ Brand added successfully! (#${sequence})`, "success");
       }
 
       setBrandError('');
@@ -1132,25 +1297,13 @@ export default function App() {
       await updateDoc(doc(db, 'brands', brand1.id), { sequence: brand2.sequence });
       await updateDoc(doc(db, 'brands', brand2.id), { sequence: brand1.sequence });
 
-      showToast("✅ Brand reordered", "success");
+      showToast("✅ Brand reordered successfully!", "success");
     } catch (err) {
       showToast("Error reordering brands: " + err.message, "error");
     }
   };
 
-  // Save Brand Edit
-  const saveBrandEdit = async (brandId, field, value) => {
-    try {
-      await updateDoc(doc(db, 'brands', brandId), { 
-        [field]: field === 'price' ? parseFloat(value) : value.toUpperCase()
-      });
-      showToast("Brand updated", "success");
-    } catch (err) {
-      showToast("Error updating brand: " + err.message, "error");
-    }
-  };
-
-  // ===== UPDATED: Save Monthly Target (UNITS) =====
+  // Save Monthly Target
   const saveMonthlyTarget = async (e) => {
     e.preventDefault();
     if (!user) return;
@@ -1159,14 +1312,21 @@ export default function App() {
       const targetData = {
         userId: user.uid,
         month: targetMonth,
-        units: parseFloat(targetUnits) || 0,
+        amount: parseFloat(targetAmount),
         timestamp: Date.now()
       };
       
-      await addDoc(collection(db, 'targets'), targetData);
+      const existingTarget = data.targets?.find(t => t.month === targetMonth);
       
-      showToast(`✅ ${targetUnits} units target added`, "success");
-      setTargetUnits('');
+      if (existingTarget) {
+        await updateDoc(doc(db, 'targets', existingTarget.id), targetData);
+        showToast("✅ Target updated!", "success");
+      } else {
+        await addDoc(collection(db, 'targets'), targetData);
+        showToast("✅ Target set successfully!", "success");
+      }
+      
+      setTargetAmount('');
       setShowModal(null);
     } catch (err) {
       showToast("Error: " + err.message, "error");
@@ -1200,10 +1360,10 @@ export default function App() {
       
       if (existingProfile) {
         await updateDoc(doc(db, 'shopProfiles', existingProfile.id), profileData);
-        showToast("✅ Shop profile updated", "success");
+        showToast("✅ Shop profile updated!", "success");
       } else {
         await addDoc(collection(db, 'shopProfiles'), profileData);
-        showToast("✅ Shop profile saved", "success");
+        showToast("✅ Shop profile saved!", "success");
       }
       
       setShowModal(null);
@@ -1216,96 +1376,106 @@ export default function App() {
 
   // Splash Screen
   if (isSplash || loading) return (
-    <div className="h-screen bg-gradient-to-br from-[#0a0a0a] via-[#1a1a1a] to-[#0f0f0f] flex flex-col items-center justify-center">
+    <div className="h-screen bg-gradient-to-br from-black via-[#1a1a1a] to-[#2d2d2d] flex flex-col items-center justify-center">
       <button 
-        onClick={() => setShowAsaGame(true)}
+        onClick={() => setShowSnakeGame(true)}
         className="transform hover:scale-110 transition-all duration-300"
       >
-        <Crown size={64} className="text-[#d4af37] animate-pulse" />
+        <Crown size={80} className="text-[#d4af37] animate-pulse" />
       </button>
-      <h1 className="mt-4 text-[#d4af37] text-2xl font-black tracking-widest uppercase">MONARCH</h1>
-      <p className="mt-1 text-white/40 text-[10px] uppercase tracking-widest">Professional Sales Manager</p>
-      <div className="mt-4 w-48 h-1 bg-white/10 rounded-full overflow-hidden">
-        <div className="h-full bg-gradient-to-r from-[#d4af37] to-[#b8860b] animate-progress"></div>
+      <h1 className="mt-6 text-[#d4af37] text-3xl font-black tracking-widest italic uppercase">Monarch Pro</h1>
+      <p className="mt-2 text-white/50 text-sm uppercase tracking-widest">Sales & Target Manager</p>
+      <div className="mt-6 w-56 h-1.5 bg-white/10 rounded-full overflow-hidden">
+        <div className="h-full bg-gradient-to-r from-[#d4af37] via-[#f5e7a3] to-[#b8860b] animate-progress"></div>
       </div>
     </div>
   );
 
-  // ===== KOLHO ASA GAME =====
-  if (showAsaGame) {
+  // Snake Game Modal
+  if (showSnakeGame) {
     return (
-      <div className="h-screen bg-gradient-to-br from-[#0a0a0a] to-[#1a1a1a] flex items-center justify-center p-4">
-        <div className="bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] p-5 rounded-2xl border border-[#d4af37]/30 w-full max-w-sm">
-          <div className="flex justify-between items-center mb-3">
-            <h2 className="text-lg font-black text-[#d4af37] uppercase tracking-widest">කොල්ලෝ අසා</h2>
+      <div className="h-screen bg-gradient-to-br from-black via-[#1a1a1a] to-[#2d2d2d] flex flex-col items-center justify-center p-4">
+        <div className="bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] p-6 rounded-2xl border border-[#d4af37]/30 shadow-2xl w-full max-w-md">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-2xl font-black text-[#d4af37] uppercase">🐍 SNAKE</h2>
             <button 
-              onClick={() => setShowAsaGame(false)}
-              className="p-2 bg-white/5 rounded-lg text-white/60 hover:bg-white/10 transition-all"
+              onClick={() => setShowSnakeGame(false)}
+              className="p-2 bg-white/10 rounded-lg text-white hover:bg-white/20 transition-all"
             >
-              <X size={18} />
+              <X size={24} />
             </button>
           </div>
 
-          <div className="relative bg-black/60 rounded-xl h-64 overflow-hidden border border-[#d4af37]/20 mb-3">
-            {/* Bird */}
-            <div 
-              className="absolute w-6 h-6 bg-gradient-to-r from-[#d4af37] to-[#b8860b] rounded-full transition-all"
-              style={{ 
-                left: '30px', 
-                top: `${birdPosition}px`,
-                transform: 'translateY(-50%)',
-                boxShadow: '0 0 15px rgba(212,175,55,0.3)'
-              }}
-            />
-            
-            {/* Obstacle */}
-            <div 
-              className="absolute w-4 bg-gradient-to-b from-[#d4af37]/80 to-[#b8860b]/80"
-              style={{ 
-                left: `${obstacle.x}px`,
-                top: '0',
-                height: `${obstacle.height - 50}px`
-              }}
-            />
-            <div 
-              className="absolute w-4 bg-gradient-to-b from-[#d4af37]/80 to-[#b8860b]/80"
-              style={{ 
-                left: `${obstacle.x}px`,
-                bottom: '0',
-                height: `calc(100% - ${obstacle.height + 50}px)`
-              }}
-            />
-            
-            {/* Score */}
-            <div className="absolute top-2 right-2 text-[#d4af37] font-black">
-              {score}
+          <div className="bg-black/60 p-4 rounded-xl border border-[#d4af37]/20 mb-4">
+            <div className="grid grid-cols-20 gap-0">
+              {[...Array(20)].map((_, y) => (
+                <div key={y} className="flex">
+                  {[...Array(20)].map((_, x) => {
+                    const isSnake = snake.some(s => s.x === x && s.y === y);
+                    const isFood = food.x === x && food.y === y;
+                    return (
+                      <div
+                        key={`${x}-${y}`}
+                        className={`w-4 h-4 m-[1px] rounded-sm ${
+                          isSnake ? 'bg-[#d4af37]' : 
+                          isFood ? 'bg-red-500 animate-pulse' : 
+                          'bg-white/5'
+                        }`}
+                      />
+                    );
+                  })}
+                </div>
+              ))}
             </div>
           </div>
 
-          {!gameStarted ? (
-            <button
-              onClick={startAsaGame}
-              className="w-full py-3 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg uppercase text-xs tracking-widest hover:opacity-90 transition-all"
-            >
-              START GAME
-            </button>
-          ) : gameOver ? (
-            <div className="space-y-2">
-              <div className="text-center text-white/80 text-sm font-bold mb-2">
-                Score: {score}
+          <div className="flex justify-between items-center mb-4">
+            <div className="text-white">
+              <span className="text-[#d4af37] font-black">SCORE: </span>
+              <span className="text-white font-black text-xl">{score}</span>
+            </div>
+            {gameOver && (
+              <div className="text-red-500 font-black animate-pulse">
+                GAME OVER!
               </div>
-              <button
-                onClick={startAsaGame}
-                className="w-full py-3 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg uppercase text-xs tracking-widest hover:opacity-90 transition-all"
-              >
-                PLAY AGAIN
-              </button>
-            </div>
-          ) : (
-            <p className="text-center text-white/40 text-[10px] uppercase tracking-widest">
-              Tap / Space to fly
-            </p>
-          )}
+            )}
+          </div>
+
+          <div className="grid grid-cols-3 gap-2 mb-4">
+            <div></div>
+            <button 
+              onClick={() => setDirection('UP')}
+              className="p-4 bg-white/10 rounded-lg text-white hover:bg-white/20 text-2xl"
+            >
+              ↑
+            </button>
+            <div></div>
+            <button 
+              onClick={() => setDirection('LEFT')}
+              className="p-4 bg-white/10 rounded-lg text-white hover:bg-white/20 text-2xl"
+            >
+              ←
+            </button>
+            <button 
+              onClick={() => setDirection('DOWN')}
+              className="p-4 bg-white/10 rounded-lg text-white hover:bg-white/20 text-2xl"
+            >
+              ↓
+            </button>
+            <button 
+              onClick={() => setDirection('RIGHT')}
+              className="p-4 bg-white/10 rounded-lg text-white hover:bg-white/20 text-2xl"
+            >
+              →
+            </button>
+          </div>
+
+          <button
+            onClick={resetGame}
+            className="w-full py-3 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg uppercase text-xs tracking-widest hover:opacity-90 transition-all"
+          >
+            NEW GAME
+          </button>
         </div>
       </div>
     );
@@ -1314,59 +1484,80 @@ export default function App() {
   // Forgot Password Screen
   if (!user && showForgotPassword) {
     return (
-      <div className="h-screen bg-gradient-to-br from-[#0a0a0a] to-[#1a1a1a] flex items-center justify-center p-4">
-        <div className="w-full max-w-sm p-6 bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] rounded-2xl border border-[#d4af37]/30">
-          <div className="text-center mb-6">
-            <div className="w-16 h-16 bg-gradient-to-br from-[#d4af37]/20 to-[#b8860b]/20 rounded-full flex items-center justify-center mx-auto border border-[#d4af37]/30 mb-3">
-              <Crown size={30} className="text-[#d4af37]" />
+      <div className="h-screen bg-gradient-to-br from-black to-[#1a1a1a] flex items-center justify-center p-4">
+        <div className="w-full max-w-sm p-6 space-y-6 text-center bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] rounded-2xl border border-[#d4af37]/30 shadow-2xl">
+          <div className="space-y-3">
+            <div className="w-20 h-20 bg-gradient-to-br from-[#d4af37]/20 to-[#b8860b]/20 rounded-full flex items-center justify-center mx-auto border border-[#d4af37]/30">
+              <Crown size={40} className="text-[#d4af37]" />
             </div>
-            <h2 className="text-white font-black text-lg uppercase tracking-widest">Reset Password</h2>
+            <h2 className="text-white font-black text-xl tracking-widest uppercase">
+              Reset Password
+            </h2>
+            <p className="text-white/60 text-sm">
+              Enter your email to receive a password reset link
+            </p>
           </div>
 
           {resetSuccess ? (
             <div className="space-y-4">
-              <div className="p-4 bg-gradient-to-r from-green-500/10 to-emerald-600/10 rounded-xl border border-green-500/30">
-                <CheckCircle2 size={24} className="text-green-500 mx-auto mb-2" />
-                <p className="text-green-500 text-xs font-bold text-center">
-                  Reset link sent!
+              <div className="p-4 bg-gradient-to-r from-green-500/20 to-emerald-600/20 rounded-xl border border-green-500/30">
+                <CheckCircle2 size={30} className="text-green-500 mx-auto mb-2" />
+                <p className="text-green-500 text-sm font-bold">
+                  Password reset link sent successfully!
+                </p>
+                <p className="text-white/50 text-xs mt-2">
+                  Check your email inbox and spam folder
                 </p>
               </div>
-              <button
-                onClick={() => {
-                  setShowForgotPassword(false);
-                  setResetSuccess(false);
-                  setResetEmail('');
-                }}
-                className="w-full py-3 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg uppercase text-xs tracking-widest hover:opacity-90"
-              >
-                Back to Login
-              </button>
+              
+              <div className="space-y-2">
+                <button
+                  onClick={() => {
+                    setShowForgotPassword(false);
+                    setResetSuccess(false);
+                    setResetEmail('');
+                  }}
+                  className="w-full py-3 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-xl uppercase text-sm tracking-widest hover:opacity-90 transition-all shadow-lg"
+                >
+                  Back to Login
+                </button>
+              </div>
             </div>
           ) : (
             <div className="space-y-4">
-              <input
-                type="email"
-                value={resetEmail}
-                onChange={(e) => setResetEmail(e.target.value)}
-                placeholder="EMAIL"
-                className="w-full bg-black/50 p-3 rounded-lg border border-white/10 text-white font-bold text-xs outline-none focus:border-[#d4af37]"
-              />
-              <button
-                onClick={handleForgotPassword}
-                disabled={isSendingReset}
-                className={`w-full py-3 font-black rounded-lg uppercase text-xs tracking-widest ${isSendingReset ? 'bg-gray-700 text-gray-400' : 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black hover:opacity-90'}`}
-              >
-                {isSendingReset ? 'SENDING...' : 'SEND RESET LINK'}
-              </button>
-              <button
-                onClick={() => {
-                  setShowForgotPassword(false);
-                  setResetEmail('');
-                }}
-                className="w-full py-2 text-white/40 text-xs hover:text-white/60"
-              >
-                ← Back
-              </button>
+              <div>
+                <input
+                  type="email"
+                  value={resetEmail}
+                  onChange={(e) => setResetEmail(e.target.value)}
+                  placeholder="YOUR EMAIL ADDRESS"
+                  className="w-full bg-black/50 backdrop-blur-sm p-4 rounded-xl border border-white/10 text-white font-bold outline-none focus:border-[#d4af37] transition-all"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <button
+                  onClick={handleForgotPassword}
+                  disabled={isSendingReset}
+                  className={`w-full py-4 font-black rounded-xl uppercase text-sm tracking-widest transition-all ${
+                    isSendingReset
+                      ? 'bg-gray-700 text-gray-400'
+                      : 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black hover:opacity-90 shadow-lg'
+                  }`}
+                >
+                  {isSendingReset ? 'SENDING...' : 'SEND RESET LINK'}
+                </button>
+
+                <button
+                  onClick={() => {
+                    setShowForgotPassword(false);
+                    setResetEmail('');
+                  }}
+                  className="w-full py-3 text-white/60 font-bold rounded-xl text-sm hover:text-white transition-all"
+                >
+                  ← Back to Login
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -1376,49 +1567,56 @@ export default function App() {
 
   // Login Screen
   if (!user) return (
-    <div className="min-h-screen bg-gradient-to-br from-[#0a0a0a] via-[#1a1a1a] to-[#0f0f0f] flex items-center justify-center p-4">
-      <div className="w-full max-w-sm space-y-6">
+    <div className="min-h-screen bg-gradient-to-br from-black via-[#1a1a1a] to-[#2d2d2d] flex items-center justify-center p-4">
+      <div className="w-full max-w-sm space-y-8">
         <div className="text-center">
           <button 
-            onClick={() => setShowAsaGame(true)}
+            onClick={() => setShowSnakeGame(true)}
             className="transform hover:scale-110 transition-all duration-300"
           >
-            <div className="w-20 h-20 bg-gradient-to-br from-[#d4af37]/20 to-[#b8860b]/20 rounded-full flex items-center justify-center mx-auto border-2 border-[#d4af37]/30 mb-3">
-              <Crown size={40} className="text-[#d4af37]" />
+            <div className="w-24 h-24 bg-gradient-to-br from-[#d4af37]/20 to-[#b8860b]/20 rounded-full flex items-center justify-center mx-auto border-2 border-[#d4af37]/30 shadow-2xl mb-4">
+              <Crown size={50} className="text-[#d4af37]" />
             </div>
           </button>
-          <h2 className="text-white font-black text-xl uppercase tracking-widest">
-            {isRegisterMode ? "REGISTER" : "LOGIN"}
+          <h2 className="text-white font-black text-2xl tracking-widest uppercase">
+            {isRegisterMode ? "Create Account" : "Welcome Back"}
           </h2>
+          <p className="text-[#d4af37]/70 text-sm mt-2 font-bold">
+            {isRegisterMode ? "Join Monarch Pro Today" : "Sign in to continue"}
+          </p>
         </div>
 
-        <form onSubmit={handleAuth} className="space-y-3">
-          <input
-            name="email"
-            type="email"
-            placeholder="EMAIL"
-            className="w-full bg-black/50 p-3 rounded-lg border border-white/10 text-white font-bold text-xs outline-none focus:border-[#d4af37] placeholder:text-white/30"
-            required
-          />
-          <input
-            name="password"
-            type="password"
-            placeholder="PASSWORD"
-            className="w-full bg-black/50 p-3 rounded-lg border border-white/10 text-white font-bold text-xs outline-none focus:border-[#d4af37] placeholder:text-white/30"
-            required
-          />
+        <form onSubmit={handleAuth} className="space-y-4">
+          <div>
+            <input
+              name="email"
+              type="email"
+              placeholder="EMAIL ADDRESS"
+              className="w-full bg-black/50 backdrop-blur-sm p-4 rounded-xl border border-white/10 text-white font-bold outline-none focus:border-[#d4af37] transition-all placeholder:text-white/30"
+              required
+            />
+          </div>
+          <div>
+            <input
+              name="password"
+              type="password"
+              placeholder="PASSWORD"
+              className="w-full bg-black/50 backdrop-blur-sm p-4 rounded-xl border border-white/10 text-white font-bold outline-none focus:border-[#d4af37] transition-all placeholder:text-white/30"
+              required
+            />
+          </div>
           
           {loginError && (
-            <div className="p-2 bg-red-500/10 border border-red-500/30 rounded-lg">
-              <p className="text-red-500 text-[10px] font-bold text-center">{loginError}</p>
+            <div className="p-3 bg-red-500/20 border border-red-500/30 rounded-xl">
+              <p className="text-red-500 text-xs font-bold text-center">{loginError}</p>
             </div>
           )}
 
           <button 
             type="submit" 
-            className="w-full py-3 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg uppercase text-xs tracking-widest hover:opacity-90 transition-all"
+            className="w-full py-4 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-xl shadow-lg uppercase text-sm tracking-widest hover:opacity-90 transition-all transform hover:scale-[1.02]"
           >
-            {isRegisterMode ? "SIGN UP" : "SIGN IN"}
+            {isRegisterMode ? "Sign Up" : "Login"}
           </button>
 
           <div className="flex justify-between items-center pt-2">
@@ -1428,18 +1626,18 @@ export default function App() {
                 setIsRegisterMode(!isRegisterMode);
                 setLoginError('');
               }}
-              className="text-[#d4af37] text-[10px] font-bold uppercase tracking-widest opacity-80 hover:opacity-100"
+              className="text-[#d4af37] text-sm font-bold uppercase tracking-widest opacity-80 hover:opacity-100 transition-all"
             >
-              {isRegisterMode ? "← SIGN IN" : "REGISTER"}
+              {isRegisterMode ? "← Sign In" : "Register"}
             </button>
             
             {!isRegisterMode && (
               <button
                 type="button"
                 onClick={() => setShowForgotPassword(true)}
-                className="text-white/40 text-[10px] font-bold uppercase tracking-widest hover:text-white/60"
+                className="text-white/60 text-sm font-bold uppercase tracking-widest opacity-80 hover:opacity-100 hover:text-[#d4af37] transition-all"
               >
-                FORGOT?
+                Forgot Password?
               </button>
             )}
           </div>
@@ -1450,55 +1648,65 @@ export default function App() {
 
   // Main App
   return (
-    <div className={`min-h-screen pb-32 transition-all duration-300 ${
+    <div className={`min-h-screen pb-40 transition-all duration-500 ${
       isDarkMode 
         ? "bg-gradient-to-br from-[#0a0a0a] via-[#1a1a1a] to-[#0f0f0f] text-white" 
-        : "bg-gradient-to-br from-amber-50 to-yellow-50 text-gray-900"
+        : "bg-gradient-to-br from-amber-50 via-yellow-50 to-orange-50 text-gray-900"
     }`}>
       <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
 
       {/* Offline Indicator */}
       {isOffline && (
-        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-[90] px-3 py-1.5 bg-yellow-500/10 text-yellow-500 rounded-full border border-yellow-500/30 backdrop-blur-xl text-[9px] font-bold flex items-center gap-1.5">
-          <WifiOff size={12} />
-          OFFLINE
+        <div className="fixed top-16 left-1/2 transform -translate-x-1/2 z-[90] px-4 py-2 bg-yellow-500/20 text-yellow-500 rounded-full border border-yellow-500/30 backdrop-blur-xl text-xs font-bold flex items-center gap-2">
+          <WifiOff size={14} />
+          OFFLINE MODE
         </div>
       )}
 
       {/* Toast Notification */}
       {toast.show && (
-        <div className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-[1000] px-4 py-2 rounded-lg shadow-2xl backdrop-blur-xl border flex items-center gap-2 ${
+        <div className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-[1000] px-6 py-3 rounded-xl shadow-2xl backdrop-blur-xl border flex items-center gap-3 ${
           toast.type === 'success' ? 'bg-gradient-to-r from-green-500/20 to-emerald-600/20 text-green-500 border-green-500/30' :
           toast.type === 'error' ? 'bg-gradient-to-r from-red-500/20 to-rose-600/20 text-red-500 border-red-500/30' :
           'bg-gradient-to-r from-blue-500/20 to-cyan-600/20 text-blue-500 border-blue-500/30'
         }`}>
-          {toast.type === 'success' && <CheckCircle2 size={14} />}
-          {toast.type === 'error' && <AlertCircle size={14} />}
-          <span className="font-bold text-[10px]">{toast.message}</span>
+          {toast.type === 'success' && <CheckCircle2 size={20} />}
+          {toast.type === 'error' && <AlertCircle size={20} />}
+          <span className="font-bold text-sm">{toast.message}</span>
         </div>
       )}
 
       {/* Delete Confirm Modal */}
       {showDeleteConfirm.show && (
-        <div className="fixed inset-0 bg-black/95 z-[1000] flex items-center justify-center p-4">
-          <div className="bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] w-full max-w-xs p-4 rounded-xl border border-red-500/30">
+        <div className="fixed inset-0 bg-black/95 z-[1000] flex items-center justify-center p-4 backdrop-blur-3xl">
+          <div className="bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] w-full max-w-sm p-5 rounded-2xl border border-red-500/30 shadow-2xl">
             <div className="text-center mb-4">
-              <div className="w-12 h-12 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-2 border border-red-500/30">
-                <Trash2 size={20} className="text-red-500" />
+              <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-3 border border-red-500/30">
+                <Trash2 size={30} className="text-red-500" />
               </div>
-              <h3 className="text-white font-black text-sm uppercase tracking-widest">Confirm Delete</h3>
-              <p className="text-white/40 text-[10px] mt-1">This action cannot be undone!</p>
+              <h3 className="text-white font-black text-lg uppercase tracking-widest">Confirm Delete</h3>
+              <p className="text-white/60 text-sm mt-2">
+                {showDeleteConfirm.type === 'brand' && `Delete "${showDeleteConfirm.name}"?`}
+                {showDeleteConfirm.type === 'shop' && `Delete shop "${showDeleteConfirm.name}"?`}
+                {showDeleteConfirm.type === 'route' && `Delete route "${showDeleteConfirm.name}"?`}
+                {showDeleteConfirm.type === 'order' && 'Delete this bill?'}
+                {showDeleteConfirm.type === 'expense' && 'Delete this expense?'}
+                {showDeleteConfirm.type === 'note' && 'Delete this note?'}
+                {showDeleteConfirm.type === 'target' && 'Delete this target?'}
+                {showDeleteConfirm.type === 'shopProfile' && 'Delete shop profile?'}
+              </p>
+              <p className="text-red-500 text-xs font-bold mt-3">This action cannot be undone!</p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-3">
               <button
                 onClick={handleDelete}
-                className="flex-1 py-2.5 bg-gradient-to-r from-red-600 to-red-500 text-white font-black rounded-lg uppercase text-[10px] tracking-widest hover:opacity-90"
+                className="flex-1 py-3 bg-gradient-to-r from-red-600 to-red-500 text-white font-black rounded-xl uppercase text-xs tracking-widest hover:opacity-90 transition-all"
               >
                 DELETE
               </button>
               <button
                 onClick={() => setShowDeleteConfirm({ show: false, id: null, type: '', name: '' })}
-                className="flex-1 py-2.5 bg-gradient-to-br from-[#333] to-[#444] text-white/60 font-black rounded-lg uppercase text-[10px] tracking-widest border border-white/10"
+                className="flex-1 py-3 bg-gradient-to-br from-[#333] to-[#444] text-white/80 font-black rounded-xl uppercase text-xs tracking-widest border border-white/10 hover:border-white/30 transition-all"
               >
                 CANCEL
               </button>
@@ -1508,195 +1716,431 @@ export default function App() {
       )}
 
       {/* Header */}
-      <header className={`p-3 flex justify-between items-center sticky top-0 z-50 backdrop-blur-xl border-b ${
-        isDarkMode ? "bg-black/90 border-[#d4af37]/20" : "bg-white/95 border-[#d4af37]/30"
+      <header className={`p-4 flex justify-between items-center sticky top-0 z-50 backdrop-blur-xl border-b ${
+        isDarkMode 
+          ? "bg-black/90 border-[#d4af37]/20" 
+          : "bg-white/95 border-[#d4af37]/30 shadow-sm"
       }`}>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <button 
-            onClick={() => setShowAsaGame(true)}
-            className={`p-2 bg-gradient-to-br from-[#d4af37] to-[#b8860b] rounded-lg text-black transform hover:scale-105 transition-all`}
+            onClick={() => setShowSnakeGame(true)}
+            className={`p-2.5 bg-gradient-to-br from-[#d4af37] to-[#b8860b] rounded-xl text-black shadow-lg transform hover:scale-110 transition-all ${
+              !isDarkMode && 'shadow-[#d4af37]/30'
+            }`}
           >
-            <Crown size={16} />
+            <Crown size={20} />
           </button>
           <div>
-            <h1 className="font-black text-sm uppercase text-[#d4af37]">
+            <h1 className="font-black text-lg tracking-tight leading-none uppercase text-[#d4af37]">
               {data.settings.company || "MONARCH"}
             </h1>
-            <p className={`text-[8px] font-bold uppercase ${isDarkMode ? 'text-white/40' : 'text-gray-600'}`}>
-              {data.settings.name || "REP"}
+            <p className={`text-[10px] font-bold uppercase tracking-widest ${
+              isDarkMode ? 'text-white/60' : 'text-gray-600'
+            }`}>
+              {data.settings.name || "Sales Representative"}
             </p>
           </div>
         </div>
-        <div className="flex gap-1.5">
+        <div className="flex gap-2">
+          {isOffline ? (
+            <div className="p-2.5 bg-yellow-500/10 text-yellow-500 rounded-xl border border-yellow-500/20">
+              <WifiOff size={18} />
+            </div>
+          ) : (
+            <div className="p-2.5 bg-green-500/10 text-green-500 rounded-xl border border-green-500/20">
+              <Wifi size={18} />
+            </div>
+          )}
           <button
             onClick={() => setIsDarkMode(!isDarkMode)}
-            className={`p-2 rounded-lg border transition-all ${
+            className={`p-2.5 rounded-xl border transition-all ${
               isDarkMode 
                 ? "bg-white/5 text-[#d4af37] border-white/10 hover:bg-[#d4af37]/20" 
-                : "bg-amber-100 text-amber-700 border-amber-200"
+                : "bg-gradient-to-br from-amber-100 to-yellow-100 text-amber-700 border-amber-200 hover:bg-amber-200"
             }`}
           >
-            {isDarkMode ? <Sun size={14}/> : <Moon size={14}/>}
+            {isDarkMode ? <Sun size={18}/> : <Moon size={18}/>}
           </button>
           <button
             onClick={() => setShowModal('expense')}
-            className={`p-2 rounded-lg border transition-all ${
+            className={`p-2.5 rounded-xl border transition-all ${
               isDarkMode 
                 ? "bg-white/5 text-[#d4af37] border-white/10 hover:bg-[#d4af37]/20" 
-                : "bg-amber-100 text-amber-700 border-amber-200"
+                : "bg-gradient-to-br from-amber-100 to-yellow-100 text-amber-700 border-amber-200"
             }`}
           >
-            <CreditCard size={14}/>
+            <CreditCard size={18}/>
+          </button>
+          <button
+            onClick={() => {
+              setShowCalculator(true);
+              resetCalculator();
+            }}
+            className={`p-2.5 rounded-xl border transition-all ${
+              isDarkMode 
+                ? "bg-white/5 text-[#d4af37] border-white/10 hover:bg-[#d4af37]/20" 
+                : "bg-gradient-to-br from-amber-100 to-yellow-100 text-amber-700 border-amber-200"
+            }`}
+          >
+            <Calculator size={18}/>
           </button>
           <button
             onClick={() => signOut(auth)}
-            className="p-2 bg-red-500/10 text-red-500 rounded-lg border border-red-500/20 hover:bg-red-500/20"
+            className="p-2.5 bg-red-500/10 text-red-500 rounded-xl border border-red-500/20 hover:bg-red-500/20 transition-all"
           >
-            <LogOut size={14}/>
+            <LogOut size={18}/>
           </button>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="p-3 max-w-lg mx-auto space-y-3" style={{ fontSize: '0.75rem' }}>
+      <main className="p-3 max-w-lg mx-auto space-y-4" style={{ fontSize: '0.80rem' }}>
 
         {/* ===== DASHBOARD TAB ===== */}
         {activeTab === 'dashboard' && (
-          <div className="space-y-3">
+          <div className="space-y-4">
 
             {/* Today's Revenue Card */}
-            <div className="bg-gradient-to-br from-[#d4af37] to-[#b8860b] p-4 rounded-xl text-black relative overflow-hidden">
+            <div className="bg-gradient-to-br from-[#d4af37] via-[#c19a2e] to-[#b8860b] p-5 rounded-2xl text-black shadow-2xl relative overflow-hidden">
+              <Star className="absolute -right-4 -top-4 opacity-10" size={100} />
               <div className="relative z-10">
-                <p className="text-[9px] font-black uppercase opacity-70 mb-0.5 tracking-widest">TODAY</p>
-                <h2 className="text-2xl font-black tracking-tight">Rs.{stats.daily.totalSales.toLocaleString()}</h2>
-                <div className="mt-3 flex items-center justify-between">
-                  <div className="flex items-center gap-1.5 bg-black/10 px-2 py-1 rounded-full">
-                    <Target size={10} />
-                    <span className="text-[8px] font-black uppercase">TOP: {stats.daily.topBrand}</span>
+                <p className="text-xs font-black uppercase opacity-80 mb-1 tracking-widest">Today's Revenue</p>
+                <h2 className="text-3xl font-black italic tracking-tighter">Rs.{stats.daily.totalSales.toLocaleString()}</h2>
+                <div className="mt-5 flex items-center justify-between">
+                  <div className="flex items-center gap-2 bg-black/10 px-3 py-1.5 rounded-full border border-black/10">
+                    <Target size={12} />
+                    <span className="text-xs font-black uppercase italic">Top: {stats.daily.topBrand}</span>
                   </div>
                   <div className="text-right">
-                    <p className="text-[8px] font-black uppercase opacity-70">EXPENSES</p>
-                    <p className="text-xs font-black text-red-800">Rs.{stats.expenses.toLocaleString()}</p>
+                    <p className="text-xs font-black uppercase opacity-80">Expenses</p>
+                    <p className="text-sm font-black text-red-700">Rs.{stats.expenses.toLocaleString()}</p>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Target Progress Card - UNITS */}
-            {stats.monthlyTargetUnits > 0 && (
-              <div className={`p-4 rounded-xl border ${
-                isDarkMode ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/30" : "bg-white border-[#d4af37]/30"
-              }`}>
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-1.5">
-                    <Award size={14} className="text-[#d4af37]" />
-                    <h3 className="text-xs font-black text-[#d4af37] uppercase tracking-widest">Monthly Target</h3>
-                  </div>
-                  <span className="text-[9px] font-black">
-                    {stats.monthlyUnits} / {stats.monthlyTargetUnits} units
-                  </span>
+            {/* Target Progress Card */}
+            <div className={`p-5 rounded-2xl border shadow-xl ${
+              isDarkMode
+                ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/30"
+                : "bg-white border-[#d4af37]/30 shadow-lg"
+            }`}>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Award size={20} className="text-[#d4af37]" />
+                  <h3 className="text-sm font-black text-[#d4af37] uppercase tracking-widest">Monthly Target</h3>
                 </div>
-                
-                <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden mb-2">
-                  <div 
-                    className="h-full bg-gradient-to-r from-[#d4af37] to-[#b8860b] rounded-full transition-all duration-500"
-                    style={{ width: `${Math.min(stats.targetProgress, 100)}%` }}
-                  />
-                </div>
-                
-                <div className="flex justify-between items-center">
-                  <span className="text-[8px] font-black opacity-70">
-                    {stats.targetProgress.toFixed(1)}% Complete
-                  </span>
-                  <span className="text-[8px] font-black text-red-500">
-                    {stats.targetRemaining} units left
-                  </span>
-                </div>
-                
-                <button
-                  onClick={() => setShowModal('target')}
-                  className="mt-3 w-full py-2 bg-white/10 rounded-lg text-[8px] font-black uppercase hover:bg-white/20"
-                >
-                  + ADD TARGET
-                </button>
+                <span className="text-xs font-black">
+                  Rs.{stats.monthlySales.toLocaleString()} / Rs.{stats.monthlyTarget.toLocaleString()}
+                </span>
               </div>
-            )}
+              
+              {/* Progress Bar */}
+              <div className="w-full h-3 bg-white/10 rounded-full overflow-hidden mb-2">
+                <div 
+                  className="h-full bg-gradient-to-r from-[#d4af37] to-[#b8860b] rounded-full transition-all duration-500"
+                  style={{ width: `${Math.min(stats.targetProgress, 100)}%` }}
+                ></div>
+              </div>
+              
+              <div className="flex justify-between items-center">
+                <span className="text-xs font-black">
+                  {stats.targetProgress.toFixed(1)}% Complete
+                </span>
+                {stats.targetRemaining > 0 ? (
+                  <span className="text-xs font-black text-red-500">
+                    Rs.{stats.targetRemaining.toLocaleString()} to go
+                  </span>
+                ) : (
+                  <span className="text-xs font-black text-green-500 flex items-center gap-1">
+                    <CheckCircle2 size={14} /> Target Achieved!
+                  </span>
+                )}
+              </div>
+              
+              <button
+                onClick={() => setShowModal('target')}
+                className="mt-3 w-full py-2 bg-white/10 rounded-lg text-xs font-black uppercase hover:bg-white/20 transition-all"
+              >
+                Set / Update Target
+              </button>
+            </div>
 
-            {/* Quick Stats */}
+            {/* Quick Actions */}
             <div className="grid grid-cols-4 gap-2">
-              <div className={`p-3 rounded-xl border ${
-                isDarkMode ? "bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5" : "bg-white border-gray-200"
-              }`}>
-                <p className="text-[8px] font-black uppercase opacity-50 mb-1">UNITS</p>
-                <p className="text-base font-black text-[#d4af37]">{stats.daily.totalUnits}</p>
+              <button
+                onClick={() => setShowModal('expense')}
+                className={`p-3 rounded-xl border flex flex-col items-center gap-1.5 hover:scale-[1.02] transition-all ${
+                  isDarkMode
+                    ? "bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5 text-white"
+                    : "bg-white border-gray-200 text-gray-800 shadow-sm"
+                }`}
+              >
+                <Fuel size={18} className="text-[#d4af37]" />
+                <span className="text-[9px] font-black uppercase">Expense</span>
+              </button>
+              <button
+                onClick={getLocation}
+                className={`p-3 rounded-xl border flex flex-col items-center gap-1.5 hover:scale-[1.02] transition-all ${
+                  isDarkMode
+                    ? "bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5 text-white"
+                    : "bg-white border-gray-200 text-gray-800 shadow-sm"
+                }`}
+              >
+                <Navigation size={18} className="text-[#d4af37]" />
+                <span className="text-[9px] font-black uppercase">Location</span>
+              </button>
+              <button
+                onClick={() => setShowModal('note')}
+                className={`p-3 rounded-xl border flex flex-col items-center gap-1.5 hover:scale-[1.02] transition-all ${
+                  isDarkMode
+                    ? "bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5 text-white"
+                    : "bg-white border-gray-200 text-gray-800 shadow-sm"
+                }`}
+              >
+                <FileText size={18} className="text-[#d4af37]" />
+                <span className="text-[9px] font-black uppercase">Note</span>
+              </button>
+              <button
+                onClick={() => {
+                  setShowCalculator(true);
+                  resetCalculator();
+                }}
+                className={`p-3 rounded-xl border flex flex-col items-center gap-1.5 hover:scale-[1.02] transition-all ${
+                  isDarkMode
+                    ? "bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5 text-white"
+                    : "bg-white border-gray-200 text-gray-800 shadow-sm"
+                }`}
+              >
+                <Calculator size={18} className="text-[#d4af37]" />
+                <span className="text-[9px] font-black uppercase">Calc</span>
+              </button>
+            </div>
+
+            {/* Monthly Performance */}
+            <div className={`p-5 rounded-2xl border shadow-xl ${
+              isDarkMode
+                ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/10"
+                : "bg-white border-gray-200 shadow-lg"
+            }`}>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <BarChart3 size={18} className="text-[#d4af37]" />
+                  <h3 className="text-sm font-black text-[#d4af37] uppercase tracking-widest">Monthly Performance</h3>
+                </div>
+                <span className="text-xs font-black">
+                  Rs.{stats.monthlySales.toLocaleString()}
+                </span>
               </div>
-              <div className={`p-3 rounded-xl border ${
-                isDarkMode ? "bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5" : "bg-white border-gray-200"
-              }`}>
-                <p className="text-[8px] font-black uppercase opacity-50 mb-1">EXPENSE</p>
-                <p className="text-base font-black text-red-500">Rs.{stats.expenses}</p>
+
+              <div className="grid grid-cols-2 gap-3 mb-4">
+                <div className={`p-3 rounded-xl border ${
+                  isDarkMode
+                    ? "bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5"
+                    : "bg-gray-50 border-gray-100"
+                }`}>
+                  <p className="text-[9px] font-black uppercase mb-1 opacity-60">Total Units</p>
+                  <p className="text-lg font-black text-[#d4af37]">{stats.monthly.totalUnits || 0}</p>
+                </div>
+                <div className={`p-3 rounded-xl border ${
+                  isDarkMode
+                    ? "bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5"
+                    : "bg-gray-50 border-gray-100"
+                }`}>
+                  <p className="text-[9px] font-black uppercase mb-1 opacity-60">Expenses</p>
+                  <p className="text-lg font-black text-red-500">Rs.{stats.monthlyExpenses.toLocaleString()}</p>
+                </div>
               </div>
-              <div className={`p-3 rounded-xl border ${
-                isDarkMode ? "bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5" : "bg-white border-gray-200"
-              }`}>
-                <p className="text-[8px] font-black uppercase opacity-50 mb-1">NOTES</p>
-                <p className="text-base font-black text-[#d4af37]">{stats.notes}</p>
+
+              {/* Monthly Top Brand Section */}
+              <div className="mb-5">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-[9px] font-black uppercase" style={{ color: isDarkMode ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)' }}>Monthly Top Brands</p>
+                  <button
+                    onClick={() => setShowAllMonthlyBrands(!showAllMonthlyBrands)}
+                    className="text-[#d4af37] text-[9px] font-black uppercase"
+                  >
+                    {showAllMonthlyBrands ? 'Show Less' : 'Show All'}
+                  </button>
+                </div>
+
+                {/* Top Brand Highlight */}
+                <div className={`p-3 rounded-xl border mb-2 ${
+                  isDarkMode
+                    ? "bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5"
+                    : "bg-gray-50 border-gray-100"
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <Target size={14} className="text-[#d4af37]" />
+                        <p className="text-sm font-black uppercase" style={{ color: isDarkMode ? 'white' : 'black' }}>
+                          {stats.monthly.topBrand || 'N/A'}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-1">
+                          <Package2 size={11} style={{ opacity: 0.5 }} />
+                          <span className="text-xs" style={{ opacity: 0.7, color: isDarkMode ? 'white' : 'black' }}>
+                            {stats.monthly.topBrandUnits} units
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <DollarSign size={11} style={{ opacity: 0.5 }} />
+                          <span className="text-xs" style={{ opacity: 0.7, color: isDarkMode ? 'white' : 'black' }}>
+                            Rs.{stats.monthly.topBrandRevenue?.toLocaleString() || 0}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs opacity-50 mb-1">Revenue Share</p>
+                      <p className="text-base font-black text-[#d4af37]">
+                        {stats.monthly.totalSales > 0 ?
+                          ((stats.monthly.topBrandRevenue / stats.monthly.totalSales) * 100).toFixed(1) : 0}%
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Show All Brands Performance */}
+                {showAllMonthlyBrands && stats.monthly.allBrands.length > 0 && (
+                  <div className="space-y-2 mt-3">
+                    <p className="text-[9px] font-black uppercase opacity-60">All Brands Performance</p>
+                    {stats.monthly.allBrands.slice(0, 5).map((brand, index) => (
+                      <div key={index} className={`p-2.5 rounded-xl border flex justify-between items-center ${
+                        isDarkMode
+                          ? "bg-black/40 border-white/5"
+                          : "bg-gray-50/50 border-gray-100"
+                      }`}>
+                        <div className="flex items-center gap-2">
+                          <div className={`w-5 h-5 rounded-md flex items-center justify-center ${
+                            isDarkMode ? "bg-white/10" : "bg-gray-200"
+                          }`}>
+                            <span className="text-xs font-black">{index + 1}</span>
+                          </div>
+                          <div>
+                            <p className="text-xs font-bold" style={{ color: isDarkMode ? 'white' : 'black' }}>
+                              {brand.name}
+                            </p>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <span className="text-[10px] opacity-50">{brand.units} units</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs font-black text-[#d4af37]">Rs.{brand.revenue.toLocaleString()}</p>
+                          <p className="text-[10px] opacity-50 mt-0.5">
+                            {stats.monthly.totalSales > 0 ?
+                              ((brand.revenue / stats.monthly.totalSales) * 100).toFixed(1) : 0}%
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {stats.monthly.allBrands.length === 0 && (
+                  <div className="text-center py-4">
+                    <Package2 size={30} className="mx-auto opacity-20 mb-2" />
+                    <p className="text-xs opacity-30 italic">No monthly sales data available</p>
+                  </div>
+                )}
               </div>
-              <div className={`p-3 rounded-xl border ${
-                isDarkMode ? "bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5" : "bg-white border-gray-200"
-              }`}>
-                <p className="text-[8px] font-black uppercase opacity-50 mb-1">ORDERS</p>
-                <p className="text-base font-black text-[#d4af37]">{stats.daily.summary.length}</p>
+
+              <div className="space-y-1.5">
+                <div className="flex justify-between items-center">
+                  <p className="text-[9px] font-black uppercase" style={{ color: isDarkMode ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)' }}>Avg Price per Unit</p>
+                  <p className="text-xs font-black" style={{ color: isDarkMode ? 'white' : 'black' }}>Rs.{stats.monthly.avgPrice.toFixed(2)}</p>
+                </div>
+                <div className="flex justify-between items-center">
+                  <p className="text-[9px] font-black uppercase" style={{ color: isDarkMode ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)' }}>Today's Notes</p>
+                  <p className="text-xs font-black text-[#d4af37]">{stats.notes}</p>
+                </div>
               </div>
             </div>
 
             {/* Today's Sales */}
-            <div className={`p-4 rounded-xl border ${
-              isDarkMode ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/10" : "bg-white border-gray-200"
+            <div className={`p-5 rounded-2xl border shadow-xl ${
+              isDarkMode
+                ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/10"
+                : "bg-white border-gray-200 shadow-lg"
             }`}>
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-xs font-black text-[#d4af37] uppercase tracking-widest">Today's Sales</h3>
-                <TrendingUp size={14} className="text-[#d4af37] opacity-60" />
+              <div className="flex items-center justify-between mb-5">
+                <div>
+                  <h3 className="text-sm font-black text-[#d4af37] uppercase tracking-widest">Today's Sales</h3>
+                  <p className="text-[9px] opacity-50 mt-1">Itemized Breakdown</p>
+                </div>
+                <TrendingUp size={16} className="text-[#d4af37] opacity-60" />
               </div>
 
               <div className="space-y-2">
-                {stats.daily.summary.slice(0, 3).map((item, index) => (
-                  <div key={index} className={`p-2 rounded-lg border flex justify-between items-center ${
-                    isDarkMode ? "bg-black/40 border-white/5" : "bg-gray-50 border-gray-100"
+                {stats.daily.summary.slice(0, 4).map((item, index) => (
+                  <div key={index} className={`p-3 rounded-xl border flex justify-between items-center transition-all ${
+                    isDarkMode
+                      ? "bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5 hover:border-[#d4af37]/30"
+                      : "bg-gray-50 border-gray-100 hover:border-[#d4af37]"
                   }`}>
-                    <div>
-                      <p className="text-[9px] font-black uppercase">{item.name}</p>
-                      <p className="text-[7px] opacity-50 mt-0.5">{item.units} units</p>
+                    <div className="flex-1">
+                      <p className="text-xs font-black uppercase tracking-tight mb-1" style={{ color: isDarkMode ? 'white' : 'black' }}>{item.name}</p>
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-1">
+                          <Hash size={9} style={{ opacity: 0.5 }} />
+                          <span className="text-[9px]" style={{ opacity: 0.7, color: isDarkMode ? 'white' : 'black' }}>{item.units} UNITS</span>
+                        </div>
+                      </div>
                     </div>
-                    <p className="text-xs font-black text-[#d4af37]">Rs.{item.revenue.toLocaleString()}</p>
+                    <div className="text-right">
+                      <p className="font-black text-base tabular-nums text-[#d4af37]">Rs.{item.revenue.toLocaleString()}</p>
+                      <p className="text-[8px] opacity-50" style={{ color: isDarkMode ? 'white' : 'black' }}>Revenue</p>
+                    </div>
                   </div>
                 ))}
                 {stats.daily.summary.length === 0 && (
-                  <p className="text-center py-3 text-[9px] opacity-30 italic">No sales today</p>
+                  <div className="text-center py-6">
+                    <Package2 size={30} className="mx-auto opacity-20 mb-2" />
+                    <p className="text-xs opacity-30 italic">No sales recorded today</p>
+                  </div>
                 )}
               </div>
             </div>
 
-            {/* Today's Expenses */}
+            {/* Today's Expenses Breakdown */}
             {stats.todayExpenses.length > 0 && (
-              <div className={`p-4 rounded-xl border ${
-                isDarkMode ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/10" : "bg-white border-gray-200"
+              <div className={`p-5 rounded-2xl border shadow-xl ${
+                isDarkMode
+                  ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/10"
+                  : "bg-white border-gray-200 shadow-lg"
               }`}>
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-xs font-black text-[#d4af37] uppercase tracking-widest">Today's Expenses</h3>
-                  <Fuel size={14} className="text-[#d4af37] opacity-60" />
+                <div className="flex items-center justify-between mb-5">
+                  <div>
+                    <h3 className="text-sm font-black text-[#d4af37] uppercase tracking-widest">Today's Expenses</h3>
+                    <p className="text-[9px] opacity-50 mt-1">Breakdown by Category</p>
+                  </div>
+                  <CreditCard size={16} className="text-[#d4af37] opacity-60" />
                 </div>
 
                 <div className="space-y-2">
-                  {Object.entries(stats.dailyExpensesByType).map(([type, amount]) => (
-                    <div key={type} className="flex justify-between items-center">
-                      <div className="flex items-center gap-1.5">
-                        {type === 'fuel' && <Fuel size={12} className="text-red-500" />}
-                        {type === 'food' && <Coffee size={12} className="text-amber-500" />}
-                        {type === 'transport' && <Navigation size={12} className="text-blue-500" />}
-                        <span className="text-[8px] font-black uppercase">{type}</span>
+                  {Object.entries(stats.dailyExpensesByType).map(([type, amount], index) => (
+                    <div key={index} className={`p-3 rounded-xl border flex justify-between items-center transition-all ${
+                      isDarkMode
+                        ? "bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5 hover:border-red-500/30"
+                        : "bg-gray-50 border-gray-100 hover:border-red-500"
+                    }`}>
+                      <div className="flex items-center gap-2">
+                        {type === 'fuel' && <Fuel size={16} className="text-red-500" />}
+                        {type === 'food' && <Coffee size={16} className="text-amber-500" />}
+                        {type === 'transport' && <Navigation size={16} className="text-blue-500" />}
+                        {type === 'other' && <AlertCircle size={16} className="text-gray-500" />}
+                        <div>
+                          <p className="text-xs font-black uppercase" style={{ color: isDarkMode ? 'white' : 'black' }}>
+                            {type.charAt(0).toUpperCase() + type.slice(1)}
+                          </p>
+                        </div>
                       </div>
-                      <span className="text-xs font-black text-red-500">Rs.{amount.toLocaleString()}</span>
+                      <div className="text-right">
+                        <p className="font-black text-base tabular-nums text-red-500">Rs.{amount.toLocaleString()}</p>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -1708,43 +2152,78 @@ export default function App() {
         {/* ===== SHOPS TAB ===== */}
         {activeTab === 'shops' && (
           <div className="space-y-3">
-            <div className={`p-3 rounded-xl border flex items-center gap-2 ${
-              isDarkMode ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/10" : "bg-white border-gray-200"
-            }`}>
-              <Search size={14} className="opacity-30"/>
-              <input
-                value={shopSearch}
-                onChange={(e) => setShopSearch(e.target.value)}
-                placeholder="SEARCH SHOP"
-                className="bg-transparent text-[9px] font-black uppercase outline-none w-full placeholder:opacity-30"
-                style={{ color: isDarkMode ? 'white' : 'black' }}
-              />
-            </div>
+            <div className="space-y-2">
+              <div className={`p-3 rounded-2xl border flex items-center gap-2 ${
+                isDarkMode
+                  ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/10"
+                  : "bg-white border-gray-200 shadow-sm"
+              }`}>
+                <Search size={16} className="opacity-30"/>
+                <input
+                  value={shopSearch}
+                  onChange={(e) => setShopSearch(e.target.value)}
+                  placeholder="SEARCH SHOP BY NAME OR AREA..."
+                  className="bg-transparent text-xs font-black uppercase outline-none w-full placeholder:opacity-30"
+                  style={{ 
+                    color: isDarkMode ? 'white' : 'black',
+                    fontWeight: '900',
+                    letterSpacing: '0.5px'
+                  }}
+                />
+              </div>
 
-            <div className="flex gap-1 overflow-x-auto pb-1">
-              <button
-                onClick={() => setSelectedRouteFilter('ALL')}
-                className={`px-3 py-1.5 rounded-full text-[8px] font-black uppercase whitespace-nowrap border ${
-                  selectedRouteFilter === 'ALL'
-                    ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black border-[#d4af37]'
-                    : isDarkMode ? 'bg-white/5 border-white/10 text-white/60' : 'bg-gray-100 border-gray-200 text-gray-600'
-                }`}
-              >
-                ALL
-              </button>
-              {data.routes.map(r => (
+              <div className="flex gap-1.5 overflow-x-auto pb-1">
                 <button
-                  key={r.id}
-                  onClick={() => setSelectedRouteFilter(r.name)}
-                  className={`px-3 py-1.5 rounded-full text-[8px] font-black uppercase whitespace-nowrap border ${
-                    selectedRouteFilter === r.name
+                  onClick={() => setSelectedRouteFilter('ALL')}
+                  className={`px-4 py-2 rounded-full text-[10px] font-black uppercase transition-all whitespace-nowrap border flex-shrink-0 ${
+                    selectedRouteFilter === 'ALL'
                       ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black border-[#d4af37]'
-                      : isDarkMode ? 'bg-white/5 border-white/10 text-white/60' : 'bg-gray-100 border-gray-200 text-gray-600'
+                      : isDarkMode
+                        ? 'bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/10 text-white/60'
+                        : 'bg-gray-100 border-gray-200 text-gray-600'
                   }`}
                 >
-                  {r.name}
+                  ALL
                 </button>
-              ))}
+                {data.routes.map((r) => (
+                  <button
+                    key={r.id}
+                    onClick={() => setSelectedRouteFilter(r.name)}
+                    className={`px-4 py-2 rounded-full text-[10px] font-black uppercase transition-all whitespace-nowrap border flex-shrink-0 ${
+                      selectedRouteFilter === r.name
+                        ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black border-[#d4af37]'
+                      : isDarkMode
+                        ? 'bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/10 text-white/60'
+                        : 'bg-gray-100 border-gray-200 text-gray-600'
+                    }`}
+                  >
+                    {r.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowModal('shop')}
+                className={`flex-1 py-4 rounded-2xl border-2 border-dashed text-[#d4af37] font-black uppercase text-xs flex items-center justify-center gap-1.5 hover:border-[#d4af37] transition-all ${
+                  isDarkMode
+                    ? 'bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-[#d4af37]/40'
+                    : 'bg-gray-50 border-[#d4af37]/60'
+                }`}
+              >
+                <Plus size={16}/> New Shop
+              </button>
+              <button
+                onClick={() => { setSelectedShop(null); setShowModal('manual'); }}
+                className={`flex-1 py-4 rounded-2xl border-2 border-dashed text-green-500 font-black uppercase text-xs flex items-center justify-center gap-1.5 hover:border-green-500 transition-all ${
+                  isDarkMode
+                    ? 'bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-green-500/40'
+                    : 'bg-gray-50 border-green-500/60'
+                }`}
+              >
+                <ShoppingBag size={16}/> Manual
+              </button>
             </div>
 
             <div className="grid gap-2">
@@ -1753,143 +2232,348 @@ export default function App() {
                 const shopProfile = getShopProfile(s.id);
                 
                 return (
-                  <div key={s.id} className={`p-3 rounded-xl border ${
-                    isDarkMode ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/5" : "bg-white border-gray-200"
-                  }`}>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="p-2 bg-gradient-to-br from-[#d4af37]/10 rounded-lg text-[#d4af37]">
-                          <Store size={14} />
+                  <div
+                    key={s.id}
+                    className={`p-4 rounded-2xl border transition-all ${
+                      isDarkMode
+                        ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/5 hover:border-[#d4af37]/30"
+                        : "bg-white border-gray-200 shadow-sm hover:border-[#d4af37] hover:shadow-md"
+                    }`}
+                  >
+                    <div className="flex justify-between items-start">
+                      <div className="flex items-center gap-3 flex-1">
+                        <div className="p-3 bg-gradient-to-br from-[#d4af37]/10 to-[#b8860b]/5 rounded-xl text-[#d4af37] border border-[#d4af37]/20">
+                          <Store size={18}/>
                         </div>
-                        <div>
-                          <h4 className="text-xs font-black uppercase">{s.name}</h4>
-                          <div className="flex items-center gap-1 mt-0.5">
-                            <MapPin size={8} className="opacity-40" />
-                            <p className="text-[7px] font-bold uppercase opacity-60">{s.area}</p>
+                        <div className="flex-1">
+                          <h4 className="text-sm font-black uppercase leading-tight" style={{ color: isDarkMode ? 'white' : 'black' }}>
+                            {s.name}
+                          </h4>
+                          <div className="flex items-center gap-1.5 mt-1">
+                            <MapPin size={11} className="opacity-40" />
+                            <p className="text-[10px] font-bold uppercase tracking-tighter" style={{ opacity: 0.6 }}>
+                              {s.area}
+                            </p>
                           </div>
-                          <div className="flex items-center gap-2 mt-1">
-                            <span className="text-[7px]">
-                              <span className="opacity-50">Rs.</span>
-                              <span className="font-black text-[#d4af37] ml-0.5">{shopStats.totalSales.toLocaleString()}</span>
-                            </span>
-                            {shopProfile && (
+                          {/* Shop Stats */}
+                          <div className="flex items-center gap-3 mt-2">
+                            <div className="text-[10px]">
+                              <span className="opacity-60">Total:</span>
+                              <span className="ml-1 font-black text-[#d4af37]">Rs.{shopStats.totalSales.toLocaleString()}</span>
+                            </div>
+                            <div className="text-[10px]">
+                              <span className="opacity-60">Orders:</span>
+                              <span className="ml-1 font-black">{shopStats.orderCount}</span>
+                            </div>
+                          </div>
+                          {/* Shop Profile Indicator */}
+                          {shopProfile && (
+                            <div className="flex items-center gap-1 mt-1">
                               <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
-                            )}
-                          </div>
+                              <span className="text-[8px] opacity-60">Profile Added</span>
+                            </div>
+                          )}
                         </div>
                       </div>
-                      <div className="flex gap-1">
+                      <div className="flex flex-col gap-1.5 ml-2">
                         <button
                           onClick={() => confirmDelete(s.id, 'shop', s.name)}
-                          className="p-1.5 text-red-500/30 hover:text-red-500 hover:bg-red-500/10 rounded"
+                          className={`p-2 rounded-lg transition-all ${
+                            isDarkMode
+                              ? 'text-red-500/30 hover:text-red-500 hover:bg-red-500/10'
+                              : 'text-red-400 hover:text-red-600 hover:bg-red-50'
+                          }`}
                         >
-                          <Trash2 size={12} />
+                          <Trash2 size={16}/>
                         </button>
                         <button
                           onClick={() => { setSelectedShop(s); setShowModal('invoice'); }}
-                          className="px-2 py-1 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black rounded text-[7px] font-black uppercase"
+                          className="bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black px-3 py-1.5 rounded-lg text-[10px] font-black uppercase shadow-lg hover:opacity-90 transition-all"
                         >
                           BILL
                         </button>
+                        {/* Shop Profile Button */}
+                        <button
+                          onClick={() => { setSelectedShop(s); setShowModal('shopProfile'); }}
+                          className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-3 py-1.5 rounded-lg text-[8px] font-black uppercase hover:opacity-90 transition-all"
+                        >
+                          PROFILE
+                        </button>
+                        {/* ===== NEW: Shop Details Button ===== */}
                         <button
                           onClick={() => { 
                             setSelectedShop(s);
                             setSelectedShopProfile(getShopProfile(s.id));
                             setShopDetailsView(s);
-                            setActiveTab('shop-details');
                           }}
-                          className="px-2 py-1 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded text-[7px] font-black uppercase"
+                          className="bg-gradient-to-r from-purple-500 to-purple-600 text-white px-3 py-1.5 rounded-lg text-[8px] font-black uppercase hover:opacity-90 transition-all"
                         >
-                          INFO
+                          DETAILS
                         </button>
                       </div>
                     </div>
+                    
+                    {/* Last Order Info */}
+                    {shopStats.lastOrder && (
+                      <div className="mt-3 pt-2 border-t border-white/10 text-[9px] opacity-60">
+                        Last order: {new Date(shopStats.lastOrder.timestamp).toLocaleDateString()} - Rs.{shopStats.lastOrder.total.toLocaleString()}
+                      </div>
+                    )}
                   </div>
                 );
               })}
+              {filteredShops.length === 0 && (
+                <div className="text-center py-6">
+                  <Store size={30} className="mx-auto opacity-20 mb-2" />
+                  <p className="text-xs opacity-30 italic">No shops found</p>
+                </div>
+              )}
             </div>
           </div>
         )}
 
-        {/* ===== SHOP DETAILS TAB ===== */}
+        {/* ===== NEW: SHOP DETAILS TAB ===== */}
         {activeTab === 'shop-details' && shopDetailsView && (
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between mb-2">
               <button
                 onClick={() => {
                   setActiveTab('shops');
                   setShopDetailsView(null);
                 }}
-                className={`p-1.5 rounded-lg ${isDarkMode ? 'bg-white/5' : 'bg-gray-100'}`}
+                className={`p-2 rounded-lg transition-all flex items-center gap-1 ${
+                  isDarkMode
+                    ? 'bg-white/5 text-white hover:bg-white/10'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
               >
-                <ChevronLeft size={14} />
+                <ChevronLeft size={18} />
+                <span className="text-xs font-black uppercase">Back</span>
               </button>
-              <h2 className="text-sm font-black text-[#d4af37] uppercase">Shop Info</h2>
+              <h2 className="text-lg font-black text-[#d4af37] uppercase">Shop Details</h2>
             </div>
 
-            <div className={`p-4 rounded-xl border ${
-              isDarkMode ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/30" : "bg-white border-[#d4af37]/30"
+            {/* Shop Header */}
+            <div className={`p-5 rounded-2xl border ${
+              isDarkMode
+                ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/30"
+                : "bg-white border-[#d4af37]/30 shadow-lg"
             }`}>
-              <div className="flex items-center gap-3">
-                <div className="p-3 bg-gradient-to-br from-[#d4af37]/20 rounded-xl">
-                  <Store size={20} className="text-[#d4af37]" />
+              <div className="flex items-center gap-4">
+                <div className="p-4 bg-gradient-to-br from-[#d4af37]/20 to-[#b8860b]/10 rounded-2xl">
+                  <Store size={30} className="text-[#d4af37]" />
                 </div>
                 <div>
-                  <h1 className="text-base font-black uppercase">{shopDetailsView.name}</h1>
-                  <div className="flex items-center gap-1 mt-0.5">
-                    <MapPin size={10} className="opacity-50" />
-                    <p className="text-[8px] opacity-70 uppercase font-bold">{shopDetailsView.area}</p>
+                  <h1 className="text-2xl font-black uppercase text-[#d4af37]">{shopDetailsView.name}</h1>
+                  <div className="flex items-center gap-2 mt-1">
+                    <MapPin size={14} className="opacity-60" />
+                    <p className="text-sm opacity-70 uppercase font-bold">{shopDetailsView.area}</p>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Mini Profile Icons */}
+            {/* Shop Profile Section */}
             {selectedShopProfile && (
-              <div className={`p-4 rounded-xl border ${
-                isDarkMode ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/10" : "bg-white border-gray-200"
+              <div className={`p-5 rounded-2xl border ${
+                isDarkMode
+                  ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/10"
+                  : "bg-white border-gray-200 shadow-lg"
               }`}>
-                <div className="flex items-center gap-3 mb-3">
-                  <Briefcase size={14} className="text-[#d4af37]" />
-                  <h3 className="text-xs font-black text-[#d4af37] uppercase">Profile</h3>
+                <div className="flex items-center gap-2 mb-4">
+                  <Briefcase size={18} className="text-[#d4af37]" />
+                  <h3 className="text-sm font-black text-[#d4af37] uppercase tracking-widest">Profile Information</h3>
                 </div>
-                <div className="grid grid-cols-2 gap-2 text-[8px]">
+
+                <div className="space-y-3">
                   {selectedShopProfile.ownerName && (
-                    <div className="flex items-center gap-1">
-                      <User size={10} className="opacity-50" />
-                      <span className="font-bold uppercase">{selectedShopProfile.ownerName}</span>
+                    <div className="flex items-start gap-2">
+                      <User size={14} className="opacity-50 mt-0.5" />
+                      <div>
+                        <p className="text-[10px] opacity-50 uppercase">Owner</p>
+                        <p className="text-xs font-bold uppercase">{selectedShopProfile.ownerName}</p>
+                      </div>
                     </div>
                   )}
+                  
                   {selectedShopProfile.phone && (
-                    <div className="flex items-center gap-1">
-                      <Phone size={10} className="opacity-50" />
-                      <span>{selectedShopProfile.phone}</span>
+                    <div className="flex items-start gap-2">
+                      <Phone size={14} className="opacity-50 mt-0.5" />
+                      <div>
+                        <p className="text-[10px] opacity-50 uppercase">Phone</p>
+                        <p className="text-xs font-bold">{selectedShopProfile.phone}</p>
+                      </div>
                     </div>
                   )}
+                  
+                  {selectedShopProfile.email && (
+                    <div className="flex items-start gap-2">
+                      <Mail size={14} className="opacity-50 mt-0.5" />
+                      <div>
+                        <p className="text-[10px] opacity-50 uppercase">Email</p>
+                        <p className="text-xs font-bold">{selectedShopProfile.email}</p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {selectedShopProfile.address && (
+                    <div className="flex items-start gap-2">
+                      <MapPin size={14} className="opacity-50 mt-0.5" />
+                      <div>
+                        <p className="text-[10px] opacity-50 uppercase">Address</p>
+                        <p className="text-xs font-bold uppercase">{selectedShopProfile.address}</p>
+                      </div>
+                    </div>
+                  )}
+                  
                   {selectedShopProfile.gst && (
-                    <div className="flex items-center gap-1">
-                      <FileText size={10} className="opacity-50" />
-                      <span className="uppercase">{selectedShopProfile.gst}</span>
+                    <div className="flex items-start gap-2">
+                      <FileText size={14} className="opacity-50 mt-0.5" />
+                      <div>
+                        <p className="text-[10px] opacity-50 uppercase">GST</p>
+                        <p className="text-xs font-bold uppercase">{selectedShopProfile.gst}</p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {selectedShopProfile.notes && (
+                    <div className="flex items-start gap-2">
+                      <Info size={14} className="opacity-50 mt-0.5" />
+                      <div>
+                        <p className="text-[10px] opacity-50 uppercase">Notes</p>
+                        <p className="text-xs">{selectedShopProfile.notes}</p>
+                      </div>
                     </div>
                   )}
                 </div>
+
+                <button
+                  onClick={() => { 
+                    setSelectedShop(shopDetailsView);
+                    setShowModal('shopProfile');
+                  }}
+                  className="mt-4 w-full py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-black rounded-lg text-xs uppercase tracking-widest hover:opacity-90 transition-all"
+                >
+                  Edit Profile
+                </button>
               </div>
             )}
 
-            {/* Quick Stats */}
-            <div className="grid grid-cols-2 gap-2">
-              <div className={`p-3 rounded-xl border ${
-                isDarkMode ? "bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5" : "bg-gray-50 border-gray-100"
-              }`}>
-                <p className="text-[7px] font-black uppercase opacity-50">TOTAL SALES</p>
-                <p className="text-sm font-black text-[#d4af37]">Rs.{getShopStats(shopDetailsView.id).totalSales.toLocaleString()}</p>
+            {/* Shop Statistics */}
+            <div className={`p-5 rounded-2xl border ${
+              isDarkMode
+                ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/10"
+                : "bg-white border-gray-200 shadow-lg"
+            }`}>
+              <div className="flex items-center gap-2 mb-4">
+                <BarChart3 size={18} className="text-[#d4af37]" />
+                <h3 className="text-sm font-black text-[#d4af37] uppercase tracking-widest">Sales Statistics</h3>
               </div>
-              <div className={`p-3 rounded-xl border ${
-                isDarkMode ? "bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5" : "bg-gray-50 border-gray-100"
-              }`}>
-                <p className="text-[7px] font-black uppercase opacity-50">TOTAL UNITS</p>
-                <p className="text-sm font-black text-[#d4af37]">{getShopStats(shopDetailsView.id).totalUnits}</p>
+
+              <div className="grid grid-cols-2 gap-3 mb-4">
+                <div className={`p-3 rounded-xl border ${
+                  isDarkMode
+                    ? "bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5"
+                    : "bg-gray-50 border-gray-100"
+                }`}>
+                  <p className="text-[9px] font-black uppercase mb-1 opacity-60">Total Sales</p>
+                  <p className="text-lg font-black text-[#d4af37]">Rs.{getShopStats(shopDetailsView.id).totalSales.toLocaleString()}</p>
+                </div>
+                <div className={`p-3 rounded-xl border ${
+                  isDarkMode
+                    ? "bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5"
+                    : "bg-gray-50 border-gray-100"
+                }`}>
+                  <p className="text-[9px] font-black uppercase mb-1 opacity-60">Total Orders</p>
+                  <p className="text-lg font-black text-[#d4af37]">{getShopStats(shopDetailsView.id).orderCount}</p>
+                </div>
               </div>
+
+              {/* Top Products */}
+              <div>
+                <p className="text-[10px] font-black uppercase opacity-60 mb-2">Top Products</p>
+                <div className="space-y-2">
+                  {Object.entries(getShopStats(shopDetailsView.id).items)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 5)
+                    .map(([item, qty], idx) => (
+                      <div key={idx} className={`p-2 rounded-xl border flex justify-between items-center ${
+                        isDarkMode
+                          ? "bg-black/40 border-white/5"
+                          : "bg-gray-50/50 border-gray-100"
+                      }`}>
+                        <span className="text-xs font-bold uppercase">{item}</span>
+                        <span className="text-xs font-black text-[#d4af37]">{qty} units</span>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Recent Orders */}
+            <div className={`p-5 rounded-2xl border ${
+              isDarkMode
+                ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/10"
+                : "bg-white border-gray-200 shadow-lg"
+            }`}>
+              <div className="flex items-center gap-2 mb-4">
+                <History size={18} className="text-[#d4af37]" />
+                <h3 className="text-sm font-black text-[#d4af37] uppercase tracking-widest">Recent Orders</h3>
+              </div>
+
+              <div className="space-y-3">
+                {data.orders
+                  .filter(o => o.shopId === shopDetailsView.id || o.shopName === shopDetailsView.name)
+                  .slice(0, 5)
+                  .map((order, idx) => (
+                    <div key={idx} className={`p-3 rounded-xl border ${
+                      isDarkMode
+                        ? "bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5"
+                        : "bg-gray-50 border-gray-100"
+                    }`}>
+                      <div className="flex justify-between items-start mb-2">
+                        <span className="text-[10px] opacity-60">
+                          {new Date(order.timestamp).toLocaleDateString()}
+                        </span>
+                        <span className="text-xs font-black text-[#d4af37]">Rs.{order.total.toLocaleString()}</span>
+                      </div>
+                      <div className="text-[10px] opacity-70">
+                        {order.items?.length || 0} items
+                      </div>
+                    </div>
+                  ))}
+
+                {data.orders.filter(o => o.shopId === shopDetailsView.id || o.shopName === shopDetailsView.name).length === 0 && (
+                  <div className="text-center py-4">
+                    <History size={30} className="mx-auto opacity-20 mb-2" />
+                    <p className="text-xs opacity-30 italic">No orders yet</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Quick Actions */}
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => { 
+                  setSelectedShop(shopDetailsView);
+                  setShowModal('invoice');
+                }}
+                className="py-4 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-xl text-xs uppercase flex items-center justify-center gap-2 hover:opacity-90 transition-all"
+              >
+                <ShoppingBag size={18} />
+                New Order
+              </button>
+              <button
+                onClick={() => { 
+                  setSelectedShop(shopDetailsView);
+                  setShowModal('shopProfile');
+                }}
+                className="py-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-black rounded-xl text-xs uppercase flex items-center justify-center gap-2 hover:opacity-90 transition-all"
+              >
+                <User size={18} />
+                Edit Profile
+              </button>
             </div>
           </div>
         )}
@@ -1897,439 +2581,1046 @@ export default function App() {
         {/* History Tab */}
         {activeTab === 'history' && (
           <div className="space-y-3">
-            <div className={`p-3 rounded-xl border flex items-center gap-2 ${
-              isDarkMode ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/10" : "bg-white border-gray-200"
+            <div className={`p-4 rounded-2xl border flex items-center gap-3 ${
+              isDarkMode
+                ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/10"
+                : "bg-white border-gray-200 shadow-sm"
             }`}>
-              <Calendar size={14} className="text-[#d4af37]"/>
+              <Calendar size={18} className="text-[#d4af37]"/>
               <input
                 type="date"
-                className="bg-transparent text-[9px] font-black uppercase outline-none w-full"
+                className="bg-transparent text-xs font-black uppercase outline-none w-full"
                 onChange={(e) => setSearchDate(e.target.value)}
                 value={searchDate}
                 style={{ color: isDarkMode ? 'white' : 'black' }}
               />
             </div>
 
-            {data.orders.filter(o => {
-              try {
-                return new Date(o.timestamp).toISOString().split('T')[0] === searchDate;
-              } catch { return false; }
-            }).map(o => (
-              <div key={o.id} className={`p-4 rounded-xl border ${
-                isDarkMode ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/5" : "bg-white border-gray-200"
-              }`}>
-                <div className="flex justify-between items-start mb-2">
+            {data.orders
+              .filter(o => {
+                try {
+                  const orderDate = new Date(o.timestamp).toISOString().split('T')[0];
+                  return orderDate === searchDate;
+                } catch {
+                  return false;
+                }
+              })
+              .map((o) => (
+              <div
+                key={o.id}
+                className={`p-5 rounded-2xl border ${
+                  isDarkMode
+                    ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/5 shadow-xl"
+                    : "bg-white border-gray-200 shadow-lg"
+                }`}
+              >
+                <div className="flex justify-between items-start mb-4">
                   <div>
-                    <h4 className="text-[9px] font-black uppercase text-[#d4af37]">{o.shopName}</h4>
-                    <p className="text-[7px] opacity-50">{new Date(o.timestamp).toLocaleTimeString()}</p>
+                    <h4 className="text-xs font-black uppercase text-[#d4af37] mb-1">{o.shopName}</h4>
+                    <div className="flex items-center gap-2">
+                      <p className="text-[10px] opacity-60 font-black uppercase" style={{ color: isDarkMode ? 'white' : 'black' }}>{o.companyName}</p>
+                      {o.isManual && (
+                        <span className="text-[8px] bg-gradient-to-r from-green-500/20 to-green-600/20 text-green-500 px-2 py-0.5 rounded-full border border-green-500/30">
+                          MANUAL
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex gap-1">
-                    <button onClick={() => printBill(o)} className="p-1 text-blue-500/50 hover:text-blue-500">
-                      <Printer size={12} />
+                  <div className="flex gap-1.5">
+                    <button
+                      onClick={() => printBill(o)}
+                      className={`p-2 rounded-lg transition-all ${
+                        isDarkMode
+                          ? 'text-blue-500 hover:bg-blue-500/10'
+                          : 'text-blue-600 hover:bg-blue-100'
+                      }`}
+                      title="Print Bill"
+                    >
+                      <Printer size={16}/>
                     </button>
-                    <button onClick={() => shareToWhatsApp(o)} className="p-1 text-[#d4af37]/50 hover:text-[#d4af37]">
-                      <Share2 size={12} />
+                    <button
+                      onClick={() => shareBillWithLocation(o)}
+                      className={`p-2 rounded-lg transition-all ${
+                        isDarkMode
+                          ? 'text-[#d4af37] hover:bg-[#d4af37]/10'
+                          : 'text-[#d4af37] hover:bg-[#d4af37]/20'
+                      }`}
+                      title="Share with Location"
+                    >
+                      <Navigation size={16}/>
                     </button>
-                    <button onClick={() => confirmDelete(o.id, 'order', '')} className="p-1 text-red-500/30 hover:text-red-500">
-                      <Trash2 size={12} />
+                    <button
+                      onClick={() => shareToWhatsApp(o)}
+                      className={`p-2 rounded-lg transition-all ${
+                        isDarkMode
+                          ? 'text-[#d4af37] hover:bg-[#d4af37]/10'
+                          : 'text-[#d4af37] hover:bg-[#d4af37]/20'
+                      }`}
+                      title="Share Bill"
+                    >
+                      <Share2 size={16}/>
+                    </button>
+                    <button
+                      onClick={() => confirmDelete(o.id, 'order', '')}
+                      className={`p-2 rounded-lg transition-all ${
+                        isDarkMode
+                          ? 'text-red-500/30 hover:text-red-500 hover:bg-red-500/10'
+                          : 'text-red-400 hover:text-red-600 hover:bg-red-50'
+                      }`}
+                    >
+                      <Trash2 size={16}/>
                     </button>
                   </div>
                 </div>
-                <div className="text-[8px] font-black text-right">
-                  Rs.{o.total.toLocaleString()}
+
+                <div className="space-y-2 border-y py-3 my-3" style={{ borderColor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.1)' }}>
+                  {o.items && o.items.map((i, k) => (
+                    <div key={k} className="flex justify-between items-center text-xs uppercase font-bold">
+                      <div className="flex items-center gap-2">
+                        <span style={{ opacity: 0.6, color: isDarkMode ? 'white' : 'black' }}>{i.name}</span>
+                        <span className="text-[9px]" style={{ opacity: 0.4, color: isDarkMode ? 'white' : 'black' }}>x{i.qty} @ Rs.{i.price}</span>
+                      </div>
+                      <span className="text-[#d4af37] font-black">Rs.{i.subtotal.toLocaleString()}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex justify-between items-center font-black pt-2">
+                  <span className="text-xs uppercase" style={{ opacity: 0.4, color: isDarkMode ? 'white' : 'black' }}>Total Amount</span>
+                  <span className="text-xl text-[#d4af37]">Rs.{o.total.toLocaleString()}</span>
                 </div>
               </div>
             ))}
+            {data.orders.filter(o => {
+              try {
+                const orderDate = new Date(o.timestamp).toISOString().split('T')[0];
+                return orderDate === searchDate;
+              } catch {
+                return false;
+              }
+            }).length === 0 && (
+              <div className="text-center py-6">
+                <History size={30} className="mx-auto opacity-20 mb-2" />
+                <p className="text-xs opacity-30 italic">No orders found for this date</p>
+              </div>
+            )}
           </div>
         )}
 
-        {/* Notes Tab */}
+        {/* NOTES TAB */}
         {activeTab === 'notes' && (
           <div className="space-y-3">
-            <div className={`p-3 rounded-xl border flex items-center gap-2 ${
-              isDarkMode ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/10" : "bg-white border-gray-200"
+            <div className={`p-4 rounded-2xl border flex items-center gap-3 ${
+              isDarkMode
+                ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/10"
+                : "bg-white border-gray-200 shadow-sm"
             }`}>
-              <Calendar size={14} className="text-[#d4af37]"/>
+              <Calendar size={18} className="text-[#d4af37]"/>
               <input
                 type="date"
-                className="bg-transparent text-[9px] font-black uppercase outline-none w-full"
+                className="bg-transparent text-xs font-black uppercase outline-none w-full"
                 onChange={(e) => setNoteSearchDate(e.target.value)}
                 value={noteSearchDate}
                 style={{ color: isDarkMode ? 'white' : 'black' }}
               />
               <button
                 onClick={() => setShowModal('note')}
-                className="px-2 py-1 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black rounded text-[7px] font-black uppercase"
+                className="bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black px-3 py-2 rounded-xl text-xs font-black uppercase shadow-lg hover:opacity-90 transition-all"
               >
-                ADD
+                Add Note
               </button>
             </div>
 
-            {filteredNotes.map(note => (
-              <div key={note.id} className={`p-4 rounded-xl border ${
-                isDarkMode ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/5" : "bg-white border-gray-200"
-              }`}>
-                <div className="flex justify-between items-start mb-2">
-                  <div className="flex items-center gap-1.5">
-                    <BookOpen size={12} className="text-[#d4af37]" />
-                    <span className="text-[7px] opacity-50">
-                      {new Date(note.timestamp).toLocaleTimeString()}
-                    </span>
+            <div className="space-y-3">
+              {filteredNotes.map((note) => (
+                <div
+                  key={note.id}
+                  className={`p-5 rounded-2xl border ${
+                    isDarkMode
+                      ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/5 shadow-xl"
+                      : "bg-white border-gray-200 shadow-lg"
+                  }`}
+                >
+                  <div className="flex justify-between items-start mb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="p-2 bg-gradient-to-br from-blue-500/10 to-blue-600/10 rounded-lg text-blue-500 border border-blue-500/20">
+                        <BookOpen size={16}/>
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <Clock size={11} className="opacity-50"/>
+                          <span className="text-[10px] opacity-60">
+                            {new Date(note.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                          </span>
+                        </div>
+                        <p className="text-[10px] opacity-40 mt-0.5">{note.date}</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => confirmDelete(note.id, 'note', '')}
+                      className={`p-1.5 rounded-lg transition-all ${
+                        isDarkMode
+                          ? 'text-red-500/30 hover:text-red-500 hover:bg-red-500/10'
+                          : 'text-red-400 hover:text-red-600 hover:bg-red-50'
+                      }`}
+                    >
+                      <Trash2 size={14}/>
+                    </button>
                   </div>
-                  <button onClick={() => confirmDelete(note.id, 'note', '')} className="p-1 text-red-500/30 hover:text-red-500">
-                    <Trash2 size={10} />
+
+                  <div className="mt-3">
+                    <p className="text-xs leading-relaxed" style={{ color: isDarkMode ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.8)' }}>
+                      {note.text}
+                    </p>
+                  </div>
+                </div>
+              ))}
+
+              {filteredNotes.length === 0 && (
+                <div className="text-center py-8">
+                  <BookOpen size={40} className="mx-auto opacity-20 mb-3" />
+                  <p className="text-xs opacity-30 italic">No notes found for this date</p>
+                  <button
+                    onClick={() => setShowModal('note')}
+                    className="mt-3 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black px-4 py-2.5 rounded-xl text-xs font-black uppercase shadow-lg hover:opacity-90 transition-all"
+                  >
+                    Add Your First Note
                   </button>
                 </div>
-                <p className="text-[9px] leading-relaxed">{note.text}</p>
-              </div>
-            ))}
+              )}
+            </div>
           </div>
         )}
 
         {/* Settings Tab */}
         {activeTab === 'settings' && (
-          <div className="space-y-3 pb-12">
-            {/* Profile */}
-            <form onSubmit={handleSaveProfile} className={`p-4 rounded-xl border space-y-3 ${
-              isDarkMode ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/10" : "bg-white border-gray-200"
-            }`}>
-              <h3 className="text-xs font-black text-[#d4af37] uppercase tracking-widest">Profile</h3>
+          <div className="space-y-4 pb-16">
+            {/* Profile Settings */}
+            <form
+              onSubmit={handleSaveProfile}
+              className={`p-5 rounded-2xl border space-y-4 ${
+                isDarkMode
+                  ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/10 shadow-xl"
+                  : "bg-white border-gray-200 shadow-lg"
+              }`}
+            >
+              <div>
+                <h3 className="text-xs font-black text-[#d4af37] uppercase tracking-widest mb-1">Profile Settings</h3>
+                <p className="text-[10px]" style={{ opacity: 0.5, color: isDarkMode ? 'white' : 'black' }}>Update your personal information</p>
+              </div>
+
               <input
                 name="repName"
                 defaultValue={data.settings.name}
-                placeholder="NAME"
-                className={`w-full p-2 rounded-lg border text-[9px] font-black uppercase outline-none focus:border-[#d4af37] ${
-                  isDarkMode ? 'bg-black/50 border-white/10 text-white' : 'bg-gray-50 border-gray-200'
+                placeholder="YOUR FULL NAME"
+                className={`w-full p-3 rounded-xl border text-xs font-black uppercase outline-none focus:border-[#d4af37] transition-all ${
+                  isDarkMode
+                    ? 'bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5 text-white'
+                    : 'bg-gray-50 border-gray-200 text-gray-900'
                 }`}
               />
+
               <input
                 name="companyName"
                 defaultValue={data.settings.company}
-                placeholder="COMPANY"
-                className={`w-full p-2 rounded-lg border text-[9px] font-black uppercase outline-none focus:border-[#d4af37] ${
-                  isDarkMode ? 'bg-black/50 border-white/10 text-white' : 'bg-gray-50 border-gray-200'
+                placeholder="COMPANY NAME"
+                className={`w-full p-3 rounded-xl border text-xs font-black uppercase outline-none focus:border-[#d4af37] transition-all ${
+                  isDarkMode
+                    ? 'bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5 text-white'
+                    : 'bg-gray-50 border-gray-200 text-gray-900'
                 }`}
               />
-              <button type="submit" className="w-full py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-black rounded-lg text-[8px] uppercase">
-                SAVE
+
+              <button type="submit" className="w-full py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-black rounded-xl text-xs uppercase flex items-center justify-center gap-1.5 hover:opacity-90 transition-all">
+                <Save size={16}/> SAVE PROFILE
               </button>
             </form>
 
-            {/* Quick Actions */}
-            <div className="grid grid-cols-3 gap-2">
-              <button onClick={() => setShowModal('route')} className={`p-3 rounded-xl border text-[#d4af37] font-black uppercase text-[8px] flex flex-col items-center gap-1 ${
-                isDarkMode ? 'bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5' : 'bg-gray-50 border-gray-200'
-              }`}>
-                <MapPin size={16} /> ROUTE
+            {/* Quick Add Buttons */}
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => setShowModal('route')}
+                className={`py-4 rounded-xl border text-[#d4af37] font-black uppercase text-xs flex flex-col items-center gap-1.5 hover:border-[#d4af37] transition-all ${
+                  isDarkMode
+                    ? 'bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5'
+                    : 'bg-gray-50 border-gray-200'
+                }`}
+              >
+                <MapPin size={20}/> ADD ROUTE
               </button>
-              <button onClick={() => setShowModal('brand')} className={`p-3 rounded-xl border text-[#d4af37] font-black uppercase text-[8px] flex flex-col items-center gap-1 ${
-                isDarkMode ? 'bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5' : 'bg-gray-50 border-gray-200'
-              }`}>
-                <Package size={16} /> BRAND
+              <button
+                onClick={() => setShowModal('brand')}
+                className={`py-4 rounded-xl border text-[#d4af37] font-black uppercase text-xs flex flex-col items-center gap-1.5 hover:border-[#d4af37] transition-all ${
+                  isDarkMode
+                    ? 'bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5'
+                    : 'bg-gray-50 border-gray-200'
+                }`}
+              >
+                <Package size={20}/> ADD BRAND
               </button>
-              <button onClick={() => setShowModal('target')} className={`p-3 rounded-xl border text-[#d4af37] font-black uppercase text-[8px] flex flex-col items-center gap-1 ${
-                isDarkMode ? 'bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5' : 'bg-gray-50 border-gray-200'
-              }`}>
-                <Target size={16} /> TARGET
+              {/* Set Target Button */}
+              <button
+                onClick={() => setShowModal('target')}
+                className={`py-4 rounded-xl border text-[#d4af37] font-black uppercase text-xs flex flex-col items-center gap-1.5 hover:border-[#d4af37] transition-all col-span-2 ${
+                  isDarkMode
+                    ? 'bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5'
+                    : 'bg-gray-50 border-gray-200'
+                }`}
+              >
+                <Target size={20}/> SET MONTHLY TARGET
               </button>
+            </div>
+
+            {/* Routes Management Section */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-xs font-black text-[#d4af37] uppercase tracking-widest">Routes List</h4>
+                <span className="text-[10px]" style={{ opacity: 0.5, color: isDarkMode ? 'white' : 'black' }}>{data.routes.length} routes</span>
+              </div>
+
+              <div className="grid gap-1.5 mb-4">
+                {data.routes.map(r => (
+                  <div
+                    key={r.id}
+                    className={`p-3 rounded-xl border flex justify-between items-center transition-all ${
+                      isDarkMode
+                        ? 'bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5 hover:border-[#d4af37]/30'
+                        : 'bg-gray-50 border-gray-100 hover:border-[#d4af37]'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <MapPin size={14} className="text-[#d4af37]" />
+                      <span className="text-xs font-black uppercase" style={{ color: isDarkMode ? 'white' : 'black' }}>{r.name}</span>
+                    </div>
+                    <button
+                      onClick={() => confirmDelete(r.id, 'route', r.name)}
+                      className={`p-1.5 rounded-lg transition-all ${
+                        isDarkMode
+                          ? 'text-red-500/40 hover:text-red-500 hover:bg-red-500/10'
+                          : 'text-red-500 hover:text-red-600 hover:bg-red-50'
+                      }`}
+                    >
+                      <Trash2 size={14}/>
+                    </button>
+                  </div>
+                ))}
+                {data.routes.length === 0 && (
+                  <div className="text-center py-4">
+                    <MapPin size={25} className="mx-auto opacity-20 mb-1.5" />
+                    <p className="text-xs opacity-30 italic">No routes added yet</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Brands List */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-xs font-black text-[#d4af37] uppercase tracking-widest">Brands List</h4>
+                <span className="text-[10px]" style={{ opacity: 0.5, color: isDarkMode ? 'white' : 'black' }}>{data.brands.length} brands</span>
+              </div>
+
+              <div className="space-y-2">
+                {data.brands.map((b, index) => (
+                  <div
+                    key={b.id}
+                    className={`p-3 rounded-xl border transition-all ${
+                      isDarkMode
+                        ? 'bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5 hover:border-[#d4af37]/30'
+                        : 'bg-gray-50 border-gray-100 hover:border-[#d4af37]'
+                    }`}
+                  >
+                    {editingBrand === b.id ? (
+                      <div className="flex-1 space-y-2">
+                        <div className="flex gap-2">
+                          <input
+                            defaultValue={b.name}
+                            className={`p-2 rounded-lg flex-1 text-xs border outline-none ${
+                              isDarkMode
+                                ? 'bg-black/50 border-white/10 text-white'
+                                : 'bg-white border-gray-300 text-gray-900'
+                            }`}
+                            onBlur={(e) => saveBrandEdit(b.id, 'name', e.target.value)}
+                            autoFocus
+                          />
+                          <input
+                            defaultValue={b.size}
+                            className={`p-2 rounded-lg w-20 text-xs border outline-none ${
+                              isDarkMode
+                                ? 'bg-black/50 border-white/10 text-white'
+                                : 'bg-white border-gray-300 text-gray-900'
+                            }`}
+                            onBlur={(e) => saveBrandEdit(b.id, 'size', e.target.value)}
+                          />
+                          <input
+                            defaultValue={b.price}
+                            type="number"
+                            className={`p-2 rounded-lg w-24 text-xs border outline-none ${
+                              isDarkMode
+                                ? 'bg-black/50 border-white/10 text-white'
+                                : 'bg-white border-gray-300 text-gray-900'
+                            }`}
+                            onBlur={(e) => saveBrandEdit(b.id, 'price', e.target.value)}
+                          />
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => setEditingBrand(null)}
+                            className={`flex-1 py-1.5 text-xs font-black rounded-lg border transition-all ${
+                              isDarkMode
+                                ? 'bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] text-white/60 border-white/5 hover:border-white/10'
+                                : 'bg-gray-100 text-gray-600 border-gray-200 hover:border-gray-300'
+                            }`}
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            onClick={() => setEditingBrand(null)}
+                            className="flex-1 py-1.5 bg-gradient-to-r from-green-600 to-emerald-600 text-white text-xs font-black rounded-lg hover:opacity-90 transition-all"
+                          >
+                            Save
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-sm ${
+                              isDarkMode
+                                ? 'bg-[#d4af37]/20 text-[#d4af37] border border-[#d4af37]/30'
+                                : 'bg-[#d4af37]/10 text-[#d4af37] border border-[#d4af37]/20'
+                            }`}>
+                              {b.sequence || index + 1}
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-black uppercase" style={{ color: isDarkMode ? 'white' : 'black' }}>
+                                  {b.name}
+                                </span>
+                                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gradient-to-r from-[#d4af37]/20 to-[#b8860b]/20 text-[#d4af37] border border-[#d4af37]/30">
+                                  {b.size}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2 mt-1">
+                                <span className="text-[10px] opacity-50">Price:</span>
+                                <span className="text-xs font-black text-[#d4af37]">Rs.{b.price}</span>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center gap-1">
+                            {!isOffline && (
+                              <>
+                                {index > 0 && (
+                                  <button
+                                    onClick={() => reorderBrands(b.id, 'up')}
+                                    className={`p-1.5 rounded-lg transition-all ${
+                                      isDarkMode
+                                        ? 'text-white/40 hover:text-white hover:bg-white/10'
+                                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200'
+                                    }`}
+                                    title="Move Up"
+                                  >
+                                    ↑
+                                  </button>
+                                )}
+                                {index < data.brands.length - 1 && (
+                                  <button
+                                    onClick={() => reorderBrands(b.id, 'down')}
+                                    className={`p-1.5 rounded-lg transition-all ${
+                                      isDarkMode
+                                        ? 'text-white/40 hover:text-white hover:bg-white/10'
+                                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200'
+                                    }`}
+                                    title="Move Down"
+                                  >
+                                    ↓
+                                  </button>
+                                )}
+                              </>
+                            )}
+                            <button
+                              onClick={() => setEditingBrand(b.id)}
+                              className={`p-1.5 rounded-lg transition-all ${
+                                isDarkMode
+                                  ? 'text-blue-500/40 hover:text-blue-500 hover:bg-blue-500/10'
+                                  : 'text-blue-500 hover:text-blue-600 hover:bg-blue-50'
+                              }`}
+                            >
+                              <Edit2 size={14}/>
+                            </button>
+                            <button
+                              onClick={() => confirmDelete(b.id, 'brand', `${b.name} (${b.size})`)}
+                              className={`p-1.5 rounded-lg transition-all ${
+                                isDarkMode
+                                  ? 'text-red-500/40 hover:text-red-500 hover:bg-red-500/10'
+                                  : 'text-red-500 hover:text-red-600 hover:bg-red-50'
+                              }`}
+                            >
+                              <Trash2 size={14}/>
+                            </button>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                ))}
+                {data.brands.length === 0 && (
+                  <div className="text-center py-4">
+                    <Package size={25} className="mx-auto opacity-20 mb-1.5" />
+                    <p className="text-xs opacity-30 italic">No brands added yet</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Today's Expenses */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-xs font-black text-[#d4af37] uppercase tracking-widest">Today's Expenses</h4>
+                <span className="text-[10px]" style={{ opacity: 0.5, color: isDarkMode ? 'white' : 'black' }}>Rs.{stats.expenses.toLocaleString()}</span>
+              </div>
+
+              <div className="space-y-1.5">
+                {data.expenses
+                  .filter(e => e.date === new Date().toISOString().split('T')[0])
+                  .map(exp => (
+                  <div
+                    key={exp.id}
+                    className={`p-3 rounded-xl border flex justify-between items-center hover:border-red-500/30 transition-all ${
+                      isDarkMode
+                        ? 'bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5'
+                        : 'bg-gray-50 border-gray-100'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div>
+                        <div className="flex items-center gap-1.5 mb-0.5">
+                          {exp.type === 'fuel' && <Fuel size={12} className="text-red-500" />}
+                          {exp.type === 'food' && <Coffee size={12} className="text-amber-500" />}
+                          {exp.type === 'transport' && <Navigation size={12} className="text-blue-500" />}
+                          {exp.type === 'other' && <AlertCircle size={12} className="text-gray-500" />}
+                          <span className="text-xs font-black uppercase" style={{ color: isDarkMode ? 'white' : 'black' }}>{exp.type}</span>
+                        </div>
+                        {exp.note && <p className="text-[10px] mt-0.5" style={{ opacity: 0.6, color: isDarkMode ? 'white' : 'black' }}>{exp.note}</p>}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-base font-black text-red-500">Rs.{exp.amount.toLocaleString()}</span>
+                      <button
+                        onClick={() => confirmDelete(exp.id, 'expense', '')}
+                        className={`p-1 rounded-lg transition-all ${
+                          isDarkMode
+                            ? 'text-red-500/30 hover:text-red-500 hover:bg-red-500/10'
+                            : 'text-red-400 hover:text-red-600 hover:bg-red-50'
+                        }`}
+                      >
+                        <Trash2 size={12}/>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+
+                {data.expenses.filter(e => e.date === new Date().toISOString().split('T')[0]).length === 0 && (
+                  <div className="text-center py-4">
+                    <CreditCard size={30} className="mx-auto opacity-20 mb-1.5" />
+                    <p className="text-xs opacity-30 italic">No expenses recorded today</p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}
       </main>
 
       {/* Bottom Navigation */}
-      <nav className={`fixed bottom-3 inset-x-3 h-12 rounded-xl border flex items-center justify-around z-50 ${
-        isDarkMode ? "bg-black/95 border-white/10 backdrop-blur-xl" : "bg-white/95 border-gray-200 backdrop-blur-xl"
+      <nav className={`fixed bottom-4 inset-x-4 h-16 rounded-2xl border flex items-center justify-around z-50 shadow-2xl ${
+        isDarkMode
+          ? "bg-gradient-to-br from-black/95 to-gray-900/95 border-white/10 backdrop-blur-xl"
+          : "bg-white/95 border-gray-200 backdrop-blur-xl shadow-lg"
       }`}>
         {[
-          {id: 'dashboard', icon: Home, label: 'HOME'},
-          {id: 'shops', icon: Store, label: 'SHOPS'},
-          {id: 'history', icon: History, label: 'HISTORY'},
-          {id: 'notes', icon: BookOpen, label: 'NOTES'},
-          {id: 'settings', icon: Settings, label: 'MORE'}
+          {id: 'dashboard', icon: LayoutDashboard, label: 'Home'},
+          {id: 'shops', icon: Store, label: 'Shops'},
+          {id: 'history', icon: History, label: 'History'},
+          {id: 'notes', icon: BookOpen, label: 'Notes'},
+          {id: 'settings', icon: Settings, label: 'More'}
         ].map(t => (
           <button
             key={t.id}
             onClick={() => {
               setActiveTab(t.id);
-              if (t.id === 'shops') setShopDetailsView(null);
+              if (t.id === 'shops') {
+                setShopDetailsView(null);
+              }
             }}
-            className={`p-1.5 transition-all relative flex flex-col items-center ${
-              activeTab === t.id ? 'text-[#d4af37]' : isDarkMode ? 'text-white/30' : 'text-gray-400'
+            className={`p-2 transition-all relative flex flex-col items-center ${
+              activeTab === t.id
+                ? 'text-[#d4af37]'
+                : isDarkMode
+                  ? 'opacity-40 hover:opacity-70 text-white/60'
+                  : 'opacity-40 hover:opacity-70 text-gray-600'
             }`}
           >
-            <t.icon size={16} />
-            <span className="text-[6px] font-black uppercase mt-0.5">{t.label}</span>
+            <div className={`p-1.5 rounded-lg ${
+              activeTab === t.id
+                ? isDarkMode
+                  ? 'bg-[#d4af37]/10'
+                  : 'bg-[#d4af37]/20'
+                : ''
+            }`}>
+              <t.icon size={20} />
+            </div>
+            <span className="text-[8px] font-black uppercase mt-1">{t.label}</span>
+            {activeTab === t.id && (
+              <div className="absolute -bottom-1 w-6 h-0.5 bg-gradient-to-r from-[#d4af37] to-[#b8860b] rounded-full"></div>
+            )}
           </button>
         ))}
       </nav>
 
-      {/* Modals - Simplified */}
-      {showModal === 'expense' && (
-        <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-4">
-          <div className="w-full max-w-xs p-4 rounded-xl bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border border-[#d4af37]/30">
-            <div className="flex justify-between items-center mb-3">
-              <h3 className="text-sm font-black text-[#d4af37] uppercase">Add Expense</h3>
-              <button onClick={() => setShowModal(null)} className="p-1 text-white/30 hover:text-white/60">
-                <X size={16} />
+      {/* PRINT PREVIEW MODAL */}
+      {showPrintPreview && printOrder && (
+        <div className="fixed inset-0 bg-black/95 z-[200] flex items-center justify-center p-3 backdrop-blur-3xl">
+          <div className="bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] w-full max-w-sm p-4 rounded-2xl border border-[#d4af37]/30 shadow-2xl">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-black text-[#d4af37] uppercase">Print Bill</h3>
+              <button
+                onClick={() => setShowPrintPreview(false)}
+                className="p-2 bg-white/10 rounded-full text-white hover:bg-white/20 transition-all"
+              >
+                <X size={20}/>
               </button>
             </div>
-            <div className="space-y-3">
-              <div className="grid grid-cols-4 gap-1">
-                {['fuel', 'food', 'transport', 'other'].map(t => (
-                  <button
-                    key={t}
-                    onClick={() => setExpenseType(t)}
-                    className={`p-2 rounded-lg border text-[8px] font-black uppercase ${
-                      expenseType === t ? 'bg-[#d4af37] text-black border-[#d4af37]' : 'bg-white/5 border-white/10 text-white/60'
-                    }`}
-                  >
-                    {t}
-                  </button>
-                ))}
+
+            <div className="bg-white p-4 rounded-xl mb-4 text-black" style={{ fontFamily: "'Courier New', monospace" }}>
+              <div className="text-center border-b-2 border-[#d4af37] pb-3 mb-3">
+                <div className="text-xl font-bold text-[#d4af37]">{printOrder.companyName || "MONARCH"}</div>
+                <div className="text-lg font-bold mt-1">{printOrder.shopName}</div>
+                <div className="text-xs mt-1">{new Date(printOrder.timestamp).toLocaleString()}</div>
+                <div className="text-xs">Bill #: {printOrder.id ? printOrder.id.slice(-6) : Math.floor(Math.random() * 1000000)}</div>
               </div>
-              <input
-                type="number"
-                value={expenseAmount}
-                onChange={(e) => setExpenseAmount(e.target.value)}
-                placeholder="AMOUNT"
-                className="w-full p-2 bg-black/50 rounded-lg border border-white/10 text-white text-xs font-black text-center"
-              />
+
+              <table className="w-full text-xs mb-3">
+                <thead>
+                  <tr className="border-b border-gray-300">
+                    <th className="text-left py-1">Item</th>
+                    <th className="text-center py-1">Qty</th>
+                    <th className="text-right py-1">Price</th>
+                    <th className="text-right py-1">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {printOrder.items && printOrder.items.map((item, idx) => (
+                    <tr key={idx}>
+                      <td className="py-1">{item.name}</td>
+                      <td className="text-center py-1">{item.qty}</td>
+                      <td className="text-right py-1">Rs.{item.price}</td>
+                      <td className="text-right py-1">Rs.{item.subtotal}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              <div className="border-t-2 border-[#d4af37] pt-3 text-right">
+                <span className="text-lg font-bold">Total: Rs.{printOrder.total.toLocaleString()}</span>
+              </div>
+
+              <div className="text-center text-xs mt-4 text-gray-600">
+                Thank you for your business!<br/>
+                Generated by Monarch Pro
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <button
+                onClick={() => {
+                  handlePrint(printOrder);
+                  setShowPrintPreview(false);
+                }}
+                className="w-full py-3 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg uppercase text-xs flex items-center justify-center gap-2 hover:opacity-90 transition-all"
+              >
+                <Printer size={16} /> PRINT BILL
+              </button>
+              <button
+                onClick={() => setShowPrintPreview(false)}
+                className="w-full py-2.5 bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] text-white/60 font-black rounded-lg uppercase text-xs border border-white/5 hover:border-white/10 transition-all"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CALCULATOR MODAL */}
+      {showCalculator && (
+        <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-3 backdrop-blur-3xl">
+          <div className={`w-full max-w-xs p-4 rounded-2xl border relative shadow-2xl ${
+            isDarkMode 
+              ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/30 text-white"
+              : "bg-gradient-to-br from-white to-gray-50 border-[#d4af37]/50 text-gray-900"
+          }`}>
+            <button
+              onClick={() => {
+                setShowCalculator(false);
+                resetCalculator();
+              }}
+              className="absolute top-2 right-2 text-white/20 hover:text-white/40 transition-all p-1"
+            >
+              <X size={20}/>
+            </button>
+
+            <div className="text-center mb-4">
+              <Calculator size={30} className="text-[#d4af37] mx-auto mb-2" />
+              <h3 className="font-black text-[#d4af37] mb-1 uppercase text-base tracking-widest">CALCULATOR</h3>
+              <p className="text-[10px] opacity-50">Discount (Rs. or %)</p>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="text-[10px] font-black uppercase opacity-40 mb-1 block">Subtotal (Rs.)</label>
+                <input
+                  type="number"
+                  value={totalCalculation.subtotal}
+                  onChange={(e) => setTotalCalculation({...totalCalculation, subtotal: parseFloat(e.target.value) || 0})}
+                  placeholder="0.00"
+                  className={`w-full p-3 rounded-lg border text-white font-bold text-center outline-none focus:border-[#d4af37] transition-all text-sm ${
+                    isDarkMode 
+                      ? "bg-black/40 border-white/5" 
+                      : "bg-gray-100 border-gray-300 text-gray-900"
+                  }`}
+                />
+              </div>
+
+              {/* Rs. / % Toggle */}
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setTotalCalculation({...totalCalculation, usePercentage: false})}
+                  className={`flex-1 py-2 rounded-lg text-xs font-black uppercase transition-all ${
+                    !totalCalculation.usePercentage
+                      ? 'bg-[#d4af37] text-black'
+                      : 'bg-white/10 text-white/60'
+                  }`}
+                >
+                  Rs.
+                </button>
+                <button
+                  onClick={() => setTotalCalculation({...totalCalculation, usePercentage: true})}
+                  className={`flex-1 py-2 rounded-lg text-xs font-black uppercase transition-all ${
+                    totalCalculation.usePercentage
+                      ? 'bg-[#d4af37] text-black'
+                      : 'bg-white/10 text-white/60'
+                  }`}
+                >
+                  %
+                </button>
+              </div>
+
+              {/* Discount Input */}
+              {totalCalculation.usePercentage ? (
+                <div>
+                  <label className="text-[10px] font-black uppercase opacity-40 mb-1 block">Discount (%)</label>
+                  <input
+                    type="number"
+                    value={totalCalculation.discountPercent}
+                    onChange={(e) => setTotalCalculation({...totalCalculation, discountPercent: parseFloat(e.target.value) || 0})}
+                    placeholder="0%"
+                    className={`w-full p-2 rounded-lg border text-white font-bold text-center outline-none focus:border-[#d4af37] transition-all text-sm ${
+                      isDarkMode 
+                        ? "bg-black/40 border-white/5" 
+                        : "bg-gray-100 border-gray-300 text-gray-900"
+                    }`}
+                  />
+                </div>
+              ) : (
+                <div>
+                  <label className="text-[10px] font-black uppercase opacity-40 mb-1 block">Discount (Rs.)</label>
+                  <input
+                    type="number"
+                    value={totalCalculation.discount}
+                    onChange={(e) => setTotalCalculation({...totalCalculation, discount: parseFloat(e.target.value) || 0})}
+                    placeholder="0.00"
+                    className={`w-full p-2 rounded-lg border text-white font-bold text-center outline-none focus:border-[#d4af37] transition-all text-sm ${
+                      isDarkMode 
+                        ? "bg-black/40 border-white/5" 
+                        : "bg-gray-100 border-gray-300 text-gray-900"
+                    }`}
+                  />
+                </div>
+              )}
+
+              <div>
+                <label className="text-[10px] font-black uppercase opacity-40 mb-1 block">Tax (Rs.)</label>
+                <input
+                  type="number"
+                  value={totalCalculation.tax}
+                  onChange={(e) => setTotalCalculation({...totalCalculation, tax: parseFloat(e.target.value) || 0})}
+                  placeholder="0.00"
+                  className={`w-full p-2 rounded-lg border text-white font-bold text-center outline-none focus:border-[#d4af37] transition-all text-sm ${
+                    isDarkMode 
+                      ? "bg-black/40 border-white/5" 
+                      : "bg-gray-100 border-gray-300 text-gray-900"
+                  }`}
+                />
+              </div>
+
+              <div className={`p-3 rounded-lg border ${
+                isDarkMode
+                  ? "bg-gradient-to-br from-black/60 to-black/40 border-[#d4af37]/30"
+                  : "bg-gradient-to-br from-gray-100 to-gray-50 border-[#d4af37]/30"
+              }`}>
+                <div className="flex justify-between items-center mb-1">
+                  <p className="text-[10px] font-black uppercase opacity-60">Grand Total</p>
+                </div>
+                <p className="text-lg font-black text-[#d4af37] text-center">
+                  Rs.{(
+                    (totalCalculation.subtotal || 0) - 
+                    (totalCalculation.usePercentage 
+                      ? ((totalCalculation.subtotal || 0) * (totalCalculation.discountPercent || 0) / 100)
+                      : (totalCalculation.discount || 0)
+                    ) + (totalCalculation.tax || 0)
+                  ).toLocaleString()}
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <button
+                  onClick={calculateTotal}
+                  className="w-full py-3 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg uppercase text-xs tracking-widest hover:opacity-90 transition-all"
+                >
+                  CALCULATE
+                </button>
+
+                <button
+                  onClick={resetCalculator}
+                  className={`w-full py-2 font-black rounded-lg uppercase text-[10px] tracking-widest border transition-all ${
+                    isDarkMode
+                      ? "bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] text-white/60 border-white/5 hover:border-white/10"
+                      : "bg-gradient-to-br from-gray-100 to-gray-200 text-gray-600 border-gray-300 hover:border-gray-400"
+                  }`}
+                >
+                  RESET
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* EXPENSE MODAL */}
+      {showModal === 'expense' && (
+        <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-3 backdrop-blur-3xl">
+          <div className={`w-full max-w-xs p-4 rounded-2xl border relative shadow-2xl ${
+            isDarkMode
+              ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/30 text-white"
+              : "bg-gradient-to-br from-white to-gray-50 border-[#d4af37]/50 text-gray-900"
+          }`}>
+            <button onClick={() => setShowModal(null)} className="absolute top-2 right-2 text-white/20 hover:text-white/40 p-1">
+              <X size={20}/>
+            </button>
+
+            <div className="text-center mb-4">
+              <CreditCard size={30} className="text-[#d4af37] mx-auto mb-2" />
+              <h3 className="font-black text-[#d4af37] mb-1 uppercase text-base tracking-widest">ADD EXPENSE</h3>
+              <p className="text-[10px] opacity-50">Record your expenses</p>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <p className="text-[10px] font-black uppercase opacity-40 mb-2">Expense Type</p>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {[
+                    {type: 'fuel', icon: Fuel, label: 'Fuel', color: 'text-red-400'},
+                    {type: 'food', icon: Coffee, label: 'Food', color: 'text-amber-400'},
+                    {type: 'transport', icon: Navigation, label: 'Travel', color: 'text-blue-400'},
+                    {type: 'other', icon: AlertCircle, label: 'Other', color: 'text-gray-400'}
+                  ].map(item => (
+                    <button
+                      key={item.type}
+                      type="button"
+                      onClick={() => setExpenseType(item.type)}
+                      className={`p-2 rounded-lg border flex flex-col items-center gap-0.5 transition-all ${expenseType === item.type ? 'border-[#d4af37]' : 'border-white/5 hover:border-white/20'} ${
+                        isDarkMode ? 'bg-black/40' : 'bg-gray-100'
+                      }`}
+                    >
+                      <item.icon size={16} className={expenseType === item.type ? 'text-[#d4af37]' : item.color} />
+                      <span className="text-[9px] font-black uppercase">{item.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <p className="text-[10px] font-black uppercase opacity-40 mb-1">Amount (Rs.)</p>
+                <input
+                  type="number"
+                  value={expenseAmount}
+                  onChange={(e) => setExpenseAmount(e.target.value)}
+                  placeholder="0.00"
+                  className={`w-full p-3 rounded-lg border text-white font-bold text-center outline-none focus:border-[#d4af37] transition-all text-base ${
+                    isDarkMode ? 'bg-black/40 border-white/5' : 'bg-gray-100 border-gray-300 text-gray-900'
+                  }`}
+                />
+              </div>
+
+              <div>
+                <p className="text-[10px] font-black uppercase opacity-40 mb-1">Note (Optional)</p>
+                <textarea
+                  value={expenseNote}
+                  onChange={(e) => setExpenseNote(e.target.value)}
+                  placeholder="Add expense details..."
+                  className={`w-full p-2 rounded-lg border text-white text-xs outline-none resize-none h-16 focus:border-[#d4af37] transition-all ${
+                    isDarkMode ? 'bg-black/40 border-white/5' : 'bg-gray-100 border-gray-300 text-gray-900'
+                  }`}
+                />
+              </div>
+
               <button
                 onClick={saveExpense}
                 disabled={isSavingExpense}
-                className="w-full py-2 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg text-[8px] uppercase"
+                className={`w-full py-3 rounded-lg uppercase text-xs tracking-widest font-black transition-all ${isSavingExpense ? 'bg-gray-700 text-gray-400' : 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black hover:opacity-90'}`}
               >
-                SAVE
+                {isSavingExpense ? 'SAVING...' : 'SAVE EXPENSE'}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {showModal === 'target' && (
-        <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-4">
-          <div className="w-full max-w-xs p-4 rounded-xl bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border border-[#d4af37]/30">
-            <div className="flex justify-between items-center mb-3">
-              <h3 className="text-sm font-black text-[#d4af37] uppercase">Add Target</h3>
-              <button onClick={() => setShowModal(null)} className="p-1 text-white/30 hover:text-white/60">
-                <X size={16} />
-              </button>
-            </div>
-            <form onSubmit={saveMonthlyTarget} className="space-y-3">
-              <input
-                type="month"
-                value={targetMonth}
-                onChange={(e) => setTargetMonth(e.target.value)}
-                className="w-full p-2 bg-black/50 rounded-lg border border-white/10 text-white text-[9px] font-black"
-              />
-              <input
-                type="number"
-                value={targetUnits}
-                onChange={(e) => setTargetUnits(e.target.value)}
-                placeholder="TARGET UNITS"
-                className="w-full p-2 bg-black/50 rounded-lg border border-white/10 text-white text-xs font-black text-center"
-              />
-              <button
-                type="submit"
-                className="w-full py-2 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg text-[8px] uppercase"
-              >
-                ADD TARGET
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {showModal === 'brand' && (
-        <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-4">
-          <div className="w-full max-w-xs p-4 rounded-xl bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border border-[#d4af37]/30">
-            <div className="flex justify-between items-center mb-3">
-              <h3 className="text-sm font-black text-[#d4af37] uppercase">Add Brand</h3>
-              <button onClick={() => setShowModal(null)} className="p-1 text-white/30 hover:text-white/60">
-                <X size={16} />
-              </button>
-            </div>
-            <form onSubmit={addBrandWithSequence} className="space-y-3">
-              <input
-                name="name"
-                placeholder="BRAND NAME"
-                className="w-full p-2 bg-black/50 rounded-lg border border-white/10 text-white text-[9px] font-black uppercase"
-                required
-              />
-              <input
-                name="size"
-                placeholder="SIZE"
-                className="w-full p-2 bg-black/50 rounded-lg border border-white/10 text-white text-[9px] font-black uppercase"
-                required
-              />
-              <input
-                name="price"
-                type="number"
-                placeholder="PRICE"
-                className="w-full p-2 bg-black/50 rounded-lg border border-white/10 text-white text-[9px] font-black"
-                required
-              />
-              {brandError && (
-                <p className="text-red-500 text-[8px] font-bold text-center">{brandError}</p>
-              )}
-              <button
-                type="submit"
-                className="w-full py-2 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg text-[8px] uppercase"
-              >
-                ADD BRAND
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {showModal === 'route' && (
-        <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-4">
-          <div className="w-full max-w-xs p-4 rounded-xl bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border border-[#d4af37]/30">
-            <div className="flex justify-between items-center mb-3">
-              <h3 className="text-sm font-black text-[#d4af37] uppercase">Add Route</h3>
-              <button onClick={() => setShowModal(null)} className="p-1 text-white/30 hover:text-white/60">
-                <X size={16} />
-              </button>
-            </div>
-            <form onSubmit={async (e) => {
-              e.preventDefault();
-              await addDoc(collection(db, 'routes'), {
-                name: e.target.name.value.toUpperCase(),
-                userId: user.uid,
-                timestamp: Date.now()
-              });
-              showToast("✅ Route added");
-              setShowModal(null);
-            }} className="space-y-3">
-              <input
-                name="name"
-                placeholder="ROUTE NAME"
-                className="w-full p-2 bg-black/50 rounded-lg border border-white/10 text-white text-[9px] font-black uppercase"
-                required
-              />
-              <button
-                type="submit"
-                className="w-full py-2 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg text-[8px] uppercase"
-              >
-                ADD ROUTE
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {showModal === 'shop' && (
-        <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-4">
-          <div className="w-full max-w-xs p-4 rounded-xl bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border border-[#d4af37]/30">
-            <div className="flex justify-between items-center mb-3">
-              <h3 className="text-sm font-black text-[#d4af37] uppercase">Add Shop</h3>
-              <button onClick={() => setShowModal(null)} className="p-1 text-white/30 hover:text-white/60">
-                <X size={16} />
-              </button>
-            </div>
-            <form onSubmit={async (e) => {
-              e.preventDefault();
-              await addDoc(collection(db, 'shops'), {
-                name: e.target.name.value.toUpperCase(),
-                area: e.target.area.value,
-                userId: user.uid,
-                timestamp: Date.now()
-              });
-              showToast("✅ Shop added");
-              setShowModal(null);
-            }} className="space-y-3">
-              <input
-                name="name"
-                placeholder="SHOP NAME"
-                className="w-full p-2 bg-black/50 rounded-lg border border-white/10 text-white text-[9px] font-black uppercase"
-                required
-              />
-              <select
-                name="area"
-                className="w-full p-2 bg-black/50 rounded-lg border border-white/10 text-white text-[9px] font-black uppercase"
-                required
-              >
-                <option value="">SELECT ROUTE</option>
-                {data.routes.map(r => (
-                  <option key={r.id} value={r.name}>{r.name}</option>
-                ))}
-              </select>
-              <button
-                type="submit"
-                className="w-full py-2 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg text-[8px] uppercase"
-              >
-                ADD SHOP
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
-
+      {/* NOTE MODAL */}
       {showModal === 'note' && (
-        <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-4">
-          <div className="w-full max-w-xs p-4 rounded-xl bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border border-[#d4af37]/30">
-            <div className="flex justify-between items-center mb-3">
-              <h3 className="text-sm font-black text-[#d4af37] uppercase">Add Note</h3>
-              <button onClick={() => setShowModal(null)} className="p-1 text-white/30 hover:text-white/60">
-                <X size={16} />
+        <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-3 backdrop-blur-3xl">
+          <div className={`w-full max-w-xs p-4 rounded-2xl border relative shadow-2xl ${
+            isDarkMode
+              ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/30 text-white"
+              : "bg-gradient-to-br from-white to-gray-50 border-[#d4af37]/50 text-gray-900"
+          }`}>
+            <button onClick={() => setShowModal(null)} className="absolute top-2 right-2 text-white/20 hover:text-white/40 p-1">
+              <X size={20}/>
+            </button>
+
+            <div className="text-center mb-4">
+              <FileText size={30} className="text-[#d4af37] mx-auto mb-2" />
+              <h3 className="font-black text-[#d4af37] mb-1 uppercase text-base tracking-widest">ADD NOTE</h3>
+              <p className="text-[10px] opacity-50">Record important information</p>
+            </div>
+
+            <div className="space-y-4">
+              <div className="relative">
+                <textarea
+                  value={repNote}
+                  onChange={(e) => setRepNote(e.target.value)}
+                  placeholder="Type your note here..."
+                  className={`w-full p-3 rounded-lg border text-white text-xs outline-none resize-none h-24 focus:border-[#d4af37] transition-all ${
+                    isDarkMode ? 'bg-black/40 border-white/5' : 'bg-gray-100 border-gray-300 text-gray-900'
+                  }`}
+                />
+              </div>
+
+              <button
+                onClick={saveNote}
+                disabled={isSavingNote}
+                className={`w-full py-3 rounded-lg uppercase text-xs tracking-widest font-black transition-all ${isSavingNote ? 'bg-gray-700 text-gray-400' : 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black hover:opacity-90'}`}
+              >
+                {isSavingNote ? 'SAVING...' : 'SAVE NOTE'}
               </button>
             </div>
-            <textarea
-              value={repNote}
-              onChange={(e) => setRepNote(e.target.value)}
-              placeholder="NOTE"
-              rows={3}
-              className="w-full p-2 bg-black/50 rounded-lg border border-white/10 text-white text-[9px] outline-none resize-none"
-            />
-            <button
-              onClick={saveNote}
-              disabled={isSavingNote}
-              className="w-full mt-3 py-2 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg text-[8px] uppercase"
-            >
-              SAVE
-            </button>
           </div>
         </div>
       )}
 
+      {/* INVOICE MODAL */}
       {showModal === 'invoice' && selectedShop && (
         <div className="fixed inset-0 bg-black z-[100] overflow-y-auto">
-          <div className="min-h-screen p-3 max-w-lg mx-auto pb-24">
-            <div className="flex justify-between items-center mb-3 sticky top-0 bg-black/95 py-2 border-b border-white/10">
-              <h2 className="text-sm font-black uppercase text-[#d4af37]">{selectedShop.name}</h2>
-              <button onClick={() => { setShowModal(null); setCart({}); }} className="p-1.5 bg-white/10 rounded-full">
-                <X size={16} />
+          <div className="min-h-screen p-3 max-w-lg mx-auto pb-32">
+            <div className="flex justify-between items-center mb-4 sticky top-0 bg-black/95 py-3 border-b border-white/10 backdrop-blur-xl z-10">
+              <div>
+                <h2 className="text-xl font-black uppercase text-white">{selectedShop.name}</h2>
+                <p className="text-xs text-[#d4af37] font-black uppercase mt-0.5">Create New Bill</p>
+              </div>
+              <button
+                onClick={() => { setShowModal(null); setCart({}); }}
+                className="p-2 bg-white/10 rounded-full text-white hover:bg-white/20 transition-all"
+              >
+                <X size={20}/>
               </button>
             </div>
+
             <div className="space-y-2">
               {data.brands.map((b, index) => (
-                <div key={b.id} className="bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] p-2 rounded-lg border border-white/5 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 bg-[#d4af37]/20 rounded flex items-center justify-center text-[#d4af37] text-xs font-black">
+                <div
+                  key={b.id}
+                  className="bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] p-3 rounded-xl border border-white/5 flex items-center justify-between hover:border-[#d4af37]/30 transition-all"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-sm ${
+                      isDarkMode
+                        ? 'bg-[#d4af37]/20 text-[#d4af37] border border-[#d4af37]/30'
+                        : 'bg-[#d4af37]/10 text-[#d4af37] border border-[#d4af37]/20'
+                    }`}>
                       {b.sequence || index + 1}
                     </div>
-                    <div>
-                      <h4 className="text-[9px] font-black uppercase text-white">{b.name} ({b.size})</h4>
-                      <p className="text-[8px] text-[#d4af37] font-bold">Rs.{b.price}</p>
+                    <div className="flex-1">
+                      <h4 className="text-xs font-black uppercase text-white">{b.name} ({b.size})</h4>
+                      <p className="text-xs text-[#d4af37] font-bold mt-0.5">Rs.{b.price.toLocaleString()}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <button onClick={() => setCart({...cart, [b.id]: Math.max(0, (Number(cart[b.id])||0)-1)}} className="w-6 h-6 bg-white/5 rounded text-white text-xs">-</button>
-                    <input type="number" value={cart[b.id] || ''} onChange={(e) => setCart({...cart, [b.id]: e.target.value})} className="w-8 bg-transparent text-center font-black text-[#d4af37] text-xs outline-none" placeholder="0" />
-                    <button onClick={() => setCart({...cart, [b.id]: (Number(cart[b.id])||0)+1})} className="w-6 h-6 bg-white/5 rounded text-white text-xs">+</button>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setCart({...cart, [b.id]: Math.max(0, (Number(cart[b.id])||0)-1)})}
+                      className="w-8 h-8 bg-white/5 rounded-lg text-white font-black hover:bg-white/10 transition-all text-sm"
+                    >
+                      -
+                    </button>
+                    <input
+                      type="number"
+                      value={cart[b.id] || ''}
+                      onChange={(e) => setCart({...cart, [b.id]: e.target.value})}
+                      className="w-12 bg-transparent text-center font-black text-[#d4af37] text-base outline-none"
+                      placeholder="0"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setCart({...cart, [b.id]: (Number(cart[b.id])||0)+1})}
+                      className="w-8 h-8 bg-white/5 rounded-lg text-white font-black hover:bg-white/10 transition-all text-sm"
+                    >
+                      +
+                    </button>
                   </div>
                 </div>
               ))}
-            </div>
-            <div className="fixed bottom-0 inset-x-0 p-3 bg-black/95 border-t border-white/10">
-              <div className="max-w-lg mx-auto">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-[8px] font-black uppercase opacity-50">TOTAL</span>
-                  <span className="text-base font-black text-[#d4af37]">Rs.{calculateCartTotal().toLocaleString()}</span>
+              {data.brands.length === 0 && (
+                <div className="text-center py-6">
+                  <Package size={30} className="mx-auto opacity-20 mb-2" />
+                  <p className="text-xs opacity-30 italic">No brands added yet. Add brands in Settings.</p>
                 </div>
-                <button onClick={handleCreateOrder} className="w-full py-2.5 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg text-[8px] uppercase">
+              )}
+            </div>
+
+            <div className="fixed bottom-0 inset-x-0 p-3 bg-black/95 border-t border-white/10 backdrop-blur-2xl z-20">
+              <div className="max-w-lg mx-auto">
+                <div className="flex justify-between items-center mb-3">
+                  <div>
+                    <span className="text-[10px] font-black uppercase opacity-40">Total Items</span>
+                    <p className="text-sm font-black text-white">
+                      {Object.values(cart).filter(q => q > 0).length}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[10px] font-black uppercase opacity-40">Total Amount</span>
+                    <p className="text-xl font-black text-[#d4af37]">
+                      Rs.{calculateCartTotal().toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleCreateOrder}
+                  className="w-full py-3 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-xl uppercase text-xs tracking-widest hover:opacity-90 transition-all"
+                >
                   CONFIRM ORDER
                 </button>
               </div>
@@ -2338,85 +3629,580 @@ export default function App() {
         </div>
       )}
 
-      {showModal === 'preview' && lastOrder && (
-        <div className="fixed inset-0 bg-black/95 z-[110] flex items-center justify-center p-4">
-          <div className="bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] w-full max-w-xs p-4 rounded-xl border border-[#d4af37]/30">
-            <div className="text-center mb-3">
-              <CheckCircle2 size={24} className="text-green-500 mx-auto mb-2" />
-              <h3 className="text-sm font-black text-white uppercase">Bill Confirmed!</h3>
+      {/* MANUAL ORDER MODAL */}
+      {showModal === 'manual' && (
+        <div className="fixed inset-0 bg-black z-[100] overflow-y-auto">
+          <div className="min-h-screen p-3 max-w-lg mx-auto pb-40">
+            <div className="flex justify-between items-center mb-4 sticky top-0 bg-black/95 py-3 border-b border-white/10 backdrop-blur-xl z-10">
+              <div>
+                <h2 className="text-xl font-black uppercase text-white">Manual Order</h2>
+                <p className="text-xs text-[#d4af37] font-black uppercase">Add Custom Items</p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowModal(null);
+                  setManualItems([{ name: '', qty: 1, price: 0, subtotal: 0 }]);
+                }}
+                className="p-2 bg-white/10 rounded-full text-white hover:bg-white/20 transition-all"
+              >
+                <X size={20}/>
+              </button>
             </div>
-            <div className="space-y-2">
-              <button onClick={() => { printBill(lastOrder); setShowModal(null); }} className="w-full py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-black rounded-lg text-[8px] uppercase">
-                PRINT
-              </button>
-              <button onClick={() => shareToWhatsApp(lastOrder)} className="w-full py-2 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg text-[8px] uppercase">
-                SHARE
-              </button>
-              <button onClick={() => { setShowModal(null); setLastOrder(null); }} className="w-full py-2 bg-white/5 text-white/60 font-black rounded-lg text-[8px] uppercase">
-                CLOSE
-              </button>
+
+            <div className="mb-4">
+              <label className="text-xs font-black uppercase opacity-60 mb-2 block">Select Shop</label>
+              <select
+                className="w-full bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] p-3 rounded-xl border border-white/5 text-white font-bold uppercase outline-none text-xs focus:border-[#d4af37] transition-all"
+                onChange={(e) => {
+                  const shopId = e.target.value;
+                  const shop = data.shops.find(s => s.id === shopId);
+                  setSelectedShop(shop);
+                }}
+                defaultValue=""
+              >
+                <option value="">-- SELECT SHOP --</option>
+                {data.shops.map(s => (
+                  <option key={s.id} value={s.id}>{s.name} - {s.area}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <h3 className="text-xs font-black uppercase opacity-60">Custom Items</h3>
+                <button
+                  type="button"
+                  onClick={addManualItem}
+                  className="text-[#d4af37] text-xs font-black uppercase flex items-center gap-1.5 hover:opacity-80 transition-all"
+                >
+                  <Plus size={16}/> ADD ITEM
+                </button>
+              </div>
+
+              {manualItems.map((item, index) => (
+                <div key={index} className="bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] p-3 rounded-xl border border-white/5 space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] font-black uppercase opacity-60">Item #{index + 1}</span>
+                    {manualItems.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeManualItem(index)}
+                        className="p-1.5 text-red-500/60 hover:text-red-500 hover:bg-red-500/10 rounded transition-all"
+                      >
+                        <Trash2 size={14}/>
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <p className="text-[10px] font-black uppercase opacity-40 mb-1">Item Name</p>
+                      <input
+                        value={item.name}
+                        onChange={(e) => updateManualItem(index, 'name', e.target.value)}
+                        placeholder="PRODUCT NAME"
+                        className="w-full bg-black/40 p-2 rounded border border-white/5 text-white font-bold uppercase outline-none text-xs focus:border-[#d4af37] transition-all"
+                      />
+                    </div>
+
+                    <div>
+                      <p className="text-[10px] font-black uppercase opacity-40 mb-1">Quantity</p>
+                      <input
+                        type="number"
+                        value={item.qty}
+                        onChange={(e) => updateManualItem(index, 'qty', e.target.value)}
+                        className="w-full bg-black/40 p-2 rounded border border-white/5 text-white font-bold text-center outline-none text-xs focus:border-[#d4af37] transition-all"
+                      />
+                    </div>
+
+                    <div>
+                      <p className="text-[10px] font-black uppercase opacity-40 mb-1">Unit Price (Rs.)</p>
+                      <input
+                        type="number"
+                        value={item.price}
+                        onChange={(e) => updateManualItem(index, 'price', e.target.value)}
+                        placeholder="0.00"
+                        className="w-full bg-black/40 p-2 rounded border border-white/5 text-white font-bold text-center outline-none text-xs focus:border-[#d4af37] transition-all"
+                      />
+                    </div>
+
+                    <div>
+                      <p className="text-[10px] font-black uppercase opacity-40 mb-1">Subtotal (Rs.)</p>
+                      <div className="w-full bg-black/40 p-2 rounded border border-white/5 text-center">
+                        <span className="text-[#d4af37] font-black text-sm">Rs.{item.subtotal.toLocaleString()}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="fixed bottom-0 inset-x-0 p-3 bg-black/95 border-t border-white/10 backdrop-blur-2xl z-20">
+              <div className="max-w-lg mx-auto">
+                <div className="flex justify-between items-center mb-2">
+                  <div>
+                    <p className="text-[10px] font-black uppercase opacity-40">Selected Shop</p>
+                    <p className="text-sm font-black text-white">
+                      {selectedShop?.name || "Not Selected"}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[10px] font-black uppercase opacity-40">Order Total</p>
+                    <p className="text-lg font-black text-[#d4af37]">
+                      Rs.{manualItems.reduce((sum, item) => sum + (item.subtotal || 0), 0).toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={saveManualOrder}
+                  disabled={!selectedShop}
+                  className={`w-full py-3 font-black rounded-xl uppercase tracking-widest text-xs transition-all ${selectedShop ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black hover:opacity-90' : 'bg-gray-700 text-gray-400'}`}
+                >
+                  {selectedShop ? 'SAVE MANUAL ORDER' : 'SELECT SHOP FIRST'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {showPrintPreview && printOrder && (
-        <div className="fixed inset-0 bg-black/95 z-[200] flex items-center justify-center p-4">
-          <div className="bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] w-full max-w-xs p-4 rounded-xl border border-[#d4af37]/30">
-            <div className="flex justify-between items-center mb-3">
-              <h3 className="text-sm font-black text-[#d4af37] uppercase">Print Bill</h3>
-              <button onClick={() => setShowPrintPreview(false)} className="p-1 text-white/30 hover:text-white/60">
-                <X size={16} />
-              </button>
-            </div>
-            <div className="bg-white p-3 rounded-lg mb-3 text-black">
-              <div className="text-center border-b pb-2 mb-2">
-                <div className="text-sm font-bold text-[#d4af37]">{printOrder.companyName}</div>
-                <div className="text-xs font-bold">{printOrder.shopName}</div>
+      {/* PREVIEW MODAL */}
+      {showModal === 'preview' && lastOrder && (
+        <div className="fixed inset-0 bg-black/95 z-[110] flex items-center justify-center p-3 backdrop-blur-3xl">
+          <div className="bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] w-full max-w-sm p-4 rounded-2xl border border-[#d4af37]/30 shadow-2xl">
+            <div className="flex flex-col items-center text-center mb-4">
+              <div className="w-12 h-12 bg-gradient-to-br from-green-500/20 to-emerald-600/20 text-green-500 rounded-full flex items-center justify-center mb-3 border border-green-500/30">
+                <CheckCircle2 size={24}/>
               </div>
-              <div className="text-[8px]">
-                {printOrder.items?.map((item, i) => (
-                  <div key={i} className="flex justify-between py-0.5">
-                    <span>{item.name}</span>
-                    <span>{item.qty} x {item.price} = Rs.{item.subtotal}</span>
+              <h3 className="text-lg font-black text-white uppercase">Bill Confirmed!</h3>
+              <p className="text-xs text-white/60 uppercase font-bold mt-1">{lastOrder.shopName}</p>
+            </div>
+
+            <div className="bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] rounded-xl p-3 mb-4 border border-white/5">
+              <div className="space-y-2 max-h-32 overflow-y-auto pr-1">
+                {lastOrder.items && lastOrder.items.map((it, idx) => (
+                  <div key={idx} className="flex justify-between items-center text-xs uppercase font-bold py-1 border-b border-white/5 last:border-0">
+                    <div>
+                      <span className="text-white/80">{it.name}</span>
+                      <span className="text-white text-[10px] ml-1">x{it.qty} @ Rs.{it.price}</span>
+                    </div>
+                    <span className="text-white font-black">Rs.{it.subtotal.toLocaleString()}</span>
                   </div>
                 ))}
               </div>
-              <div className="border-t mt-2 pt-2 text-right text-xs font-bold">
-                Total: Rs.{printOrder.total.toLocaleString()}
+
+              <div className="mt-3 pt-2 border-t border-white/10 flex justify-between items-center">
+                <span className="text-xs font-black uppercase text-white">Total</span>
+                <span className="text-lg font-black text-[#d4af37]">Rs.{lastOrder.total.toLocaleString()}</span>
               </div>
             </div>
-            <button
-              onClick={() => { handlePrint(printOrder); setShowPrintPreview(false); }}
-              className="w-full py-2 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg text-[8px] uppercase"
-            >
-              PRINT
-            </button>
+
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={() => {
+                  printBill(lastOrder);
+                  setShowModal(null);
+                }}
+                className="w-full py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-black rounded-lg uppercase text-xs flex items-center justify-center gap-1.5 hover:opacity-90 transition-all"
+              >
+                <Printer size={14} /> PRINT BILL
+              </button>
+              <button
+                type="button"
+                onClick={() => shareBillWithLocation(lastOrder)}
+                className="w-full py-2.5 bg-gradient-to-r from-[#25D366] to-[#128C7E] text-white font-black rounded-lg uppercase text-xs flex items-center justify-center gap-1.5 hover:opacity-90 transition-all"
+              >
+                <Navigation size={14} /> Share with Location
+              </button>
+              <button
+                type="button"
+                onClick={() => shareToWhatsApp(lastOrder)}
+                className="w-full py-2.5 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg uppercase text-xs flex items-center justify-center gap-1.5 hover:opacity-90 transition-all"
+              >
+                <Share2 size={14} /> Share Bill Only
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowModal(null);
+                  setLastOrder(null);
+                }}
+                className="w-full py-2.5 bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] text-white/60 font-black rounded-lg uppercase text-xs border border-white/5 hover:border-white/10 transition-all"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}
 
+      {/* SHOP PROFILE MODAL */}
+      {showModal === 'shopProfile' && selectedShop && (
+        <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-3 backdrop-blur-3xl">
+          <div className="w-full max-w-xs p-4 rounded-2xl border border-[#d4af37]/30 bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] text-white">
+            <button onClick={() => setShowModal(null)} className="absolute top-2 right-2 text-white/20 hover:text-white/40 p-1">
+              <X size={20}/>
+            </button>
+
+            <div className="text-center mb-4">
+              <Briefcase size={30} className="text-[#d4af37] mx-auto mb-2" />
+              <h3 className="font-black text-[#d4af37] mb-1 uppercase text-base tracking-widest">Shop Profile</h3>
+              <p className="text-[10px] opacity-50">{selectedShop.name}</p>
+            </div>
+
+            <form onSubmit={saveShopProfile} className="space-y-3">
+              <input
+                name="ownerName"
+                placeholder="Owner Name"
+                defaultValue={getShopProfile(selectedShop.id)?.ownerName || ''}
+                className="w-full p-3 rounded-lg border border-white/10 bg-black/40 text-white font-bold uppercase outline-none text-xs focus:border-[#d4af37] transition-all"
+              />
+              <input
+                name="phone"
+                placeholder="Phone Number"
+                defaultValue={getShopProfile(selectedShop.id)?.phone || ''}
+                className="w-full p-3 rounded-lg border border-white/10 bg-black/40 text-white font-bold outline-none text-xs focus:border-[#d4af37] transition-all"
+              />
+              <input
+                name="email"
+                type="email"
+                placeholder="Email Address"
+                defaultValue={getShopProfile(selectedShop.id)?.email || ''}
+                className="w-full p-3 rounded-lg border border-white/10 bg-black/40 text-white font-bold outline-none text-xs focus:border-[#d4af37] transition-all"
+              />
+              <input
+                name="address"
+                placeholder="Address"
+                defaultValue={getShopProfile(selectedShop.id)?.address || ''}
+                className="w-full p-3 rounded-lg border border-white/10 bg-black/40 text-white font-bold uppercase outline-none text-xs focus:border-[#d4af37] transition-all"
+              />
+              <input
+                name="gst"
+                placeholder="GST Number"
+                defaultValue={getShopProfile(selectedShop.id)?.gst || ''}
+                className="w-full p-3 rounded-lg border border-white/10 bg-black/40 text-white font-bold uppercase outline-none text-xs focus:border-[#d4af37] transition-all"
+              />
+              <textarea
+                name="notes"
+                placeholder="Additional Notes"
+                rows="2"
+                defaultValue={getShopProfile(selectedShop.id)?.notes || ''}
+                className="w-full p-3 rounded-lg border border-white/10 bg-black/40 text-white text-xs outline-none resize-none focus:border-[#d4af37] transition-all"
+              />
+
+              <button
+                type="submit"
+                className="w-full py-3 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg uppercase text-xs tracking-widest hover:opacity-90 transition-all"
+              >
+                SAVE PROFILE
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* TARGET MODAL */}
+      {showModal === 'target' && (
+        <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-3 backdrop-blur-3xl">
+          <div className="w-full max-w-xs p-4 rounded-2xl border border-[#d4af37]/30 bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] text-white">
+            <button onClick={() => setShowModal(null)} className="absolute top-2 right-2 text-white/20 hover:text-white/40 p-1">
+              <X size={20}/>
+            </button>
+
+            <div className="text-center mb-4">
+              <Target size={30} className="text-[#d4af37] mx-auto mb-2" />
+              <h3 className="font-black text-[#d4af37] mb-1 uppercase text-base tracking-widest">Monthly Target</h3>
+              <p className="text-[10px] opacity-50">Set your sales goal</p>
+            </div>
+
+            <form onSubmit={saveMonthlyTarget} className="space-y-4">
+              <div>
+                <label className="text-[10px] font-black uppercase opacity-40 mb-1 block">Select Month</label>
+                <input
+                  type="month"
+                  value={targetMonth}
+                  onChange={(e) => setTargetMonth(e.target.value)}
+                  className="w-full p-3 rounded-lg border border-white/10 bg-black/40 text-white font-bold outline-none text-xs focus:border-[#d4af37] transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] font-black uppercase opacity-40 mb-1 block">Target Amount (Rs.)</label>
+                <input
+                  type="number"
+                  value={targetAmount}
+                  onChange={(e) => setTargetAmount(e.target.value)}
+                  placeholder="0.00"
+                  className="w-full p-3 rounded-lg border border-white/10 bg-black/40 text-white font-bold text-center outline-none text-xs focus:border-[#d4af37] transition-all"
+                />
+              </div>
+
+              {stats.monthlyTarget > 0 && (
+                <div className="p-3 bg-[#d4af37]/10 rounded-lg border border-[#d4af37]/30">
+                  <p className="text-xs opacity-60">Current Target</p>
+                  <p className="text-lg font-black text-[#d4af37]">Rs.{stats.monthlyTarget.toLocaleString()}</p>
+                  <p className="text-xs opacity-60 mt-1">Progress: {stats.targetProgress.toFixed(1)}%</p>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                className="w-full py-3 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg uppercase text-xs tracking-widest hover:opacity-90 transition-all"
+              >
+                SET TARGET
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* REGISTER MODALS (Shop, Brand, Route) */}
+      {['route', 'shop', 'brand'].includes(showModal) && (
+        <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-3 backdrop-blur-3xl">
+          <div className={`w-full max-w-xs p-4 rounded-2xl border relative shadow-2xl ${
+            isDarkMode
+              ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/30 text-white"
+              : "bg-gradient-to-br from-white to-gray-50 border-[#d4af37]/50 text-gray-900"
+          }`}>
+            <button onClick={() => setShowModal(null)} className="absolute top-2 right-2 text-white/20 hover:text-white/40 p-1">
+              <X size={20}/>
+            </button>
+
+            <div className="text-center mb-4">
+              {showModal === 'route' && <MapPin size={28} className="text-[#d4af37] mx-auto mb-2" />}
+              {showModal === 'shop' && <Store size={28} className="text-[#d4af37] mx-auto mb-2" />}
+              {showModal === 'brand' && <Package size={28} className="text-[#d4af37] mx-auto mb-2" />}
+
+              <h3 className="font-black text-[#d4af37] mb-1 uppercase text-base tracking-widest">
+                New {showModal.charAt(0).toUpperCase() + showModal.slice(1)}
+              </h3>
+              <p className="text-[10px] opacity-50">
+                {showModal === 'route' && 'Add new sales route'}
+                {showModal === 'shop' && 'Register new shop'}
+                {showModal === 'brand' && `Add new product brand (Next #${data.brands.length + 1})`}
+              </p>
+            </div>
+
+            <form onSubmit={
+              showModal === 'brand' ? addBrandWithSequence : 
+              async (e) => {
+                e.preventDefault();
+                const f = e.target;
+
+                if (!user) {
+                  showToast("Please login first!", "error");
+                  return;
+                }
+
+                const payload = { userId: user.uid, timestamp: Date.now() };
+
+                try {
+                  if(showModal==='route') {
+                    await addDoc(collection(db, 'routes'), {
+                      ...payload,
+                      name: f.name.value.toUpperCase()
+                    });
+                    showToast("✅ Route added successfully!", "success");
+                  }
+
+                  if(showModal==='shop') {
+                    await addDoc(collection(db, 'shops'), {
+                      ...payload,
+                      name: f.name.value.toUpperCase(),
+                      area: f.area.value
+                    });
+                    showToast("✅ Shop registered successfully!", "success");
+                  }
+
+                  setShowModal(null);
+                } catch (err) {
+                  showToast("Error: " + err.message, "error");
+                }
+              }
+            } className="space-y-3">
+
+              <input
+                name="name"
+                placeholder={
+                  showModal === 'brand' ? "BRAND NAME" :
+                  showModal === 'shop' ? "SHOP NAME" :
+                  "ROUTE NAME"
+                }
+                className={`w-full p-3 rounded-lg border text-white font-bold uppercase outline-none text-xs focus:border-[#d4af37] transition-all ${
+                  isDarkMode ? 'bg-black/40 border-white/5' : 'bg-gray-100 border-gray-300 text-gray-900'
+                }`}
+                required
+              />
+
+              {showModal==='shop' && (
+                <div className="relative">
+                  <select
+                    name="area"
+                    className={`w-full p-3 rounded-lg border text-white font-bold uppercase outline-none appearance-none text-xs focus:border-[#d4af37] transition-all ${
+                      isDarkMode ? 'bg-black/40 border-white/5' : 'bg-gray-100 border-gray-300 text-gray-900'
+                    }`}
+                    required
+                  >
+                    <option value="">SELECT ROUTE AREA</option>
+                    {data.routes.map(r => (
+                      <option key={r.id} value={r.name}>{r.name}</option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 opacity-30" size={16}/>
+                </div>
+              )}
+
+              {showModal==='brand' && (
+                <>
+                  <div className={`p-2 rounded-lg border ${isDarkMode ? 'bg-[#d4af37]/10 border-[#d4af37]/30' : 'bg-[#d4af37]/5 border-[#d4af37]/20'} text-center`}>
+                    <span className="text-[10px] font-black uppercase opacity-60">Brand Number</span>
+                    <div className="text-2xl font-black text-[#d4af37]">{data.brands.length + 1}</div>
+                  </div>
+
+                  <input
+                    name="size"
+                    placeholder="SIZE (e.g., 500ML, 1KG)"
+                    className={`w-full p-3 rounded-lg border text-white font-bold uppercase outline-none text-xs focus:border-[#d4af37] transition-all ${
+                      isDarkMode ? 'bg-black/40 border-white/5' : 'bg-gray-100 border-gray-300 text-gray-900'
+                    }`}
+                    required
+                  />
+                  <input
+                    name="price"
+                    type="number"
+                    step="0.01"
+                    placeholder="UNIT PRICE (Rs.)"
+                    className={`w-full p-3 rounded-lg border text-white font-bold outline-none text-xs focus:border-[#d4af37] transition-all ${
+                      isDarkMode ? 'bg-black/40 border-white/5' : 'bg-gray-100 border-gray-300 text-gray-900'
+                    }`}
+                    required
+                  />
+                  
+                  {/* Brand Error Display */}
+                  {brandError && (
+                    <div className="p-2 bg-red-500/20 border border-red-500/30 rounded-lg">
+                      <p className="text-red-500 text-xs font-bold text-center">{brandError}</p>
+                    </div>
+                  )}
+                </>
+              )}
+
+              <button type="submit" className="w-full py-3 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg uppercase text-xs tracking-widest hover:opacity-90 transition-all">
+                SAVE {showModal.toUpperCase()}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Custom Styles */}
       <style>{`
         @keyframes progress {
           0% { width: 0%; }
           100% { width: 100%; }
         }
+
         .animate-progress {
-          animation: progress 1s ease-in-out;
+          animation: progress 2.5s ease-in-out;
         }
+
+        * {
+          font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif !important;
+          font-weight: 500;
+        }
+
+        body {
+          font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+          -webkit-font-smoothing: antialiased;
+          -moz-osx-font-smoothing: grayscale;
+          font-size: 14px;
+        }
+
         input, button, select, textarea {
-          font-size: 14px !important;
+          font-family: inherit !important;
+          font-size: 16px !important;
+          font-weight: 600;
         }
+
+        .font-black {
+          font-weight: 700 !important;
+        }
+
         @media (max-width: 640px) {
-          .text-xs { font-size: 0.65rem !important; }
-          .text-sm { font-size: 0.7rem !important; }
-          .text-base { font-size: 0.75rem !important; }
-          .text-lg { font-size: 0.85rem !important; }
+          body { font-size: 13px; }
+          input, button, select, textarea { font-size: 13px; }
+          .text-xs { font-size: 0.7rem !important; }
+          .text-sm { font-size: 0.75rem !important; }
+          h1, h2, h3, h4 { font-size: 0.9rem !important; }
         }
+
+        @media (max-width: 400px) {
+          body { font-size: 12px; }
+          input, button, select, textarea { font-size: 12px; }
+          main { padding: 0.5rem !important; }
+          .p-3 { padding: 0.6rem !important; }
+          .p-4 { padding: 0.75rem !important; }
+          .p-5 { padding: 1rem !important; }
+          .rounded-2xl { border-radius: 1rem !important; }
+        }
+
         button {
-          min-height: 40px;
-          min-width: 40px;
+          min-height: 44px;
+          min-width: 44px;
         }
+
+        input, select, textarea {
+          font-size: 16px !important;
+        }
+
+        @media (max-height: 600px) {
+          .fixed.inset-0 {
+            align-items: flex-start;
+            padding-top: 1rem;
+            overflow-y: auto;
+          }
+        }
+
+        ::-webkit-scrollbar {
+          width: 3px;
+        }
+
+        ::-webkit-scrollbar-track {
+          background: rgba(255,255,255,0.05);
+          border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+          background: rgba(212, 175, 55, 0.5);
+          border-radius: 10px;
+        }
+
+        .transition-all {
+          transition: all 0.2s ease;
+        }
+
+        /* Print styles */
+        @media print {
+          body * {
+            visibility: hidden;
+          }
+          .print-bill, .print-bill * {
+            visibility: visible;
+          }
+          .print-bill {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            background: white;
+            color: black;
+            padding: 20px;
+          }
+        }
+
+        /* Grid for Snake Game */
         .grid-cols-20 {
           grid-template-columns: repeat(20, minmax(0, 1fr));
         }
