@@ -8,14 +8,15 @@ import {
   signOut,
   sendPasswordResetEmail 
 } from 'firebase/auth';
-import { getFirestore, doc, collection, onSnapshot, addDoc, deleteDoc, query, orderBy, where, enableIndexedDbPersistence, setDoc, updateDoc } from 'firebase/firestore';
+import { getFirestore, doc, collection, onSnapshot, addDoc, deleteDoc, query, orderBy, where, enableIndexedDbPersistence, setDoc, updateDoc, disableNetwork, enableNetwork } from 'firebase/firestore';
 import {
   LayoutDashboard, Store, Plus, X, Trash2, Crown, Settings, LogOut,
   MapPin, Package, History, Calendar, Sun, Moon, Save, Star, Search,
   CheckCircle2, ChevronDown, Share2, TrendingUp, Edit2, Calculator,
   ShoppingBag, DollarSign, Fuel, FileText, Navigation, AlertCircle,
   CreditCard, Coffee, Target, Percent, BarChart3, Hash, Package2,
-  BookOpen, Filter, Eye, Clock, Download, Mail, Lock, User
+  BookOpen, Filter, Eye, Clock, Download, Mail, Lock, User, Printer,
+  Wifi, WifiOff
 } from 'lucide-react';
 
 // --- FIREBASE CONFIG ---
@@ -32,10 +33,18 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
+// Enable offline persistence
+let offlineMode = false;
 try {
-  enableIndexedDbPersistence(db);
+  enableIndexedDbPersistence(db).catch((err) => {
+    if (err.code === 'failed-precondition') {
+      console.log("Persistence failed - multiple tabs open");
+    } else if (err.code === 'unimplemented') {
+      console.log("Persistence not supported");
+    }
+  });
 } catch (err) {
-  console.log("Offline mode ready");
+  console.log("Offline mode setup:", err);
 }
 
 export default function App() {
@@ -45,6 +54,7 @@ export default function App() {
   const [isSplash, setIsSplash] = useState(true);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isDarkMode, setIsDarkMode] = useState(true);
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
   const [data, setData] = useState({
     routes: [],
     shops: [],
@@ -82,12 +92,38 @@ export default function App() {
   const [showCalculator, setShowCalculator] = useState(false);
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
   const [showAllMonthlyBrands, setShowAllMonthlyBrands] = useState(false);
-  
-  // NEW: Forgot password states
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
   const [isSendingReset, setIsSendingReset] = useState(false);
   const [resetSuccess, setResetSuccess] = useState(false);
+  const [pendingOrders, setPendingOrders] = useState([]);
+  const [brandSequence, setBrandSequence] = useState(0);
+  const [showPrintPreview, setShowPrintPreview] = useState(false);
+  const [printOrder, setPrintOrder] = useState(null);
+
+  // Network Status Listener
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOffline(false);
+      enableNetwork(db).then(() => {
+        showToast("📶 Back online - Syncing data...", "success");
+        syncPendingOrders();
+      });
+    };
+    const handleOffline = () => {
+      setIsOffline(true);
+      disableNetwork(db);
+      showToast("📴 Offline mode - Changes saved locally", "info");
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   // Toast Notification
   const showToast = (message, type = 'success') => {
@@ -110,7 +146,7 @@ export default function App() {
     };
   }, []);
 
-  // Real-time Data Fetching
+  // Real-time Data Fetching with Offline Support
   useEffect(() => {
     if (!user) return;
 
@@ -133,12 +169,25 @@ export default function App() {
               ...doc.data()
             }));
 
+            // Sort brands by sequence number
+            if (collectionName === 'brands') {
+              items.sort((a, b) => (a.sequence || 999) - (b.sequence || 999));
+            }
+
             setData(prev => ({
               ...prev,
               [collectionName]: items
             }));
           }, (error) => {
             console.error(`Error fetching ${collectionName}:`, error);
+            // Load from localStorage if offline
+            const cached = localStorage.getItem(`${collectionName}_${user.uid}`);
+            if (cached) {
+              setData(prev => ({
+                ...prev,
+                [collectionName]: JSON.parse(cached)
+              }));
+            }
           });
 
           unsubscribeFunctions.push(unsubscribe);
@@ -178,6 +227,21 @@ export default function App() {
     };
   }, [user]);
 
+  // Sync pending orders when back online
+  const syncPendingOrders = async () => {
+    const pending = JSON.parse(localStorage.getItem('pendingOrders') || '[]');
+    for (const order of pending) {
+      try {
+        await addDoc(collection(db, 'orders'), order);
+        showToast("✅ Synced order for " + order.shopName, "success");
+      } catch (err) {
+        console.error("Sync failed:", err);
+      }
+    }
+    localStorage.removeItem('pendingOrders');
+    setPendingOrders([]);
+  };
+
   // Get Current Location
   const getLocation = () => {
     if (!user) {
@@ -195,18 +259,25 @@ export default function App() {
           };
           setCurrentLocation(location);
 
-          addDoc(collection(db, 'locations'), {
+          const locationData = {
             ...location,
             userId: user.uid,
             date: new Date().toISOString().split('T')[0],
             type: 'user_location',
             name: `${data.settings.name || 'Rep'} Location`
-          }).then(() => {
-            showToast("📍 Location saved successfully!", "success");
-          }).catch(err => {
-            console.error("Error saving location:", err);
-            showToast("Error saving location", "error");
-          });
+          };
+
+          // Save to Firestore or localStorage if offline
+          if (isOffline) {
+            const cached = JSON.parse(localStorage.getItem(`locations_${user.uid}`) || '[]');
+            cached.unshift({ ...locationData, id: 'temp_' + Date.now() });
+            localStorage.setItem(`locations_${user.uid}`, JSON.stringify(cached));
+            showToast("📍 Location saved offline", "info");
+          } else {
+            addDoc(collection(db, 'locations'), locationData)
+              .then(() => showToast("📍 Location saved successfully!", "success"))
+              .catch(err => showToast("Error saving location", "error"));
+          }
         },
         (error) => {
           console.error("Error getting location:", error);
@@ -241,7 +312,7 @@ export default function App() {
     }
   };
 
-  // Save Expense
+  // Save Expense with Offline Support
   const saveExpense = async () => {
     if (!user) {
       showToast("Please login first!", "error");
@@ -255,15 +326,26 @@ export default function App() {
 
     setIsSavingExpense(true);
     try {
-      await addDoc(collection(db, 'expenses'), {
+      const expenseData = {
         type: expenseType,
         amount: parseFloat(expenseAmount),
         note: expenseNote,
         userId: user.uid,
         timestamp: Date.now(),
         date: new Date().toISOString().split('T')[0]
-      });
-      showToast("✅ Expense saved successfully!", "success");
+      };
+
+      if (isOffline) {
+        // Save to localStorage when offline
+        const cached = JSON.parse(localStorage.getItem(`expenses_${user.uid}`) || '[]');
+        cached.unshift({ ...expenseData, id: 'temp_' + Date.now() });
+        localStorage.setItem(`expenses_${user.uid}`, JSON.stringify(cached));
+        showToast("✅ Expense saved offline", "info");
+      } else {
+        await addDoc(collection(db, 'expenses'), expenseData);
+        showToast("✅ Expense saved successfully!", "success");
+      }
+
       setExpenseAmount('');
       setExpenseNote('');
       setShowModal(null);
@@ -278,8 +360,15 @@ export default function App() {
   const deleteExpense = async (expenseId) => {
     if (window.confirm('Are you sure you want to delete this expense?')) {
       try {
-        await deleteDoc(doc(db, 'expenses', expenseId));
-        showToast("Expense deleted successfully!", "success");
+        if (isOffline) {
+          const cached = JSON.parse(localStorage.getItem(`expenses_${user.uid}`) || '[]');
+          const updated = cached.filter(e => e.id !== expenseId);
+          localStorage.setItem(`expenses_${user.uid}`, JSON.stringify(updated));
+          showToast("Expense deleted offline", "info");
+        } else {
+          await deleteDoc(doc(db, 'expenses', expenseId));
+          showToast("Expense deleted successfully!", "success");
+        }
       } catch (err) {
         showToast("Error deleting expense: " + err.message, "error");
       }
@@ -298,7 +387,7 @@ export default function App() {
     }
   };
 
-  // Save Note
+  // Save Note with Offline Support
   const saveNote = async () => {
     if (!user) {
       showToast("Please login first!", "error");
@@ -312,13 +401,23 @@ export default function App() {
 
     setIsSavingNote(true);
     try {
-      await addDoc(collection(db, 'notes'), {
+      const noteData = {
         text: repNote,
         userId: user.uid,
         timestamp: Date.now(),
         date: new Date().toISOString().split('T')[0]
-      });
-      showToast("✅ Note saved successfully!", "success");
+      };
+
+      if (isOffline) {
+        const cached = JSON.parse(localStorage.getItem(`notes_${user.uid}`) || '[]');
+        cached.unshift({ ...noteData, id: 'temp_' + Date.now() });
+        localStorage.setItem(`notes_${user.uid}`, JSON.stringify(cached));
+        showToast("✅ Note saved offline", "info");
+      } else {
+        await addDoc(collection(db, 'notes'), noteData);
+        showToast("✅ Note saved successfully!", "success");
+      }
+
       setRepNote('');
       setShowModal(null);
     } catch (err) {
@@ -328,7 +427,7 @@ export default function App() {
     }
   };
 
-  // Save Manual Order
+  // Save Manual Order with Offline Support
   const saveManualOrder = async () => {
     if (!user) {
       showToast("Please login first!", "error");
@@ -363,7 +462,15 @@ export default function App() {
     };
 
     try {
-      await addDoc(collection(db, 'orders'), orderData);
+      if (isOffline) {
+        const pending = JSON.parse(localStorage.getItem('pendingOrders') || '[]');
+        pending.push(orderData);
+        localStorage.setItem('pendingOrders', JSON.stringify(pending));
+        showToast("✅ Order saved offline - Will sync when online", "info");
+      } else {
+        await addDoc(collection(db, 'orders'), orderData);
+      }
+
       setLastOrder(orderData);
       setShowModal('preview');
       setManualItems([{ name: '', qty: 1, price: 0, subtotal: 0 }]);
@@ -394,7 +501,6 @@ export default function App() {
       return;
     }
 
-    // Email format validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(resetEmail)) {
       showToast("Please enter a valid email address", "error");
@@ -421,7 +527,7 @@ export default function App() {
     }
   };
 
-  // FIXED Statistics Calculation
+  // Statistics Calculation
   const stats = useMemo(() => {
     const todayStr = new Date().toLocaleDateString();
     const currentMonth = new Date().getMonth();
@@ -457,15 +563,12 @@ export default function App() {
         }
       });
 
-      // Sort by units sold (most to least)
       const sortedByUnits = Object.entries(summary).sort((a, b) => b[1].units - a[1].units);
       const topBrandByUnits = sortedByUnits[0];
 
-      // Sort by revenue (most to least)
       const sortedByRevenue = Object.entries(summary).sort((a, b) => b[1].revenue - a[1].revenue);
       const topBrandByRevenue = sortedByRevenue[0];
 
-      // Get all brands sorted by revenue
       const allBrandsSorted = Object.entries(summary)
         .map(([name, data]) => ({
           name,
@@ -622,6 +725,162 @@ export default function App() {
     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
   };
 
+  // NEW: Print Bill Function
+  const printBill = (order) => {
+    setPrintOrder(order);
+    setShowPrintPreview(true);
+  };
+
+  // NEW: Generate Bill HTML for Printing
+  const generateBillHTML = (order) => {
+    const companyName = order.companyName || data.settings.company || "MONARCH";
+    const shopName = order.shopName || "Unknown Shop";
+    const date = order.timestamp ? new Date(order.timestamp).toLocaleString() : new Date().toLocaleString();
+    const billNumber = order.id ? order.id.slice(-6) : Math.floor(Math.random() * 1000000);
+    
+    let html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Bill - ${shopName}</title>
+        <style>
+          body {
+            font-family: 'Courier New', monospace;
+            margin: 0;
+            padding: 20px;
+            background: white;
+            color: black;
+          }
+          .bill {
+            max-width: 300px;
+            margin: 0 auto;
+            padding: 20px;
+            border: 2px solid #d4af37;
+            border-radius: 12px;
+          }
+          .header {
+            text-align: center;
+            border-bottom: 2px dashed #d4af37;
+            padding-bottom: 15px;
+            margin-bottom: 15px;
+          }
+          .company {
+            font-size: 24px;
+            font-weight: bold;
+            color: #d4af37;
+            margin: 0;
+            text-transform: uppercase;
+          }
+          .shop {
+            font-size: 18px;
+            font-weight: bold;
+            margin: 5px 0;
+          }
+          .details {
+            font-size: 12px;
+            margin: 5px 0;
+          }
+          .items {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+          }
+          .items th {
+            border-bottom: 1px solid #d4af37;
+            padding: 5px;
+            font-size: 12px;
+            text-align: left;
+          }
+          .items td {
+            padding: 5px;
+            font-size: 12px;
+          }
+          .total {
+            border-top: 2px solid #d4af37;
+            margin-top: 15px;
+            padding-top: 15px;
+            text-align: right;
+            font-size: 16px;
+            font-weight: bold;
+          }
+          .footer {
+            margin-top: 20px;
+            text-align: center;
+            font-size: 10px;
+            color: #666;
+          }
+          @media print {
+            body { margin: 0; padding: 10px; }
+            .bill { border: 1px solid #000; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="bill">
+          <div class="header">
+            <div class="company">${companyName}</div>
+            <div class="shop">${shopName}</div>
+            <div class="details">${date}</div>
+            <div class="details">Bill #: ${billNumber}</div>
+          </div>
+    `;
+
+    html += `
+          <table class="items">
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th>Qty</th>
+                <th>Price</th>
+                <th>Total</th>
+              </tr>
+            </thead>
+            <tbody>
+    `;
+
+    if (order.items && Array.isArray(order.items)) {
+      order.items.forEach(item => {
+        html += `
+              <tr>
+                <td>${item.name || 'Item'}</td>
+                <td>${item.qty || 0}</td>
+                <td>Rs.${(item.price || 0).toLocaleString()}</td>
+                <td>Rs.${(item.subtotal || 0).toLocaleString()}</td>
+              </tr>
+        `;
+      });
+    }
+
+    html += `
+            </tbody>
+          </table>
+          
+          <div class="total">
+            TOTAL: Rs.${(order.total || 0).toLocaleString()}
+          </div>
+          
+          <div class="footer">
+            Thank you for your business!<br>
+            Generated by Monarch Pro
+          </div>
+        </div>
+        <script>
+          window.onload = function() { window.print(); }
+        </script>
+      </body>
+      </html>
+    `;
+
+    return html;
+  };
+
+  // NEW: Execute Print
+  const handlePrint = (order) => {
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(generateBillHTML(order));
+    printWindow.document.close();
+  };
+
   // Auth Handler
   const handleAuth = async (e) => {
     e.preventDefault();
@@ -630,7 +889,6 @@ export default function App() {
 
     try {
       if (isRegisterMode) {
-        // Password strength validation for registration
         if (password.length < 6) {
           showToast("Password must be at least 6 characters", "error");
           return;
@@ -639,7 +897,6 @@ export default function App() {
         await createUserWithEmailAndPassword(auth, email, password);
         showToast("🎉 Account created successfully!", "success");
         
-        // Optional: Set initial profile
         try {
           await setDoc(doc(db, "settings", auth.currentUser.uid), {
             name: email.split('@')[0].toUpperCase(),
@@ -655,7 +912,6 @@ export default function App() {
         showToast("👑 Welcome back!", "success");
       }
     } catch (err) {
-      // User-friendly error messages
       let errorMessage = "Authentication failed";
       
       switch (err.code) {
@@ -695,7 +951,7 @@ export default function App() {
     }, 0);
   };
 
-  // Create Order from Cart
+  // Create Order from Cart with Offline Support
   const handleCreateOrder = async () => {
     if (!user) {
       showToast("Please login first!", "error");
@@ -738,7 +994,15 @@ export default function App() {
     };
 
     try {
-      await addDoc(collection(db, 'orders'), orderData);
+      if (isOffline) {
+        const pending = JSON.parse(localStorage.getItem('pendingOrders') || '[]');
+        pending.push(orderData);
+        localStorage.setItem('pendingOrders', JSON.stringify(pending));
+        showToast("✅ Order saved offline - Will sync when online", "info");
+      } else {
+        await addDoc(collection(db, 'orders'), orderData);
+      }
+      
       setCart({});
       setLastOrder(orderData);
       setShowModal('preview');
@@ -752,15 +1016,22 @@ export default function App() {
   const deleteNote = async (noteId) => {
     if (window.confirm('Are you sure you want to delete this note?')) {
       try {
-        await deleteDoc(doc(db, 'notes', noteId));
-        showToast("Note deleted successfully!", "success");
+        if (isOffline) {
+          const cached = JSON.parse(localStorage.getItem(`notes_${user.uid}`) || '[]');
+          const updated = cached.filter(n => n.id !== noteId);
+          localStorage.setItem(`notes_${user.uid}`, JSON.stringify(updated));
+          showToast("Note deleted offline", "info");
+        } else {
+          await deleteDoc(doc(db, 'notes', noteId));
+          showToast("Note deleted successfully!", "success");
+        }
       } catch (err) {
         showToast("Error deleting note: " + err.message, "error");
       }
     }
   };
 
-  // Save Brand Edit
+  // Save Brand Edit with Sequence Update
   const saveBrandEdit = async (brandId, field, value) => {
     try {
       await updateDoc(doc(db, 'brands', brandId), { 
@@ -769,6 +1040,77 @@ export default function App() {
       showToast("Brand updated successfully!", "success");
     } catch (err) {
       showToast("Error updating brand: " + err.message, "error");
+    }
+  };
+
+  // NEW: Add Brand with Sequential Number
+  const addBrandWithSequence = async (e) => {
+    e.preventDefault();
+    if (!user) {
+      showToast("Please login first!", "error");
+      return;
+    }
+
+    const form = e.target;
+    
+    try {
+      // Get current brand count for sequence number
+      const currentCount = data.brands.length;
+      const sequence = currentCount + 1;
+
+      const brandData = {
+        userId: user.uid,
+        timestamp: Date.now(),
+        name: form.name.value.toUpperCase(),
+        size: form.size.value.toUpperCase(),
+        price: parseFloat(form.price.value),
+        sequence: sequence,
+        displayNumber: sequence // Display number starts from 1
+      };
+
+      if (isOffline) {
+        const cached = JSON.parse(localStorage.getItem(`brands_${user.uid}`) || '[]');
+        cached.unshift({ ...brandData, id: 'temp_' + Date.now() });
+        // Sort by sequence
+        cached.sort((a, b) => (a.sequence || 999) - (b.sequence || 999));
+        localStorage.setItem(`brands_${user.uid}`, JSON.stringify(cached));
+        showToast("✅ Brand added offline (Number: " + sequence + ")", "info");
+      } else {
+        await addDoc(collection(db, 'brands'), brandData);
+        showToast(`✅ Brand added successfully! (#${sequence})`, "success");
+      }
+
+      setShowModal(null);
+    } catch (err) {
+      showToast("Error: " + err.message, "error");
+    }
+  };
+
+  // NEW: Reorder Brands
+  const reorderBrands = async (brandId, direction) => {
+    if (!user || isOffline) {
+      showToast("Cannot reorder in offline mode", "error");
+      return;
+    }
+
+    try {
+      const currentBrands = [...data.brands];
+      const index = currentBrands.findIndex(b => b.id === brandId);
+      if (index === -1) return;
+
+      const newIndex = direction === 'up' ? index - 1 : index + 1;
+      if (newIndex < 0 || newIndex >= currentBrands.length) return;
+
+      // Swap sequence numbers
+      const brand1 = currentBrands[index];
+      const brand2 = currentBrands[newIndex];
+      
+      await updateDoc(doc(db, 'brands', brand1.id), { sequence: brand2.sequence });
+      await updateDoc(doc(db, 'brands', brand2.id), { sequence: brand1.sequence });
+
+      showToast("✅ Brand reordered successfully!", "success");
+    } catch (err) {
+      showToast("Error reordering brands: " + err.message, "error");
     }
   };
 
@@ -948,6 +1290,14 @@ export default function App() {
     <div className={`min-h-screen pb-40 transition-all duration-500 ${isDarkMode ? "bg-gradient-to-b from-black to-gray-900 text-white" : "bg-gradient-to-b from-gray-50 to-gray-100 text-gray-900"}`}>
       <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
 
+      {/* Offline Indicator */}
+      {isOffline && (
+        <div className="fixed top-16 left-1/2 transform -translate-x-1/2 z-[90] px-4 py-2 bg-yellow-500/20 text-yellow-500 rounded-full border border-yellow-500/30 backdrop-blur-xl text-xs font-bold flex items-center gap-2">
+          <WifiOff size={14} />
+          OFFLINE MODE
+        </div>
+      )}
+
       {/* Toast Notification */}
       {toast.show && (
         <div className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-[1000] px-6 py-3 rounded-xl shadow-2xl backdrop-blur-xl border ${
@@ -979,6 +1329,15 @@ export default function App() {
           </div>
         </div>
         <div className="flex gap-2">
+          {isOffline ? (
+            <div className="p-2.5 bg-yellow-500/10 text-yellow-500 rounded-xl border border-yellow-500/20">
+              <WifiOff size={18} />
+            </div>
+          ) : (
+            <div className="p-2.5 bg-green-500/10 text-green-500 rounded-xl border border-green-500/20">
+              <Wifi size={18} />
+            </div>
+          )}
           <button
             onClick={() => setIsDarkMode(!isDarkMode)}
             className={`p-2.5 rounded-xl border ${isDarkMode ? "bg-white/5 text-[#d4af37] border-white/10" : "bg-gray-100 text-gray-700 border-gray-200"} hover:opacity-80 transition-all`}
@@ -1113,7 +1472,7 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Monthly Top Brand Section - IMPROVED */}
+              {/* Monthly Top Brand Section */}
               <div className="mb-5">
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-[9px] font-black uppercase" style={{ color: isDarkMode ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)' }}>Monthly Top Brands</p>
@@ -1221,7 +1580,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* Today's Sales - FIXED */}
+            {/* Today's Sales */}
             <div className={`p-5 rounded-2xl border shadow-xl ${
               isDarkMode
                 ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/10"
@@ -1450,7 +1809,7 @@ export default function App() {
           </div>
         )}
 
-        {/* History Tab */}
+        {/* History Tab - UPDATED WITH PRINT BUTTON */}
         {activeTab === 'history' && (
           <div className="space-y-3">
             <div className={`p-4 rounded-2xl border flex items-center gap-3 ${
@@ -1499,6 +1858,18 @@ export default function App() {
                     </div>
                   </div>
                   <div className="flex gap-1.5">
+                    {/* PRINT BUTTON - NEW */}
+                    <button
+                      onClick={() => printBill(o)}
+                      className={`p-2 rounded-lg transition-all ${
+                        isDarkMode
+                          ? 'text-blue-500 hover:bg-blue-500/10'
+                          : 'text-blue-600 hover:bg-blue-100'
+                      }`}
+                      title="Print Bill"
+                    >
+                      <Printer size={16}/>
+                    </button>
                     <button
                       onClick={() => shareBillWithLocation(o)}
                       className={`p-2 rounded-lg transition-all ${
@@ -1571,7 +1942,7 @@ export default function App() {
           </div>
         )}
 
-        {/* NEW NOTES TAB */}
+        {/* NOTES TAB */}
         {activeTab === 'notes' && (
           <div className="space-y-3">
             <div className={`p-4 rounded-2xl border flex items-center gap-3 ${
@@ -1656,7 +2027,7 @@ export default function App() {
           </div>
         )}
 
-        {/* Settings Tab */}
+        {/* Settings Tab - UPDATED BRANDS WITH SEQUENTIAL NUMBERING */}
         {activeTab === 'settings' && (
           <div className="space-y-4 pb-16">
             {/* Profile Settings */}
@@ -1766,7 +2137,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* Brands List - IMPROVED WITH SEQUENTIAL DISPLAY */}
+            {/* Brands List - UPDATED WITH SEQUENTIAL NUMBERS */}
             <div>
               <div className="flex items-center justify-between mb-3">
                 <h4 className="text-xs font-black text-[#d4af37] uppercase tracking-widest">Brands List</h4>
@@ -1777,7 +2148,7 @@ export default function App() {
                 {data.brands.map((b, index) => (
                   <div
                     key={b.id}
-                    className={`p-3 rounded-xl border flex justify-between items-center transition-all ${
+                    className={`p-3 rounded-xl border transition-all ${
                       isDarkMode
                         ? 'bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5 hover:border-[#d4af37]/30'
                         : 'bg-gray-50 border-gray-100 hover:border-[#d4af37]'
@@ -1837,33 +2208,64 @@ export default function App() {
                       </div>
                     ) : (
                       <>
-                        <div className="flex items-center gap-3">
-                          <div className={`w-6 h-6 rounded-md flex items-center justify-center ${
-                            isDarkMode ? 'bg-white/10' : 'bg-gray-200'
-                          }`}>
-                            <span className="text-xs font-black">{index + 1}</span>
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-black uppercase" style={{ color: isDarkMode ? 'white' : 'black' }}>
-                                {b.name}
-                              </span>
-                              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gradient-to-r from-[#d4af37]/20 to-[#b8860b]/20 text-[#d4af37] border border-[#d4af37]/30">
-                                {b.size}
-                              </span>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            {/* SEQUENTIAL NUMBER BADGE */}
+                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-sm ${
+                              isDarkMode
+                                ? 'bg-[#d4af37]/20 text-[#d4af37] border border-[#d4af37]/30'
+                                : 'bg-[#d4af37]/10 text-[#d4af37] border border-[#d4af37]/20'
+                            }`}>
+                              {b.sequence || index + 1}
                             </div>
-                            <div className="flex items-center gap-2 mt-1">
-                              <span className="text-[10px] opacity-50">Added:</span>
-                              <span className="text-[10px] text-[#d4af37]">
-                                {b.timestamp ? new Date(b.timestamp).toLocaleDateString() : 'Recently'}
-                              </span>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-black uppercase" style={{ color: isDarkMode ? 'white' : 'black' }}>
+                                  {b.name}
+                                </span>
+                                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gradient-to-r from-[#d4af37]/20 to-[#b8860b]/20 text-[#d4af37] border border-[#d4af37]/30">
+                                  {b.size}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2 mt-1">
+                                <span className="text-[10px] opacity-50">Price:</span>
+                                <span className="text-xs font-black text-[#d4af37]">Rs.{b.price}</span>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                        
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-black text-[#d4af37]">Rs.{b.price}</span>
-                          <div className="flex gap-1">
+                          
+                          <div className="flex items-center gap-1">
+                            {/* Reorder buttons - only show if not offline */}
+                            {!isOffline && (
+                              <>
+                                {index > 0 && (
+                                  <button
+                                    onClick={() => reorderBrands(b.id, 'up')}
+                                    className={`p-1.5 rounded-lg transition-all ${
+                                      isDarkMode
+                                        ? 'text-white/40 hover:text-white hover:bg-white/10'
+                                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200'
+                                    }`}
+                                    title="Move Up"
+                                  >
+                                    ↑
+                                  </button>
+                                )}
+                                {index < data.brands.length - 1 && (
+                                  <button
+                                    onClick={() => reorderBrands(b.id, 'down')}
+                                    className={`p-1.5 rounded-lg transition-all ${
+                                      isDarkMode
+                                        ? 'text-white/40 hover:text-white hover:bg-white/10'
+                                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200'
+                                    }`}
+                                    title="Move Down"
+                                  >
+                                    ↓
+                                  </button>
+                                )}
+                              </>
+                            )}
                             <button
                               onClick={() => setEditingBrand(b.id)}
                               className={`p-1.5 rounded-lg transition-all ${
@@ -1902,7 +2304,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* Today's Expenses - WITH DELETE OPTION */}
+            {/* Today's Expenses */}
             <div>
               <div className="flex items-center justify-between mb-3">
                 <h4 className="text-xs font-black text-[#d4af37] uppercase tracking-widest">Today's Expenses</h4>
@@ -1961,7 +2363,7 @@ export default function App() {
         )}
       </main>
 
-      {/* Bottom Navigation - UPDATED WITH NOTES TAB */}
+      {/* Bottom Navigation */}
       <nav className={`fixed bottom-4 inset-x-4 h-16 rounded-2xl border flex items-center justify-around z-50 shadow-2xl ${
         isDarkMode
           ? "bg-gradient-to-br from-black/95 to-gray-900/95 border-white/10 backdrop-blur-xl"
@@ -2001,6 +2403,80 @@ export default function App() {
           </button>
         ))}
       </nav>
+
+      {/* PRINT PREVIEW MODAL - NEW */}
+      {showPrintPreview && printOrder && (
+        <div className="fixed inset-0 bg-black/95 z-[200] flex items-center justify-center p-3 backdrop-blur-3xl">
+          <div className="bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] w-full max-w-sm p-4 rounded-2xl border border-[#d4af37]/30 shadow-2xl">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-black text-[#d4af37] uppercase">Print Bill</h3>
+              <button
+                onClick={() => setShowPrintPreview(false)}
+                className="p-2 bg-white/10 rounded-full text-white hover:bg-white/20 transition-all"
+              >
+                <X size={20}/>
+              </button>
+            </div>
+
+            <div className="bg-white p-4 rounded-xl mb-4 text-black" style={{ fontFamily: "'Courier New', monospace" }}>
+              <div className="text-center border-b-2 border-[#d4af37] pb-3 mb-3">
+                <div className="text-xl font-bold text-[#d4af37]">{printOrder.companyName || "MONARCH"}</div>
+                <div className="text-lg font-bold mt-1">{printOrder.shopName}</div>
+                <div className="text-xs mt-1">{new Date(printOrder.timestamp).toLocaleString()}</div>
+                <div className="text-xs">Bill #: {printOrder.id ? printOrder.id.slice(-6) : Math.floor(Math.random() * 1000000)}</div>
+              </div>
+
+              <table className="w-full text-xs mb-3">
+                <thead>
+                  <tr className="border-b border-gray-300">
+                    <th className="text-left py-1">Item</th>
+                    <th className="text-center py-1">Qty</th>
+                    <th className="text-right py-1">Price</th>
+                    <th className="text-right py-1">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {printOrder.items && printOrder.items.map((item, idx) => (
+                    <tr key={idx}>
+                      <td className="py-1">{item.name}</td>
+                      <td className="text-center py-1">{item.qty}</td>
+                      <td className="text-right py-1">Rs.{item.price}</td>
+                      <td className="text-right py-1">Rs.{item.subtotal}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              <div className="border-t-2 border-[#d4af37] pt-3 text-right">
+                <span className="text-lg font-bold">Total: Rs.{printOrder.total.toLocaleString()}</span>
+              </div>
+
+              <div className="text-center text-xs mt-4 text-gray-600">
+                Thank you for your business!<br/>
+                Generated by Monarch Pro
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <button
+                onClick={() => {
+                  handlePrint(printOrder);
+                  setShowPrintPreview(false);
+                }}
+                className="w-full py-3 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg uppercase text-xs flex items-center justify-center gap-2 hover:opacity-90 transition-all"
+              >
+                <Printer size={16} /> PRINT BILL
+              </button>
+              <button
+                onClick={() => setShowPrintPreview(false)}
+                className="w-full py-2.5 bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] text-white/60 font-black rounded-lg uppercase text-xs border border-white/5 hover:border-white/10 transition-all"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* --- COMPACT CALCULATOR MODAL --- */}
       {showCalculator && (
@@ -2250,16 +2726,25 @@ export default function App() {
               </button>
             </div>
 
-            {/* Brand List */}
+            {/* Brand List - SHOW SEQUENTIAL NUMBERS */}
             <div className="space-y-2">
-              {data.brands.map(b => (
+              {data.brands.map((b, index) => (
                 <div
                   key={b.id}
                   className="bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] p-3 rounded-xl border border-white/5 flex items-center justify-between hover:border-[#d4af37]/30 transition-all"
                 >
-                  <div className="flex-1">
-                    <h4 className="text-xs font-black uppercase text-white">{b.name} ({b.size})</h4>
-                    <p className="text-xs text-[#d4af37] font-bold mt-0.5">Rs.{b.price.toLocaleString()}</p>
+                  <div className="flex items-center gap-3">
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-sm ${
+                      isDarkMode
+                        ? 'bg-[#d4af37]/20 text-[#d4af37] border border-[#d4af37]/30'
+                        : 'bg-[#d4af37]/10 text-[#d4af37] border border-[#d4af37]/20'
+                    }`}>
+                      {b.sequence || index + 1}
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="text-xs font-black uppercase text-white">{b.name} ({b.size})</h4>
+                      <p className="text-xs text-[#d4af37] font-bold mt-0.5">Rs.{b.price.toLocaleString()}</p>
+                    </div>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <button
@@ -2498,8 +2983,18 @@ export default function App() {
               </div>
             </div>
 
-            {/* Action Buttons */}
+            {/* Action Buttons - ADDED PRINT BUTTON */}
             <div className="space-y-2">
+              <button
+                type="button"
+                onClick={() => {
+                  printBill(lastOrder);
+                  setShowModal(null);
+                }}
+                className="w-full py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-black rounded-lg uppercase text-xs flex items-center justify-center gap-1.5 hover:opacity-90 transition-all"
+              >
+                <Printer size={14} /> PRINT BILL
+              </button>
               <button
                 type="button"
                 onClick={() => shareBillWithLocation(lastOrder)}
@@ -2510,7 +3005,7 @@ export default function App() {
               <button
                 type="button"
                 onClick={() => shareToWhatsApp(lastOrder)}
-                className="w-full py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-black rounded-lg uppercase text-xs flex items-center justify-center gap-1.5 hover:opacity-90 transition-all"
+                className="w-full py-2.5 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg uppercase text-xs flex items-center justify-center gap-1.5 hover:opacity-90 transition-all"
               >
                 <Share2 size={14} /> Share Bill Only
               </button>
@@ -2529,7 +3024,7 @@ export default function App() {
         </div>
       )}
 
-      {/* --- REGISTER MODALS (Shop, Brand, Route) --- */}
+      {/* --- REGISTER MODALS (Shop, Brand, Route) - UPDATED BRAND FORM WITH SEQUENCE --- */}
       {['route', 'shop', 'brand'].includes(showModal) && (
         <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-3 backdrop-blur-3xl">
           <div className={`w-full max-w-xs p-4 rounded-2xl border relative shadow-2xl ${
@@ -2552,54 +3047,47 @@ export default function App() {
               <p className="text-[10px] opacity-50">
                 {showModal === 'route' && 'Add new sales route'}
                 {showModal === 'shop' && 'Register new shop'}
-                {showModal === 'brand' && 'Add new product brand'}
+                {showModal === 'brand' && `Add new product brand (Next #${data.brands.length + 1})`}
               </p>
             </div>
 
-            <form onSubmit={async (e) => {
-              e.preventDefault();
-              const f = e.target;
+            <form onSubmit={
+              showModal === 'brand' ? addBrandWithSequence : 
+              async (e) => {
+                e.preventDefault();
+                const f = e.target;
 
-              if (!user) {
-                showToast("Please login first!", "error");
-                return;
+                if (!user) {
+                  showToast("Please login first!", "error");
+                  return;
+                }
+
+                const payload = { userId: user.uid, timestamp: Date.now() };
+
+                try {
+                  if(showModal==='route') {
+                    await addDoc(collection(db, 'routes'), {
+                      ...payload,
+                      name: f.name.value.toUpperCase()
+                    });
+                    showToast("✅ Route added successfully!", "success");
+                  }
+
+                  if(showModal==='shop') {
+                    await addDoc(collection(db, 'shops'), {
+                      ...payload,
+                      name: f.name.value.toUpperCase(),
+                      area: f.area.value
+                    });
+                    showToast("✅ Shop registered successfully!", "success");
+                  }
+
+                  setShowModal(null);
+                } catch (err) {
+                  showToast("Error: " + err.message, "error");
+                }
               }
-
-              const payload = { userId: user.uid, timestamp: Date.now() };
-
-              try {
-                if(showModal==='route') {
-                  await addDoc(collection(db, 'routes'), {
-                    ...payload,
-                    name: f.name.value.toUpperCase()
-                  });
-                  showToast("✅ Route added successfully!", "success");
-                }
-
-                if(showModal==='shop') {
-                  await addDoc(collection(db, 'shops'), {
-                    ...payload,
-                    name: f.name.value.toUpperCase(),
-                    area: f.area.value
-                  });
-                  showToast("✅ Shop registered successfully!", "success");
-                }
-
-                if(showModal==='brand') {
-                  await addDoc(collection(db, 'brands'), {
-                    ...payload,
-                    name: f.name.value.toUpperCase(),
-                    size: f.size.value.toUpperCase(),
-                    price: parseFloat(f.price.value)
-                  });
-                  showToast("✅ Brand added successfully!", "success");
-                }
-
-                setShowModal(null);
-              } catch (err) {
-                showToast("Error: " + err.message, "error");
-              }
-            }} className="space-y-3">
+            } className="space-y-3">
 
               <input
                 name="name"
@@ -2634,6 +3122,12 @@ export default function App() {
 
               {showModal==='brand' && (
                 <>
+                  {/* Show next sequence number */}
+                  <div className={`p-2 rounded-lg border ${isDarkMode ? 'bg-[#d4af37]/10 border-[#d4af37]/30' : 'bg-[#d4af37]/5 border-[#d4af37]/20'} text-center`}>
+                    <span className="text-[10px] font-black uppercase opacity-60">Brand Number</span>
+                    <div className="text-2xl font-black text-[#d4af37]">{data.brands.length + 1}</div>
+                  </div>
+
                   <input
                     name="size"
                     placeholder="SIZE (e.g., 500ML, 1KG)"
@@ -2804,6 +3298,25 @@ export default function App() {
 
         .transition-all {
           transition: all 0.2s ease;
+        }
+
+        /* Print styles */
+        @media print {
+          body * {
+            visibility: hidden;
+          }
+          .print-bill, .print-bill * {
+            visibility: visible;
+          }
+          .print-bill {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            background: white;
+            color: black;
+            padding: 20px;
+          }
         }
       `}</style>
     </div>
