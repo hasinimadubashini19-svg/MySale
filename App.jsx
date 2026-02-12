@@ -16,7 +16,8 @@ import {
   ShoppingBag, DollarSign, Fuel, FileText, Navigation, AlertCircle,
   CreditCard, Coffee, Target, Percent, BarChart3, Hash, Package2,
   BookOpen, Filter, Eye, Clock, Download, Mail, Lock, User, Printer,
-  Wifi, WifiOff, Award, Briefcase, Activity
+  Wifi, WifiOff, Award, Briefcase, Activity, Phone, Info,
+  ChevronLeft, ChevronRight, Home, UserCircle, Gamepad2
 } from 'lucide-react';
 
 // --- FIREBASE CONFIG ---
@@ -64,8 +65,8 @@ export default function App() {
     expenses: [],
     notes: [],
     locations: [],
-    targets: [],        // NEW: Monthly targets
-    shopProfiles: []    // NEW: Shop profiles
+    targets: [],
+    shopProfiles: []
   });
   const [cart, setCart] = useState({});
   const [selectedShop, setSelectedShop] = useState(null);
@@ -80,7 +81,7 @@ export default function App() {
   const [manualItems, setManualItems] = useState([{ name: '', qty: 1, price: 0, subtotal: 0 }]);
   const [editingBrand, setEditingBrand] = useState(null);
   
-  // Calculator State - UPDATED with percentage discount
+  // Calculator State
   const [totalCalculation, setTotalCalculation] = useState({
     subtotal: 0,
     discount: 0,
@@ -108,24 +109,25 @@ export default function App() {
   const [brandSequence, setBrandSequence] = useState(0);
   const [showPrintPreview, setShowPrintPreview] = useState(false);
   const [printOrder, setPrintOrder] = useState(null);
-  
-  // NEW: Delete Confirm State
   const [showDeleteConfirm, setShowDeleteConfirm] = useState({ show: false, id: null, type: '', name: '' });
-  
-  // NEW: Brand Error State
   const [brandError, setBrandError] = useState('');
-  
-  // NEW: Login Error State
   const [loginError, setLoginError] = useState('');
-  
-  // NEW: Target States
   const [targetAmount, setTargetAmount] = useState('');
   const [targetMonth, setTargetMonth] = useState(new Date().toISOString().slice(0, 7));
-  
-  // NEW: Shop Profile States
   const [shopProfileData, setShopProfileData] = useState({
     ownerName: '', phone: '', email: '', address: '', gst: '', notes: ''
   });
+  
+  // ===== NEW: Shop Details View =====
+  const [shopDetailsView, setShopDetailsView] = useState(null);
+  
+  // ===== NEW: Snake Game State =====
+  const [showSnakeGame, setShowSnakeGame] = useState(false);
+  const [snake, setSnake] = useState([{x: 10, y: 10}]);
+  const [food, setFood] = useState({x: 15, y: 15});
+  const [direction, setDirection] = useState('RIGHT');
+  const [gameOver, setGameOver] = useState(false);
+  const [score, setScore] = useState(0);
 
   // Network Status Listener
   useEffect(() => {
@@ -151,6 +153,81 @@ export default function App() {
     };
   }, []);
 
+  // Snake Game Logic
+  useEffect(() => {
+    if (!showSnakeGame || gameOver) return;
+
+    const gameInterval = setInterval(() => {
+      moveSnake();
+    }, 150);
+
+    const handleKeyPress = (e) => {
+      const key = e.key;
+      if (key === 'ArrowUp' && direction !== 'DOWN') setDirection('UP');
+      if (key === 'ArrowDown' && direction !== 'UP') setDirection('DOWN');
+      if (key === 'ArrowLeft' && direction !== 'RIGHT') setDirection('LEFT');
+      if (key === 'ArrowRight' && direction !== 'LEFT') setDirection('RIGHT');
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => {
+      clearInterval(gameInterval);
+      window.removeEventListener('keydown', handleKeyPress);
+    };
+  }, [showSnakeGame, snake, direction, gameOver]);
+
+  const moveSnake = () => {
+    const newSnake = [...snake];
+    const head = { ...newSnake[0] };
+
+    switch (direction) {
+      case 'UP': head.y -= 1; break;
+      case 'DOWN': head.y += 1; break;
+      case 'LEFT': head.x -= 1; break;
+      case 'RIGHT': head.x += 1; break;
+    }
+
+    // Check collision with walls
+    if (head.x < 0 || head.x > 20 || head.y < 0 || head.y > 20) {
+      setGameOver(true);
+      return;
+    }
+
+    // Check collision with self
+    if (newSnake.some(segment => segment.x === head.x && segment.y === head.y)) {
+      setGameOver(true);
+      return;
+    }
+
+    newSnake.unshift(head);
+
+    // Check if food eaten
+    if (head.x === food.x && head.y === food.y) {
+      setScore(score + 10);
+      generateFood();
+    } else {
+      newSnake.pop();
+    }
+
+    setSnake(newSnake);
+  };
+
+  const generateFood = () => {
+    const newFood = {
+      x: Math.floor(Math.random() * 20),
+      y: Math.floor(Math.random() * 20)
+    };
+    setFood(newFood);
+  };
+
+  const resetGame = () => {
+    setSnake([{x: 10, y: 10}]);
+    setFood({x: 15, y: 15});
+    setDirection('RIGHT');
+    setGameOver(false);
+    setScore(0);
+  };
+
   // Toast Notification
   const showToast = (message, type = 'success') => {
     setToast({ show: true, message, type });
@@ -172,7 +249,7 @@ export default function App() {
     };
   }, []);
 
-  // Real-time Data Fetching with Offline Support - UPDATED with targets and shopProfiles
+  // Real-time Data Fetching
   useEffect(() => {
     if (!user) return;
 
@@ -195,7 +272,6 @@ export default function App() {
               ...doc.data()
             }));
 
-            // Sort brands by sequence number
             if (collectionName === 'brands') {
               items.sort((a, b) => (a.sequence || 999) - (b.sequence || 999));
             }
@@ -206,7 +282,6 @@ export default function App() {
             }));
           }, (error) => {
             console.error(`Error fetching ${collectionName}:`, error);
-            // Load from localStorage if offline
             const cached = localStorage.getItem(`${collectionName}_${user.uid}`);
             if (cached) {
               setData(prev => ({
@@ -253,7 +328,7 @@ export default function App() {
     };
   }, [user]);
 
-  // Sync pending orders when back online
+  // Sync pending orders
   const syncPendingOrders = async () => {
     const pending = JSON.parse(localStorage.getItem('pendingOrders') || '[]');
     for (const order of pending) {
@@ -337,7 +412,7 @@ export default function App() {
     }
   };
 
-  // Save Expense with Offline Support
+  // Save Expense
   const saveExpense = async () => {
     if (!user) {
       showToast("Please login first!", "error");
@@ -380,7 +455,7 @@ export default function App() {
     }
   };
 
-  // ===== NEW: DELETE CONFIRM FUNCTIONS =====
+  // Delete Confirm
   const confirmDelete = (id, type, name) => {
     setShowDeleteConfirm({ show: true, id, type, name });
   };
@@ -406,17 +481,17 @@ export default function App() {
     }
   };
 
-  // Delete Expense - UPDATED with confirm modal
+  // Delete Expense
   const deleteExpense = async (expenseId) => {
     confirmDelete(expenseId, 'expense', '');
   };
 
-  // Delete Route - UPDATED with confirm modal
+  // Delete Route
   const deleteRoute = async (routeId) => {
     confirmDelete(routeId, 'route', '');
   };
 
-  // Save Note with Offline Support
+  // Save Note
   const saveNote = async () => {
     if (!user) {
       showToast("Please login first!", "error");
@@ -456,7 +531,7 @@ export default function App() {
     }
   };
 
-  // Save Manual Order with Offline Support
+  // Save Manual Order
   const saveManualOrder = async () => {
     if (!user) {
       showToast("Please login first!", "error");
@@ -509,7 +584,7 @@ export default function App() {
     }
   };
 
-  // ===== NEW: CALCULATE TOTAL WITH PERCENTAGE DISCOUNT =====
+  // Calculate Total
   const calculateTotal = () => {
     const subtotal = parseFloat(totalCalculation.subtotal) || 0;
     let discount = parseFloat(totalCalculation.discount) || 0;
@@ -543,7 +618,7 @@ export default function App() {
     });
   };
 
-  // Forgot Password Handler
+  // Forgot Password
   const handleForgotPassword = async () => {
     if (!resetEmail.trim()) {
       showToast("Please enter your email address", "error");
@@ -576,7 +651,7 @@ export default function App() {
     }
   };
 
-  // ===== NEW: STATISTICS WITH TARGETS AND MONTHLY EXPENSES =====
+  // ===== UPDATED: STATISTICS WITH TARGET AND EXPENSES =====
   const stats = useMemo(() => {
     const todayStr = new Date().toLocaleDateString();
     const currentMonth = new Date().getMonth();
@@ -595,7 +670,6 @@ export default function App() {
             const qty = i.qty || 0;
             const price = i.price || 0;
             const subtotal = i.subtotal || 0;
-
             const itemName = i.name.split('(')[0].trim();
 
             totalUnits += qty;
@@ -660,7 +734,7 @@ export default function App() {
     const todayExpenses = data.expenses.filter(e => e.date === todayStr);
     const totalExpenses = todayExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
     
-    // NEW: Monthly total expenses
+    // Monthly total expenses
     const monthlyExpenses = data.expenses.filter(e => {
       try {
         return e.date && e.date.startsWith(currentYear + '-' + String(currentMonth + 1).padStart(2, '0'));
@@ -671,10 +745,18 @@ export default function App() {
 
     const todayNotes = data.notes.filter(n => n.date === todayStr);
     
-    // NEW: Current month target
+    // Current month target
     const currentTarget = data.targets?.find(t => t.month === currentMonthStr) || { amount: 0 };
     const monthlySales = monthlyOrders.reduce((sum, o) => sum + (o.total || 0), 0);
     const targetProgress = currentTarget.amount > 0 ? (monthlySales / currentTarget.amount) * 100 : 0;
+
+    // Daily expenses breakdown
+    const dailyExpensesByType = todayExpenses.reduce((acc, expense) => {
+      const type = expense.type || 'other';
+      if (!acc[type]) acc[type] = 0;
+      acc[type] += expense.amount || 0;
+      return acc;
+    }, {});
 
     return {
       daily: getStats(dailyOrders),
@@ -683,6 +765,7 @@ export default function App() {
       monthlyExpenses: monthlyExpenses,
       notes: todayNotes.length,
       todayExpenses: todayExpenses,
+      dailyExpensesByType,
       monthlySales: monthlySales,
       monthlyTarget: currentTarget.amount || 0,
       targetProgress: targetProgress,
@@ -690,7 +773,7 @@ export default function App() {
     };
   }, [data.orders, data.expenses, data.notes, data.targets]);
 
-  // ===== NEW: SHOP STATISTICS FUNCTION =====
+  // Shop Statistics
   const getShopStats = (shopId) => {
     if (!shopId) return { totalSales: 0, orderCount: 0, lastOrder: null, items: {} };
     
@@ -712,7 +795,7 @@ export default function App() {
     return { totalSales, orderCount, lastOrder, items };
   };
 
-  // ===== NEW: GET SHOP PROFILE =====
+  // Get Shop Profile
   const getShopProfile = (shopId) => {
     return data.shopProfiles?.find(p => p.shopId === shopId);
   };
@@ -766,7 +849,7 @@ export default function App() {
     }
   };
 
-  // WhatsApp Share Functions
+  // WhatsApp Share
   const shareToWhatsApp = (order) => {
     if (!order) return;
 
@@ -821,13 +904,13 @@ export default function App() {
     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
   };
 
-  // Print Bill Function
+  // Print Bill
   const printBill = (order) => {
     setPrintOrder(order);
     setShowPrintPreview(true);
   };
 
-  // Generate Bill HTML for Printing (NORMAL SIZE - 80mm)
+  // Generate Bill HTML
   const generateBillHTML = (order) => {
     const companyName = order.companyName || data.settings.company || "MONARCH";
     const shopName = order.shopName || "Unknown Shop";
@@ -976,7 +1059,7 @@ export default function App() {
     printWindow.document.close();
   };
 
-  // ===== NEW: AUTH HANDLER WITH CLEAR ERROR MESSAGES =====
+  // Auth Handler
   const handleAuth = async (e) => {
     e.preventDefault();
     setLoginError('');
@@ -1048,7 +1131,7 @@ export default function App() {
     }, 0);
   };
 
-  // Create Order from Cart with Offline Support
+  // Create Order from Cart
   const handleCreateOrder = async () => {
     if (!user) {
       showToast("Please login first!", "error");
@@ -1110,12 +1193,12 @@ export default function App() {
     }
   };
 
-  // Delete Note - UPDATED with confirm modal
+  // Delete Note
   const deleteNote = async (noteId) => {
     confirmDelete(noteId, 'note', '');
   };
 
-  // Save Brand Edit with Sequence Update
+  // Save Brand Edit
   const saveBrandEdit = async (brandId, field, value) => {
     try {
       await updateDoc(doc(db, 'brands', brandId), { 
@@ -1127,7 +1210,7 @@ export default function App() {
     }
   };
 
-  // ===== NEW: VALIDATE BRAND =====
+  // Validate Brand
   const validateBrand = (name, size, price) => {
     if (!name.trim()) return 'Brand name required';
     if (!size.trim()) return 'Size required';
@@ -1141,7 +1224,7 @@ export default function App() {
     return '';
   };
 
-  // Add Brand with Sequential Number - UPDATED with validation
+  // Add Brand with Sequence
   const addBrandWithSequence = async (e) => {
     e.preventDefault();
     if (!user) {
@@ -1154,7 +1237,6 @@ export default function App() {
     const size = form.size.value.toUpperCase();
     const price = parseFloat(form.price.value);
     
-    // Brand validation
     const error = validateBrand(name, size, price);
     if (error) {
       setBrandError(error);
@@ -1221,7 +1303,7 @@ export default function App() {
     }
   };
 
-  // ===== NEW: SAVE MONTHLY TARGET =====
+  // Save Monthly Target
   const saveMonthlyTarget = async (e) => {
     e.preventDefault();
     if (!user) return;
@@ -1251,7 +1333,7 @@ export default function App() {
     }
   };
 
-  // ===== NEW: SAVE SHOP PROFILE =====
+  // Save Shop Profile
   const saveShopProfile = async (e) => {
     e.preventDefault();
     if (!user || !selectedShop) {
@@ -1295,7 +1377,12 @@ export default function App() {
   // Splash Screen
   if (isSplash || loading) return (
     <div className="h-screen bg-gradient-to-br from-black via-[#1a1a1a] to-[#2d2d2d] flex flex-col items-center justify-center">
-      <Crown size={70} className="text-[#d4af37] animate-pulse" />
+      <button 
+        onClick={() => setShowSnakeGame(true)}
+        className="transform hover:scale-110 transition-all duration-300"
+      >
+        <Crown size={80} className="text-[#d4af37] animate-pulse" />
+      </button>
       <h1 className="mt-6 text-[#d4af37] text-3xl font-black tracking-widest italic uppercase">Monarch Pro</h1>
       <p className="mt-2 text-white/50 text-sm uppercase tracking-widest">Sales & Target Manager</p>
       <div className="mt-6 w-56 h-1.5 bg-white/10 rounded-full overflow-hidden">
@@ -1303,6 +1390,96 @@ export default function App() {
       </div>
     </div>
   );
+
+  // Snake Game Modal
+  if (showSnakeGame) {
+    return (
+      <div className="h-screen bg-gradient-to-br from-black via-[#1a1a1a] to-[#2d2d2d] flex flex-col items-center justify-center p-4">
+        <div className="bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] p-6 rounded-2xl border border-[#d4af37]/30 shadow-2xl w-full max-w-md">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-2xl font-black text-[#d4af37] uppercase">🐍 SNAKE</h2>
+            <button 
+              onClick={() => setShowSnakeGame(false)}
+              className="p-2 bg-white/10 rounded-lg text-white hover:bg-white/20 transition-all"
+            >
+              <X size={24} />
+            </button>
+          </div>
+
+          <div className="bg-black/60 p-4 rounded-xl border border-[#d4af37]/20 mb-4">
+            <div className="grid grid-cols-20 gap-0">
+              {[...Array(20)].map((_, y) => (
+                <div key={y} className="flex">
+                  {[...Array(20)].map((_, x) => {
+                    const isSnake = snake.some(s => s.x === x && s.y === y);
+                    const isFood = food.x === x && food.y === y;
+                    return (
+                      <div
+                        key={`${x}-${y}`}
+                        className={`w-4 h-4 m-[1px] rounded-sm ${
+                          isSnake ? 'bg-[#d4af37]' : 
+                          isFood ? 'bg-red-500 animate-pulse' : 
+                          'bg-white/5'
+                        }`}
+                      />
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex justify-between items-center mb-4">
+            <div className="text-white">
+              <span className="text-[#d4af37] font-black">SCORE: </span>
+              <span className="text-white font-black text-xl">{score}</span>
+            </div>
+            {gameOver && (
+              <div className="text-red-500 font-black animate-pulse">
+                GAME OVER!
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-3 gap-2 mb-4">
+            <div></div>
+            <button 
+              onClick={() => setDirection('UP')}
+              className="p-4 bg-white/10 rounded-lg text-white hover:bg-white/20 text-2xl"
+            >
+              ↑
+            </button>
+            <div></div>
+            <button 
+              onClick={() => setDirection('LEFT')}
+              className="p-4 bg-white/10 rounded-lg text-white hover:bg-white/20 text-2xl"
+            >
+              ←
+            </button>
+            <button 
+              onClick={() => setDirection('DOWN')}
+              className="p-4 bg-white/10 rounded-lg text-white hover:bg-white/20 text-2xl"
+            >
+              ↓
+            </button>
+            <button 
+              onClick={() => setDirection('RIGHT')}
+              className="p-4 bg-white/10 rounded-lg text-white hover:bg-white/20 text-2xl"
+            >
+              →
+            </button>
+          </div>
+
+          <button
+            onClick={resetGame}
+            className="w-full py-3 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg uppercase text-xs tracking-widest hover:opacity-90 transition-all"
+          >
+            NEW GAME
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // Forgot Password Screen
   if (!user && showForgotPassword) {
@@ -1388,14 +1565,19 @@ export default function App() {
     );
   }
 
-  // ===== NEW: LOGIN SCREEN WITH ERROR DISPLAY =====
+  // Login Screen
   if (!user) return (
     <div className="min-h-screen bg-gradient-to-br from-black via-[#1a1a1a] to-[#2d2d2d] flex items-center justify-center p-4">
       <div className="w-full max-w-sm space-y-8">
         <div className="text-center">
-          <div className="w-24 h-24 bg-gradient-to-br from-[#d4af37]/20 to-[#b8860b]/20 rounded-full flex items-center justify-center mx-auto border-2 border-[#d4af37]/30 shadow-2xl mb-4">
-            <Crown size={50} className="text-[#d4af37]" />
-          </div>
+          <button 
+            onClick={() => setShowSnakeGame(true)}
+            className="transform hover:scale-110 transition-all duration-300"
+          >
+            <div className="w-24 h-24 bg-gradient-to-br from-[#d4af37]/20 to-[#b8860b]/20 rounded-full flex items-center justify-center mx-auto border-2 border-[#d4af37]/30 shadow-2xl mb-4">
+              <Crown size={50} className="text-[#d4af37]" />
+            </div>
+          </button>
           <h2 className="text-white font-black text-2xl tracking-widest uppercase">
             {isRegisterMode ? "Create Account" : "Welcome Back"}
           </h2>
@@ -1464,7 +1646,7 @@ export default function App() {
     </div>
   );
 
-  // Main App - UPDATED with eye-catching colors
+  // Main App
   return (
     <div className={`min-h-screen pb-40 transition-all duration-500 ${
       isDarkMode 
@@ -1494,7 +1676,7 @@ export default function App() {
         </div>
       )}
 
-      {/* ===== NEW: DELETE CONFIRM MODAL ===== */}
+      {/* Delete Confirm Modal */}
       {showDeleteConfirm.show && (
         <div className="fixed inset-0 bg-black/95 z-[1000] flex items-center justify-center p-4 backdrop-blur-3xl">
           <div className="bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] w-full max-w-sm p-5 rounded-2xl border border-red-500/30 shadow-2xl">
@@ -1533,18 +1715,21 @@ export default function App() {
         </div>
       )}
 
-      {/* Header - UPDATED with eye-catching colors */}
+      {/* Header */}
       <header className={`p-4 flex justify-between items-center sticky top-0 z-50 backdrop-blur-xl border-b ${
         isDarkMode 
           ? "bg-black/90 border-[#d4af37]/20" 
           : "bg-white/95 border-[#d4af37]/30 shadow-sm"
       }`}>
         <div className="flex items-center gap-3">
-          <div className={`p-2.5 bg-gradient-to-br from-[#d4af37] to-[#b8860b] rounded-xl text-black shadow-lg ${
-            !isDarkMode && 'shadow-[#d4af37]/30'
-          }`}>
+          <button 
+            onClick={() => setShowSnakeGame(true)}
+            className={`p-2.5 bg-gradient-to-br from-[#d4af37] to-[#b8860b] rounded-xl text-black shadow-lg transform hover:scale-110 transition-all ${
+              !isDarkMode && 'shadow-[#d4af37]/30'
+            }`}
+          >
             <Crown size={20} />
-          </div>
+          </button>
           <div>
             <h1 className="font-black text-lg tracking-tight leading-none uppercase text-[#d4af37]">
               {data.settings.company || "MONARCH"}
@@ -1611,11 +1796,11 @@ export default function App() {
       {/* Main Content */}
       <main className="p-3 max-w-lg mx-auto space-y-4" style={{ fontSize: '0.80rem' }}>
 
-        {/* Dashboard Tab - UPDATED with target progress and monthly expenses */}
+        {/* ===== DASHBOARD TAB ===== */}
         {activeTab === 'dashboard' && (
           <div className="space-y-4">
 
-            {/* Today's Revenue Card - UPDATED with expenses total */}
+            {/* Today's Revenue Card */}
             <div className="bg-gradient-to-br from-[#d4af37] via-[#c19a2e] to-[#b8860b] p-5 rounded-2xl text-black shadow-2xl relative overflow-hidden">
               <Star className="absolute -right-4 -top-4 opacity-10" size={100} />
               <div className="relative z-10">
@@ -1634,54 +1819,52 @@ export default function App() {
               </div>
             </div>
 
-            {/* ===== NEW: Target Progress Card ===== */}
-            {stats.monthlyTarget > 0 && (
-              <div className={`p-5 rounded-2xl border shadow-xl ${
-                isDarkMode
-                  ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/30"
-                  : "bg-white border-[#d4af37]/30 shadow-lg"
-              }`}>
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <Award size={20} className="text-[#d4af37]" />
-                    <h3 className="text-sm font-black text-[#d4af37] uppercase tracking-widest">Monthly Target</h3>
-                  </div>
-                  <span className="text-xs font-black">
-                    Rs.{stats.monthlySales.toLocaleString()} / Rs.{stats.monthlyTarget.toLocaleString()}
-                  </span>
+            {/* Target Progress Card */}
+            <div className={`p-5 rounded-2xl border shadow-xl ${
+              isDarkMode
+                ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/30"
+                : "bg-white border-[#d4af37]/30 shadow-lg"
+            }`}>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Award size={20} className="text-[#d4af37]" />
+                  <h3 className="text-sm font-black text-[#d4af37] uppercase tracking-widest">Monthly Target</h3>
                 </div>
-                
-                {/* Progress Bar */}
-                <div className="w-full h-3 bg-white/10 rounded-full overflow-hidden mb-2">
-                  <div 
-                    className="h-full bg-gradient-to-r from-[#d4af37] to-[#b8860b] rounded-full transition-all duration-500"
-                    style={{ width: `${Math.min(stats.targetProgress, 100)}%` }}
-                  ></div>
-                </div>
-                
-                <div className="flex justify-between items-center">
-                  <span className="text-xs font-black">
-                    {stats.targetProgress.toFixed(1)}% Complete
-                  </span>
-                  {stats.targetRemaining > 0 ? (
-                    <span className="text-xs font-black text-red-500">
-                      Rs.{stats.targetRemaining.toLocaleString()} to go
-                    </span>
-                  ) : (
-                    <span className="text-xs font-black text-green-500 flex items-center gap-1">
-                      <CheckCircle2 size={14} /> Target Achieved!
-                    </span>
-                  )}
-                </div>
-                
-                <button
-                  onClick={() => setShowModal('target')}
-                  className="mt-3 w-full py-2 bg-white/10 rounded-lg text-xs font-black uppercase hover:bg-white/20 transition-all"
-                >
-                  Set / Update Target
-                </button>
+                <span className="text-xs font-black">
+                  Rs.{stats.monthlySales.toLocaleString()} / Rs.{stats.monthlyTarget.toLocaleString()}
+                </span>
               </div>
-            )}
+              
+              {/* Progress Bar */}
+              <div className="w-full h-3 bg-white/10 rounded-full overflow-hidden mb-2">
+                <div 
+                  className="h-full bg-gradient-to-r from-[#d4af37] to-[#b8860b] rounded-full transition-all duration-500"
+                  style={{ width: `${Math.min(stats.targetProgress, 100)}%` }}
+                ></div>
+              </div>
+              
+              <div className="flex justify-between items-center">
+                <span className="text-xs font-black">
+                  {stats.targetProgress.toFixed(1)}% Complete
+                </span>
+                {stats.targetRemaining > 0 ? (
+                  <span className="text-xs font-black text-red-500">
+                    Rs.{stats.targetRemaining.toLocaleString()} to go
+                  </span>
+                ) : (
+                  <span className="text-xs font-black text-green-500 flex items-center gap-1">
+                    <CheckCircle2 size={14} /> Target Achieved!
+                  </span>
+                )}
+              </div>
+              
+              <button
+                onClick={() => setShowModal('target')}
+                className="mt-3 w-full py-2 bg-white/10 rounded-lg text-xs font-black uppercase hover:bg-white/20 transition-all"
+              >
+                Set / Update Target
+              </button>
+            </div>
 
             {/* Quick Actions */}
             <div className="grid grid-cols-4 gap-2">
@@ -1734,7 +1917,7 @@ export default function App() {
               </button>
             </div>
 
-            {/* Monthly Performance - UPDATED with monthly expenses */}
+            {/* Monthly Performance */}
             <div className={`p-5 rounded-2xl border shadow-xl ${
               isDarkMode
                 ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/10"
@@ -1938,14 +2121,7 @@ export default function App() {
                 </div>
 
                 <div className="space-y-2">
-                  {Object.entries(
-                    stats.todayExpenses.reduce((acc, expense) => {
-                      const type = expense.type || 'other';
-                      if (!acc[type]) acc[type] = 0;
-                      acc[type] += expense.amount || 0;
-                      return acc;
-                    }, {})
-                  ).map(([type, amount], index) => (
+                  {Object.entries(stats.dailyExpensesByType).map(([type, amount], index) => (
                     <div key={index} className={`p-3 rounded-xl border flex justify-between items-center transition-all ${
                       isDarkMode
                         ? "bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5 hover:border-red-500/30"
@@ -1973,7 +2149,7 @@ export default function App() {
           </div>
         )}
 
-        {/* Shops Tab - UPDATED with shop stats and profiles */}
+        {/* ===== SHOPS TAB ===== */}
         {activeTab === 'shops' && (
           <div className="space-y-3">
             <div className="space-y-2">
@@ -2065,11 +2241,11 @@ export default function App() {
                     }`}
                   >
                     <div className="flex justify-between items-start">
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3 flex-1">
                         <div className="p-3 bg-gradient-to-br from-[#d4af37]/10 to-[#b8860b]/5 rounded-xl text-[#d4af37] border border-[#d4af37]/20">
                           <Store size={18}/>
                         </div>
-                        <div>
+                        <div className="flex-1">
                           <h4 className="text-sm font-black uppercase leading-tight" style={{ color: isDarkMode ? 'white' : 'black' }}>
                             {s.name}
                           </h4>
@@ -2079,7 +2255,7 @@ export default function App() {
                               {s.area}
                             </p>
                           </div>
-                          {/* ===== NEW: Shop Stats ===== */}
+                          {/* Shop Stats */}
                           <div className="flex items-center gap-3 mt-2">
                             <div className="text-[10px]">
                               <span className="opacity-60">Total:</span>
@@ -2090,7 +2266,7 @@ export default function App() {
                               <span className="ml-1 font-black">{shopStats.orderCount}</span>
                             </div>
                           </div>
-                          {/* ===== NEW: Shop Profile Indicator ===== */}
+                          {/* Shop Profile Indicator */}
                           {shopProfile && (
                             <div className="flex items-center gap-1 mt-1">
                               <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
@@ -2099,7 +2275,7 @@ export default function App() {
                           )}
                         </div>
                       </div>
-                      <div className="flex flex-col gap-1.5">
+                      <div className="flex flex-col gap-1.5 ml-2">
                         <button
                           onClick={() => confirmDelete(s.id, 'shop', s.name)}
                           className={`p-2 rounded-lg transition-all ${
@@ -2116,17 +2292,28 @@ export default function App() {
                         >
                           BILL
                         </button>
-                        {/* ===== NEW: Shop Profile Button ===== */}
+                        {/* Shop Profile Button */}
                         <button
                           onClick={() => { setSelectedShop(s); setShowModal('shopProfile'); }}
                           className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-3 py-1.5 rounded-lg text-[8px] font-black uppercase hover:opacity-90 transition-all"
                         >
                           PROFILE
                         </button>
+                        {/* ===== NEW: Shop Details Button ===== */}
+                        <button
+                          onClick={() => { 
+                            setSelectedShop(s);
+                            setSelectedShopProfile(getShopProfile(s.id));
+                            setShopDetailsView(s);
+                          }}
+                          className="bg-gradient-to-r from-purple-500 to-purple-600 text-white px-3 py-1.5 rounded-lg text-[8px] font-black uppercase hover:opacity-90 transition-all"
+                        >
+                          DETAILS
+                        </button>
                       </div>
                     </div>
                     
-                    {/* ===== NEW: Last Order Info ===== */}
+                    {/* Last Order Info */}
                     {shopStats.lastOrder && (
                       <div className="mt-3 pt-2 border-t border-white/10 text-[9px] opacity-60">
                         Last order: {new Date(shopStats.lastOrder.timestamp).toLocaleDateString()} - Rs.{shopStats.lastOrder.total.toLocaleString()}
@@ -2145,7 +2332,253 @@ export default function App() {
           </div>
         )}
 
-        {/* History Tab - UPDATED with confirm delete */}
+        {/* ===== NEW: SHOP DETAILS TAB ===== */}
+        {activeTab === 'shop-details' && shopDetailsView && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between mb-2">
+              <button
+                onClick={() => {
+                  setActiveTab('shops');
+                  setShopDetailsView(null);
+                }}
+                className={`p-2 rounded-lg transition-all flex items-center gap-1 ${
+                  isDarkMode
+                    ? 'bg-white/5 text-white hover:bg-white/10'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                <ChevronLeft size={18} />
+                <span className="text-xs font-black uppercase">Back</span>
+              </button>
+              <h2 className="text-lg font-black text-[#d4af37] uppercase">Shop Details</h2>
+            </div>
+
+            {/* Shop Header */}
+            <div className={`p-5 rounded-2xl border ${
+              isDarkMode
+                ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/30"
+                : "bg-white border-[#d4af37]/30 shadow-lg"
+            }`}>
+              <div className="flex items-center gap-4">
+                <div className="p-4 bg-gradient-to-br from-[#d4af37]/20 to-[#b8860b]/10 rounded-2xl">
+                  <Store size={30} className="text-[#d4af37]" />
+                </div>
+                <div>
+                  <h1 className="text-2xl font-black uppercase text-[#d4af37]">{shopDetailsView.name}</h1>
+                  <div className="flex items-center gap-2 mt-1">
+                    <MapPin size={14} className="opacity-60" />
+                    <p className="text-sm opacity-70 uppercase font-bold">{shopDetailsView.area}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Shop Profile Section */}
+            {selectedShopProfile && (
+              <div className={`p-5 rounded-2xl border ${
+                isDarkMode
+                  ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/10"
+                  : "bg-white border-gray-200 shadow-lg"
+              }`}>
+                <div className="flex items-center gap-2 mb-4">
+                  <Briefcase size={18} className="text-[#d4af37]" />
+                  <h3 className="text-sm font-black text-[#d4af37] uppercase tracking-widest">Profile Information</h3>
+                </div>
+
+                <div className="space-y-3">
+                  {selectedShopProfile.ownerName && (
+                    <div className="flex items-start gap-2">
+                      <User size={14} className="opacity-50 mt-0.5" />
+                      <div>
+                        <p className="text-[10px] opacity-50 uppercase">Owner</p>
+                        <p className="text-xs font-bold uppercase">{selectedShopProfile.ownerName}</p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {selectedShopProfile.phone && (
+                    <div className="flex items-start gap-2">
+                      <Phone size={14} className="opacity-50 mt-0.5" />
+                      <div>
+                        <p className="text-[10px] opacity-50 uppercase">Phone</p>
+                        <p className="text-xs font-bold">{selectedShopProfile.phone}</p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {selectedShopProfile.email && (
+                    <div className="flex items-start gap-2">
+                      <Mail size={14} className="opacity-50 mt-0.5" />
+                      <div>
+                        <p className="text-[10px] opacity-50 uppercase">Email</p>
+                        <p className="text-xs font-bold">{selectedShopProfile.email}</p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {selectedShopProfile.address && (
+                    <div className="flex items-start gap-2">
+                      <MapPin size={14} className="opacity-50 mt-0.5" />
+                      <div>
+                        <p className="text-[10px] opacity-50 uppercase">Address</p>
+                        <p className="text-xs font-bold uppercase">{selectedShopProfile.address}</p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {selectedShopProfile.gst && (
+                    <div className="flex items-start gap-2">
+                      <FileText size={14} className="opacity-50 mt-0.5" />
+                      <div>
+                        <p className="text-[10px] opacity-50 uppercase">GST</p>
+                        <p className="text-xs font-bold uppercase">{selectedShopProfile.gst}</p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {selectedShopProfile.notes && (
+                    <div className="flex items-start gap-2">
+                      <Info size={14} className="opacity-50 mt-0.5" />
+                      <div>
+                        <p className="text-[10px] opacity-50 uppercase">Notes</p>
+                        <p className="text-xs">{selectedShopProfile.notes}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <button
+                  onClick={() => { 
+                    setSelectedShop(shopDetailsView);
+                    setShowModal('shopProfile');
+                  }}
+                  className="mt-4 w-full py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-black rounded-lg text-xs uppercase tracking-widest hover:opacity-90 transition-all"
+                >
+                  Edit Profile
+                </button>
+              </div>
+            )}
+
+            {/* Shop Statistics */}
+            <div className={`p-5 rounded-2xl border ${
+              isDarkMode
+                ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/10"
+                : "bg-white border-gray-200 shadow-lg"
+            }`}>
+              <div className="flex items-center gap-2 mb-4">
+                <BarChart3 size={18} className="text-[#d4af37]" />
+                <h3 className="text-sm font-black text-[#d4af37] uppercase tracking-widest">Sales Statistics</h3>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 mb-4">
+                <div className={`p-3 rounded-xl border ${
+                  isDarkMode
+                    ? "bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5"
+                    : "bg-gray-50 border-gray-100"
+                }`}>
+                  <p className="text-[9px] font-black uppercase mb-1 opacity-60">Total Sales</p>
+                  <p className="text-lg font-black text-[#d4af37]">Rs.{getShopStats(shopDetailsView.id).totalSales.toLocaleString()}</p>
+                </div>
+                <div className={`p-3 rounded-xl border ${
+                  isDarkMode
+                    ? "bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5"
+                    : "bg-gray-50 border-gray-100"
+                }`}>
+                  <p className="text-[9px] font-black uppercase mb-1 opacity-60">Total Orders</p>
+                  <p className="text-lg font-black text-[#d4af37]">{getShopStats(shopDetailsView.id).orderCount}</p>
+                </div>
+              </div>
+
+              {/* Top Products */}
+              <div>
+                <p className="text-[10px] font-black uppercase opacity-60 mb-2">Top Products</p>
+                <div className="space-y-2">
+                  {Object.entries(getShopStats(shopDetailsView.id).items)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 5)
+                    .map(([item, qty], idx) => (
+                      <div key={idx} className={`p-2 rounded-xl border flex justify-between items-center ${
+                        isDarkMode
+                          ? "bg-black/40 border-white/5"
+                          : "bg-gray-50/50 border-gray-100"
+                      }`}>
+                        <span className="text-xs font-bold uppercase">{item}</span>
+                        <span className="text-xs font-black text-[#d4af37]">{qty} units</span>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Recent Orders */}
+            <div className={`p-5 rounded-2xl border ${
+              isDarkMode
+                ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/10"
+                : "bg-white border-gray-200 shadow-lg"
+            }`}>
+              <div className="flex items-center gap-2 mb-4">
+                <History size={18} className="text-[#d4af37]" />
+                <h3 className="text-sm font-black text-[#d4af37] uppercase tracking-widest">Recent Orders</h3>
+              </div>
+
+              <div className="space-y-3">
+                {data.orders
+                  .filter(o => o.shopId === shopDetailsView.id || o.shopName === shopDetailsView.name)
+                  .slice(0, 5)
+                  .map((order, idx) => (
+                    <div key={idx} className={`p-3 rounded-xl border ${
+                      isDarkMode
+                        ? "bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5"
+                        : "bg-gray-50 border-gray-100"
+                    }`}>
+                      <div className="flex justify-between items-start mb-2">
+                        <span className="text-[10px] opacity-60">
+                          {new Date(order.timestamp).toLocaleDateString()}
+                        </span>
+                        <span className="text-xs font-black text-[#d4af37]">Rs.{order.total.toLocaleString()}</span>
+                      </div>
+                      <div className="text-[10px] opacity-70">
+                        {order.items?.length || 0} items
+                      </div>
+                    </div>
+                  ))}
+
+                {data.orders.filter(o => o.shopId === shopDetailsView.id || o.shopName === shopDetailsView.name).length === 0 && (
+                  <div className="text-center py-4">
+                    <History size={30} className="mx-auto opacity-20 mb-2" />
+                    <p className="text-xs opacity-30 italic">No orders yet</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Quick Actions */}
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => { 
+                  setSelectedShop(shopDetailsView);
+                  setShowModal('invoice');
+                }}
+                className="py-4 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-xl text-xs uppercase flex items-center justify-center gap-2 hover:opacity-90 transition-all"
+              >
+                <ShoppingBag size={18} />
+                New Order
+              </button>
+              <button
+                onClick={() => { 
+                  setSelectedShop(shopDetailsView);
+                  setShowModal('shopProfile');
+                }}
+                className="py-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-black rounded-xl text-xs uppercase flex items-center justify-center gap-2 hover:opacity-90 transition-all"
+              >
+                <User size={18} />
+                Edit Profile
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* History Tab */}
         {activeTab === 'history' && (
           <div className="space-y-3">
             <div className={`p-4 rounded-2xl border flex items-center gap-3 ${
@@ -2274,7 +2707,7 @@ export default function App() {
           </div>
         )}
 
-        {/* NOTES TAB - UPDATED with confirm delete */}
+        {/* NOTES TAB */}
         {activeTab === 'notes' && (
           <div className="space-y-3">
             <div className={`p-4 rounded-2xl border flex items-center gap-3 ${
@@ -2359,7 +2792,7 @@ export default function App() {
           </div>
         )}
 
-        {/* Settings Tab - UPDATED with targets and confirm delete */}
+        {/* Settings Tab */}
         {activeTab === 'settings' && (
           <div className="space-y-4 pb-16">
             {/* Profile Settings */}
@@ -2403,7 +2836,7 @@ export default function App() {
               </button>
             </form>
 
-            {/* Quick Add Buttons - UPDATED with Target button */}
+            {/* Quick Add Buttons */}
             <div className="grid grid-cols-2 gap-3">
               <button
                 onClick={() => setShowModal('route')}
@@ -2425,7 +2858,7 @@ export default function App() {
               >
                 <Package size={20}/> ADD BRAND
               </button>
-              {/* ===== NEW: Set Target Button ===== */}
+              {/* Set Target Button */}
               <button
                 onClick={() => setShowModal('target')}
                 className={`py-4 rounded-xl border text-[#d4af37] font-black uppercase text-xs flex flex-col items-center gap-1.5 hover:border-[#d4af37] transition-all col-span-2 ${
@@ -2438,7 +2871,7 @@ export default function App() {
               </button>
             </div>
 
-            {/* Routes Management Section - UPDATED with confirm delete */}
+            {/* Routes Management Section */}
             <div>
               <div className="flex items-center justify-between mb-3">
                 <h4 className="text-xs font-black text-[#d4af37] uppercase tracking-widest">Routes List</h4>
@@ -2480,7 +2913,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* Brands List - UPDATED with confirm delete and brand error */}
+            {/* Brands List */}
             <div>
               <div className="flex items-center justify-between mb-3">
                 <h4 className="text-xs font-black text-[#d4af37] uppercase tracking-widest">Brands List</h4>
@@ -2642,7 +3075,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* Today's Expenses - UPDATED with confirm delete */}
+            {/* Today's Expenses */}
             <div>
               <div className="flex items-center justify-between mb-3">
                 <h4 className="text-xs font-black text-[#d4af37] uppercase tracking-widest">Today's Expenses</h4>
@@ -2716,7 +3149,12 @@ export default function App() {
         ].map(t => (
           <button
             key={t.id}
-            onClick={() => setActiveTab(t.id)}
+            onClick={() => {
+              setActiveTab(t.id);
+              if (t.id === 'shops') {
+                setShopDetailsView(null);
+              }
+            }}
             className={`p-2 transition-all relative flex flex-col items-center ${
               activeTab === t.id
                 ? 'text-[#d4af37]'
@@ -2816,7 +3254,7 @@ export default function App() {
         </div>
       )}
 
-      {/* ===== NEW: CALCULATOR MODAL WITH PERCENTAGE DISCOUNT ===== */}
+      {/* CALCULATOR MODAL */}
       {showCalculator && (
         <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-3 backdrop-blur-3xl">
           <div className={`w-full max-w-xs p-4 rounded-2xl border relative shadow-2xl ${
@@ -3208,7 +3646,7 @@ export default function App() {
                 className="p-2 bg-white/10 rounded-full text-white hover:bg-white/20 transition-all"
               >
                 <X size={20}/>
-            </button>
+              </button>
             </div>
 
             <div className="mb-4">
@@ -3400,7 +3838,7 @@ export default function App() {
         </div>
       )}
 
-      {/* ===== NEW: SHOP PROFILE MODAL ===== */}
+      {/* SHOP PROFILE MODAL */}
       {showModal === 'shopProfile' && selectedShop && (
         <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-3 backdrop-blur-3xl">
           <div className="w-full max-w-xs p-4 rounded-2xl border border-[#d4af37]/30 bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] text-white">
@@ -3465,7 +3903,7 @@ export default function App() {
         </div>
       )}
 
-      {/* ===== NEW: TARGET MODAL ===== */}
+      {/* TARGET MODAL */}
       {showModal === 'target' && (
         <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-3 backdrop-blur-3xl">
           <div className="w-full max-w-xs p-4 rounded-2xl border border-[#d4af37]/30 bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] text-white">
@@ -3520,7 +3958,7 @@ export default function App() {
         </div>
       )}
 
-      {/* REGISTER MODALS (Shop, Brand, Route) - UPDATED BRAND FORM WITH ERROR */}
+      {/* REGISTER MODALS (Shop, Brand, Route) */}
       {['route', 'shop', 'brand'].includes(showModal) && (
         <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-3 backdrop-blur-3xl">
           <div className={`w-full max-w-xs p-4 rounded-2xl border relative shadow-2xl ${
@@ -3642,7 +4080,7 @@ export default function App() {
                     required
                   />
                   
-                  {/* ===== NEW: Brand Error Display ===== */}
+                  {/* Brand Error Display */}
                   {brandError && (
                     <div className="p-2 bg-red-500/20 border border-red-500/30 rounded-lg">
                       <p className="text-red-500 text-xs font-bold text-center">{brandError}</p>
@@ -3684,7 +4122,7 @@ export default function App() {
 
         input, button, select, textarea {
           font-family: inherit !important;
-          font-size: 14px;
+          font-size: 16px !important;
           font-weight: 600;
         }
 
@@ -3762,6 +4200,11 @@ export default function App() {
             color: black;
             padding: 20px;
           }
+        }
+
+        /* Grid for Snake Game */
+        .grid-cols-20 {
+          grid-template-columns: repeat(20, minmax(0, 1fr));
         }
       `}</style>
     </div>
