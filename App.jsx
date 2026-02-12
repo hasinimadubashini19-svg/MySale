@@ -100,6 +100,11 @@ export default function App() {
   const [brandSequence, setBrandSequence] = useState(0);
   const [showPrintPreview, setShowPrintPreview] = useState(false);
   const [printOrder, setPrintOrder] = useState(null);
+  
+  // ===== NEW STATE FOR DELETE CONFIRM & BRAND ERROR =====
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState({ show: false, id: null, type: '', name: '' });
+  const [brandError, setBrandError] = useState('');
+  const [loginError, setLoginError] = useState('');
 
   // Network Status Listener
   useEffect(() => {
@@ -356,35 +361,39 @@ export default function App() {
     }
   };
 
-  // Delete Expense
-  const deleteExpense = async (expenseId) => {
-    if (window.confirm('Are you sure you want to delete this expense?')) {
-      try {
-        if (isOffline) {
-          const cached = JSON.parse(localStorage.getItem(`expenses_${user.uid}`) || '[]');
-          const updated = cached.filter(e => e.id !== expenseId);
-          localStorage.setItem(`expenses_${user.uid}`, JSON.stringify(updated));
-          showToast("Expense deleted offline", "info");
-        } else {
-          await deleteDoc(doc(db, 'expenses', expenseId));
-          showToast("Expense deleted successfully!", "success");
-        }
-      } catch (err) {
-        showToast("Error deleting expense: " + err.message, "error");
-      }
+  // ===== NEW: DELETE CONFIRM MODAL FUNCTION =====
+  const confirmDelete = (id, type, name) => {
+    setShowDeleteConfirm({ show: true, id, type, name });
+  };
+
+  // ===== NEW: HANDLE DELETE =====
+  const handleDelete = async () => {
+    const { id, type } = showDeleteConfirm;
+    if (!id || !type) return;
+
+    try {
+      if (type === 'route') await deleteDoc(doc(db, 'routes', id));
+      if (type === 'shop') await deleteDoc(doc(db, 'shops', id));
+      if (type === 'brand') await deleteDoc(doc(db, 'brands', id));
+      if (type === 'order') await deleteDoc(doc(db, 'orders', id));
+      if (type === 'expense') await deleteDoc(doc(db, 'expenses', id));
+      if (type === 'note') await deleteDoc(doc(db, 'notes', id));
+      
+      showToast(`✅ ${type} deleted successfully!`, 'success');
+      setShowDeleteConfirm({ show: false, id: null, type: '', name: '' });
+    } catch (err) {
+      showToast(`Error deleting ${type}: ` + err.message, 'error');
     }
   };
 
-  // Delete Route
+  // Delete Expense (UPDATED with confirm modal)
+  const deleteExpense = async (expenseId) => {
+    confirmDelete(expenseId, 'expense', '');
+  };
+
+  // Delete Route (UPDATED with confirm modal)
   const deleteRoute = async (routeId) => {
-    if (window.confirm('Are you sure you want to delete this route?')) {
-      try {
-        await deleteDoc(doc(db, 'routes', routeId));
-        showToast("Route deleted successfully!", "success");
-      } catch (err) {
-        showToast("Error deleting route: " + err.message, "error");
-      }
-    }
+    confirmDelete(routeId, 'route', '');
   };
 
   // Save Note with Offline Support
@@ -479,7 +488,7 @@ export default function App() {
     }
   };
 
-  // Calculate Total
+  // ===== NEW: CALCULATE TOTAL WITH DISCOUNT =====
   const calculateTotal = () => {
     const subtotal = parseFloat(totalCalculation.subtotal) || 0;
     const discount = parseFloat(totalCalculation.discount) || 0;
@@ -725,13 +734,13 @@ export default function App() {
     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
   };
 
-  // NEW: Print Bill Function
+  // Print Bill Function
   const printBill = (order) => {
     setPrintOrder(order);
     setShowPrintPreview(true);
   };
 
-  // NEW: Generate Bill HTML for Printing
+  // Generate Bill HTML for Printing (NORMAL SIZE)
   const generateBillHTML = (order) => {
     const companyName = order.companyName || data.settings.company || "MONARCH";
     const shopName = order.shopName || "Unknown Shop";
@@ -747,71 +756,70 @@ export default function App() {
           body {
             font-family: 'Courier New', monospace;
             margin: 0;
-            padding: 20px;
+            padding: 10px;
             background: white;
             color: black;
           }
           .bill {
-            max-width: 300px;
+            max-width: 80mm;
             margin: 0 auto;
-            padding: 20px;
-            border: 2px solid #d4af37;
-            border-radius: 12px;
+            padding: 10px;
           }
           .header {
             text-align: center;
-            border-bottom: 2px dashed #d4af37;
-            padding-bottom: 15px;
-            margin-bottom: 15px;
+            border-bottom: 2px dashed #000;
+            padding-bottom: 10px;
+            margin-bottom: 10px;
           }
           .company {
-            font-size: 24px;
+            font-size: 18px;
             font-weight: bold;
             color: #d4af37;
             margin: 0;
             text-transform: uppercase;
           }
           .shop {
-            font-size: 18px;
+            font-size: 16px;
             font-weight: bold;
             margin: 5px 0;
           }
           .details {
-            font-size: 12px;
-            margin: 5px 0;
+            font-size: 11px;
+            margin: 3px 0;
           }
           .items {
             width: 100%;
             border-collapse: collapse;
-            margin: 15px 0;
+            margin: 10px 0;
           }
           .items th {
-            border-bottom: 1px solid #d4af37;
+            border-bottom: 1px solid #000;
             padding: 5px;
-            font-size: 12px;
+            font-size: 11px;
             text-align: left;
           }
           .items td {
             padding: 5px;
-            font-size: 12px;
+            font-size: 11px;
           }
           .total {
-            border-top: 2px solid #d4af37;
-            margin-top: 15px;
-            padding-top: 15px;
+            border-top: 2px solid #000;
+            margin-top: 10px;
+            padding-top: 10px;
             text-align: right;
-            font-size: 16px;
+            font-size: 14px;
             font-weight: bold;
           }
           .footer {
-            margin-top: 20px;
+            margin-top: 15px;
             text-align: center;
-            font-size: 10px;
+            font-size: 9px;
             color: #666;
+            border-top: 1px dashed #000;
+            padding-top: 8px;
           }
           @media print {
-            body { margin: 0; padding: 10px; }
-            .bill { border: 1px solid #000; }
+            body { margin: 0; padding: 5px; }
           }
         </style>
       </head>
@@ -844,8 +852,8 @@ export default function App() {
               <tr>
                 <td>${item.name || 'Item'}</td>
                 <td>${item.qty || 0}</td>
-                <td>Rs.${(item.price || 0).toLocaleString()}</td>
-                <td>Rs.${(item.subtotal || 0).toLocaleString()}</td>
+                <td>${(item.price || 0).toLocaleString()}</td>
+                <td>${(item.subtotal || 0).toLocaleString()}</td>
               </tr>
         `;
       });
@@ -865,7 +873,7 @@ export default function App() {
           </div>
         </div>
         <script>
-          window.onload = function() { window.print(); }
+          window.onload = function() { window.print(); window.onafterprint = function() { window.close(); } }
         </script>
       </body>
       </html>
@@ -874,16 +882,17 @@ export default function App() {
     return html;
   };
 
-  // NEW: Execute Print
+  // Execute Print
   const handlePrint = (order) => {
     const printWindow = window.open('', '_blank');
     printWindow.document.write(generateBillHTML(order));
     printWindow.document.close();
   };
 
-  // Auth Handler
+  // ===== NEW: AUTH HANDLER WITH CLEAR ERROR MESSAGES =====
   const handleAuth = async (e) => {
     e.preventDefault();
+    setLoginError('');
     const email = e.target.email.value;
     const password = e.target.password.value;
 
@@ -912,31 +921,32 @@ export default function App() {
         showToast("👑 Welcome back!", "success");
       }
     } catch (err) {
-      let errorMessage = "Authentication failed";
+      let errorMessage = "";
       
       switch (err.code) {
         case 'auth/user-not-found':
-          errorMessage = "No account found with this email";
+          errorMessage = "❌ Wrong Password or Email";
           break;
         case 'auth/wrong-password':
-          errorMessage = "Incorrect password";
+          errorMessage = "❌ Wrong Password or Email";
           break;
         case 'auth/too-many-requests':
-          errorMessage = "Too many failed attempts. Try again later";
+          errorMessage = "❌ Too many failed attempts. Try again later";
           break;
         case 'auth/email-already-in-use':
-          errorMessage = "Email already registered. Try login instead";
+          errorMessage = "❌ Email already registered. Try login instead";
           break;
         case 'auth/invalid-email':
-          errorMessage = "Invalid email address";
+          errorMessage = "❌ Invalid email address";
           break;
         case 'auth/weak-password':
-          errorMessage = "Password should be at least 6 characters";
+          errorMessage = "❌ Password should be at least 6 characters";
           break;
         default:
-          errorMessage = err.message;
+          errorMessage = "❌ Login Failed";
       }
       
+      setLoginError(errorMessage);
       showToast(errorMessage, "error");
     }
   };
@@ -1012,23 +1022,9 @@ export default function App() {
     }
   };
 
-  // Delete Note
+  // Delete Note (UPDATED with confirm modal)
   const deleteNote = async (noteId) => {
-    if (window.confirm('Are you sure you want to delete this note?')) {
-      try {
-        if (isOffline) {
-          const cached = JSON.parse(localStorage.getItem(`notes_${user.uid}`) || '[]');
-          const updated = cached.filter(n => n.id !== noteId);
-          localStorage.setItem(`notes_${user.uid}`, JSON.stringify(updated));
-          showToast("Note deleted offline", "info");
-        } else {
-          await deleteDoc(doc(db, 'notes', noteId));
-          showToast("Note deleted successfully!", "success");
-        }
-      } catch (err) {
-        showToast("Error deleting note: " + err.message, "error");
-      }
-    }
+    confirmDelete(noteId, 'note', '');
   };
 
   // Save Brand Edit with Sequence Update
@@ -1043,7 +1039,21 @@ export default function App() {
     }
   };
 
-  // NEW: Add Brand with Sequential Number
+  // ===== NEW: VALIDATE BRAND =====
+  const validateBrand = (name, size, price) => {
+    if (!name.trim()) return 'Brand name required';
+    if (!size.trim()) return 'Size required';
+    if (!price || price <= 0) return 'Valid price required';
+    
+    const exists = data.brands.find(b => 
+      b.name?.toUpperCase() === name.toUpperCase() && 
+      b.size?.toUpperCase() === size.toUpperCase()
+    );
+    if (exists) return '❌ Brand already exists!';
+    return '';
+  };
+
+  // Add Brand with Sequential Number (UPDATED with validation)
   const addBrandWithSequence = async (e) => {
     e.preventDefault();
     if (!user) {
@@ -1052,6 +1062,17 @@ export default function App() {
     }
 
     const form = e.target;
+    const name = form.name.value.toUpperCase();
+    const size = form.size.value.toUpperCase();
+    const price = parseFloat(form.price.value);
+    
+    // ===== NEW: BRAND VALIDATION =====
+    const error = validateBrand(name, size, price);
+    if (error) {
+      setBrandError(error);
+      showToast(error, "error");
+      return;
+    }
     
     try {
       // Get current brand count for sequence number
@@ -1061,17 +1082,16 @@ export default function App() {
       const brandData = {
         userId: user.uid,
         timestamp: Date.now(),
-        name: form.name.value.toUpperCase(),
-        size: form.size.value.toUpperCase(),
-        price: parseFloat(form.price.value),
+        name: name,
+        size: size,
+        price: price,
         sequence: sequence,
-        displayNumber: sequence // Display number starts from 1
+        displayNumber: sequence
       };
 
       if (isOffline) {
         const cached = JSON.parse(localStorage.getItem(`brands_${user.uid}`) || '[]');
         cached.unshift({ ...brandData, id: 'temp_' + Date.now() });
-        // Sort by sequence
         cached.sort((a, b) => (a.sequence || 999) - (b.sequence || 999));
         localStorage.setItem(`brands_${user.uid}`, JSON.stringify(cached));
         showToast("✅ Brand added offline (Number: " + sequence + ")", "info");
@@ -1080,13 +1100,14 @@ export default function App() {
         showToast(`✅ Brand added successfully! (#${sequence})`, "success");
       }
 
+      setBrandError('');
       setShowModal(null);
     } catch (err) {
       showToast("Error: " + err.message, "error");
     }
   };
 
-  // NEW: Reorder Brands
+  // Reorder Brands
   const reorderBrands = async (brandId, direction) => {
     if (!user || isOffline) {
       showToast("Cannot reorder in offline mode", "error");
@@ -1101,7 +1122,6 @@ export default function App() {
       const newIndex = direction === 'up' ? index - 1 : index + 1;
       if (newIndex < 0 || newIndex >= currentBrands.length) return;
 
-      // Swap sequence numbers
       const brand1 = currentBrands[index];
       const brand2 = currentBrands[newIndex];
       
@@ -1223,7 +1243,7 @@ export default function App() {
     );
   }
 
-  // Login Screen
+  // ===== NEW: LOGIN SCREEN WITH ERROR DISPLAY =====
   if (!user) return (
     <div className="h-screen bg-gradient-to-br from-black to-gray-900 flex items-center justify-center p-4">
       <div className="w-full max-w-sm space-y-8 text-center">
@@ -1256,6 +1276,13 @@ export default function App() {
               required
             />
           </div>
+          
+          {/* ===== NEW: LOGIN ERROR DISPLAY ===== */}
+          {loginError && (
+            <div className="p-3 bg-red-500/20 border border-red-500/30 rounded-xl">
+              <p className="text-red-500 text-xs font-bold text-center">{loginError}</p>
+            </div>
+          )}
 
           <button type="submit" className="w-full py-4 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-2xl shadow-lg uppercase text-sm tracking-widest hover:opacity-90 transition-all">
             {isRegisterMode ? "Sign Up" : "Login"}
@@ -1264,7 +1291,10 @@ export default function App() {
           <div className="flex justify-between items-center">
             <button
               type="button"
-              onClick={() => setIsRegisterMode(!isRegisterMode)}
+              onClick={() => {
+                setIsRegisterMode(!isRegisterMode);
+                setLoginError('');
+              }}
               className="text-[#d4af37] text-sm font-bold uppercase tracking-widest opacity-80 hover:opacity-100 transition-all"
             >
               {isRegisterMode ? "Already have an account?" : "New User?"}
@@ -1309,6 +1339,43 @@ export default function App() {
             {toast.type === 'success' && <CheckCircle2 size={20} />}
             {toast.type === 'error' && <AlertCircle size={20} />}
             <span className="font-bold text-sm">{toast.message}</span>
+          </div>
+        </div>
+      )}
+
+      {/* ===== NEW: DELETE CONFIRM MODAL ===== */}
+      {showDeleteConfirm.show && (
+        <div className="fixed inset-0 bg-black/95 z-[1000] flex items-center justify-center p-4 backdrop-blur-3xl">
+          <div className="bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] w-full max-w-sm p-5 rounded-2xl border border-red-500/30 shadow-2xl">
+            <div className="text-center mb-4">
+              <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-3 border border-red-500/30">
+                <Trash2 size={30} className="text-red-500" />
+              </div>
+              <h3 className="text-white font-black text-lg uppercase tracking-widest">Confirm Delete</h3>
+              <p className="text-white/60 text-sm mt-2">
+                {showDeleteConfirm.type === 'brand' && `Delete "${showDeleteConfirm.name}"?`}
+                {showDeleteConfirm.type === 'shop' && `Delete shop "${showDeleteConfirm.name}"?`}
+                {showDeleteConfirm.type === 'route' && `Delete route "${showDeleteConfirm.name}"?`}
+                {showDeleteConfirm.type === 'order' && 'Delete this bill?'}
+                {showDeleteConfirm.type === 'expense' && 'Delete this expense?'}
+                {showDeleteConfirm.type === 'note' && 'Delete this note?'}
+              </p>
+              <p className="text-red-500 text-xs font-bold mt-3">This action cannot be undone!</p>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={handleDelete}
+                className="flex-1 py-3 bg-gradient-to-r from-red-600 to-red-500 text-white font-black rounded-xl uppercase text-xs tracking-widest hover:opacity-90 transition-all"
+              >
+                DELETE
+              </button>
+              <button
+                onClick={() => setShowDeleteConfirm({ show: false, id: null, type: '', name: '' })}
+                className="flex-1 py-3 bg-gradient-to-br from-[#333] to-[#444] text-white/80 font-black rounded-xl uppercase text-xs tracking-widest border border-white/10 hover:border-white/30 transition-all"
+              >
+                CANCEL
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -1439,7 +1506,7 @@ export default function App() {
               </button>
             </div>
 
-            {/* Monthly Performance - ENHANCED */}
+            {/* Monthly Performance */}
             <div className={`p-5 rounded-2xl border shadow-xl ${
               isDarkMode
                 ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/10"
@@ -1676,7 +1743,7 @@ export default function App() {
           </div>
         )}
 
-        {/* Shops Tab */}
+        {/* Shops Tab - UPDATED WITH DELETE CONFIRM */}
         {activeTab === 'shops' && (
           <div className="space-y-3">
             <div className="space-y-2">
@@ -1693,7 +1760,6 @@ export default function App() {
                   className="bg-transparent text-xs font-black uppercase outline-none w-full placeholder:opacity-30"
                   style={{ 
                     color: isDarkMode ? 'white' : 'black',
-                    fontFamily: "'Roboto', 'Segoe UI', sans-serif",
                     fontWeight: '900',
                     letterSpacing: '0.5px'
                   }}
@@ -1777,11 +1843,9 @@ export default function App() {
                     </div>
                   </div>
                   <div className="flex items-center gap-1.5">
+                    {/* ===== UPDATED: USE CONFIRM DELETE ===== */}
                     <button
-                      onClick={async () => {
-                        if(window.confirm('Delete this shop?'))
-                          await deleteDoc(doc(db, 'shops', s.id))
-                      }}
+                      onClick={() => confirmDelete(s.id, 'shop', s.name)}
                       className={`p-2 rounded-lg transition-all ${
                         isDarkMode
                           ? 'text-red-500/30 hover:text-red-500 hover:bg-red-500/10'
@@ -1809,7 +1873,7 @@ export default function App() {
           </div>
         )}
 
-        {/* History Tab - UPDATED WITH PRINT BUTTON */}
+        {/* History Tab - UPDATED WITH DELETE CONFIRM */}
         {activeTab === 'history' && (
           <div className="space-y-3">
             <div className={`p-4 rounded-2xl border flex items-center gap-3 ${
@@ -1858,7 +1922,6 @@ export default function App() {
                     </div>
                   </div>
                   <div className="flex gap-1.5">
-                    {/* PRINT BUTTON - NEW */}
                     <button
                       onClick={() => printBill(o)}
                       className={`p-2 rounded-lg transition-all ${
@@ -1892,11 +1955,9 @@ export default function App() {
                     >
                       <Share2 size={16}/>
                     </button>
+                    {/* ===== UPDATED: USE CONFIRM DELETE ===== */}
                     <button
-                      onClick={async () => {
-                        if(window.confirm('Delete this bill?'))
-                          await deleteDoc(doc(db, 'orders', o.id))
-                      }}
+                      onClick={() => confirmDelete(o.id, 'order', '')}
                       className={`p-2 rounded-lg transition-all ${
                         isDarkMode
                           ? 'text-red-500/30 hover:text-red-500 hover:bg-red-500/10'
@@ -1942,7 +2003,7 @@ export default function App() {
           </div>
         )}
 
-        {/* NOTES TAB */}
+        {/* NOTES TAB - UPDATED WITH DELETE CONFIRM */}
         {activeTab === 'notes' && (
           <div className="space-y-3">
             <div className={`p-4 rounded-2xl border flex items-center gap-3 ${
@@ -1991,8 +2052,9 @@ export default function App() {
                         <p className="text-[10px] opacity-40 mt-0.5">{note.date}</p>
                       </div>
                     </div>
+                    {/* ===== UPDATED: USE CONFIRM DELETE ===== */}
                     <button
-                      onClick={() => deleteNote(note.id)}
+                      onClick={() => confirmDelete(note.id, 'note', '')}
                       className={`p-1.5 rounded-lg transition-all ${
                         isDarkMode
                           ? 'text-red-500/30 hover:text-red-500 hover:bg-red-500/10'
@@ -2027,7 +2089,7 @@ export default function App() {
           </div>
         )}
 
-        {/* Settings Tab - UPDATED BRANDS WITH SEQUENTIAL NUMBERING */}
+        {/* Settings Tab - UPDATED WITH DELETE CONFIRM & BRAND ERROR */}
         {activeTab === 'settings' && (
           <div className="space-y-4 pb-16">
             {/* Profile Settings */}
@@ -2095,7 +2157,7 @@ export default function App() {
               </button>
             </div>
 
-            {/* Routes Management Section */}
+            {/* Routes Management Section - UPDATED WITH DELETE CONFIRM */}
             <div>
               <div className="flex items-center justify-between mb-3">
                 <h4 className="text-xs font-black text-[#d4af37] uppercase tracking-widest">Routes List</h4>
@@ -2116,8 +2178,9 @@ export default function App() {
                       <MapPin size={14} className="text-[#d4af37]" />
                       <span className="text-xs font-black uppercase" style={{ color: isDarkMode ? 'white' : 'black' }}>{r.name}</span>
                     </div>
+                    {/* ===== UPDATED: USE CONFIRM DELETE ===== */}
                     <button
-                      onClick={() => deleteRoute(r.id)}
+                      onClick={() => confirmDelete(r.id, 'route', r.name)}
                       className={`p-1.5 rounded-lg transition-all ${
                         isDarkMode
                           ? 'text-red-500/40 hover:text-red-500 hover:bg-red-500/10'
@@ -2137,7 +2200,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* Brands List - UPDATED WITH SEQUENTIAL NUMBERS */}
+            {/* Brands List - UPDATED WITH DELETE CONFIRM */}
             <div>
               <div className="flex items-center justify-between mb-3">
                 <h4 className="text-xs font-black text-[#d4af37] uppercase tracking-widest">Brands List</h4>
@@ -2210,7 +2273,6 @@ export default function App() {
                       <>
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
-                            {/* SEQUENTIAL NUMBER BADGE */}
                             <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-sm ${
                               isDarkMode
                                 ? 'bg-[#d4af37]/20 text-[#d4af37] border border-[#d4af37]/30'
@@ -2235,7 +2297,6 @@ export default function App() {
                           </div>
                           
                           <div className="flex items-center gap-1">
-                            {/* Reorder buttons - only show if not offline */}
                             {!isOffline && (
                               <>
                                 {index > 0 && (
@@ -2276,11 +2337,9 @@ export default function App() {
                             >
                               <Edit2 size={14}/>
                             </button>
+                            {/* ===== UPDATED: USE CONFIRM DELETE ===== */}
                             <button
-                              onClick={async () => {
-                                if(window.confirm(`Delete ${b.name} (${b.size})?`))
-                                  await deleteDoc(doc(db, 'brands', b.id))
-                              }}
+                              onClick={() => confirmDelete(b.id, 'brand', `${b.name} (${b.size})`)}
                               className={`p-1.5 rounded-lg transition-all ${
                                 isDarkMode
                                   ? 'text-red-500/40 hover:text-red-500 hover:bg-red-500/10'
@@ -2304,7 +2363,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* Today's Expenses */}
+            {/* Today's Expenses - UPDATED WITH DELETE CONFIRM */}
             <div>
               <div className="flex items-center justify-between mb-3">
                 <h4 className="text-xs font-black text-[#d4af37] uppercase tracking-widest">Today's Expenses</h4>
@@ -2337,8 +2396,9 @@ export default function App() {
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-base font-black text-red-500">Rs.{exp.amount.toLocaleString()}</span>
+                      {/* ===== UPDATED: USE CONFIRM DELETE ===== */}
                       <button
-                        onClick={() => deleteExpense(exp.id)}
+                        onClick={() => confirmDelete(exp.id, 'expense', '')}
                         className={`p-1 rounded-lg transition-all ${
                           isDarkMode
                             ? 'text-red-500/30 hover:text-red-500 hover:bg-red-500/10'
@@ -2404,7 +2464,7 @@ export default function App() {
         ))}
       </nav>
 
-      {/* PRINT PREVIEW MODAL - NEW */}
+      {/* PRINT PREVIEW MODAL */}
       {showPrintPreview && printOrder && (
         <div className="fixed inset-0 bg-black/95 z-[200] flex items-center justify-center p-3 backdrop-blur-3xl">
           <div className="bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] w-full max-w-sm p-4 rounded-2xl border border-[#d4af37]/30 shadow-2xl">
@@ -2478,7 +2538,7 @@ export default function App() {
         </div>
       )}
 
-      {/* --- COMPACT CALCULATOR MODAL --- */}
+      {/* CALCULATOR MODAL - UPDATED WITH DISCOUNT */}
       {showCalculator && (
         <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-3 backdrop-blur-3xl">
           <div className={`w-full max-w-xs p-4 rounded-2xl border relative shadow-2xl ${
@@ -2496,7 +2556,7 @@ export default function App() {
             <div className="text-center mb-4">
               <Calculator size={30} className="text-[#d4af37] mx-auto mb-2" />
               <h3 className="font-black text-[#d4af37] mb-1 uppercase text-base tracking-widest">CALCULATOR</h3>
-              <p className="text-[10px] opacity-50">Calculate totals</p>
+              <p className="text-[10px] opacity-50">Calculate totals with discount</p>
             </div>
 
             <div className="space-y-3">
@@ -2517,7 +2577,7 @@ export default function App() {
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-[10px] font-black uppercase opacity-40 mb-1 block">Discount</label>
+                  <label className="text-[10px] font-black uppercase opacity-40 mb-1 block">Discount (Rs.)</label>
                   <input
                     type="number"
                     value={totalCalculation.discount}
@@ -2553,7 +2613,7 @@ export default function App() {
                   : "bg-gradient-to-br from-gray-100 to-gray-50 border-[#d4af37]/30"
               }`}>
                 <div className="flex justify-between items-center mb-1">
-                  <p className="text-[10px] font-black uppercase opacity-60">Total</p>
+                  <p className="text-[10px] font-black uppercase opacity-60">Grand Total</p>
                 </div>
                 <p className="text-lg font-black text-[#d4af37] text-center">
                   Rs.{(totalCalculation.subtotal - totalCalculation.discount + totalCalculation.tax).toLocaleString()}
@@ -2586,7 +2646,7 @@ export default function App() {
         </div>
       )}
 
-      {/* --- COMPACT EXPENSE MODAL --- */}
+      {/* EXPENSE MODAL */}
       {showModal === 'expense' && (
         <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-3 backdrop-blur-3xl">
           <div className={`w-full max-w-xs p-4 rounded-2xl border relative shadow-2xl ${
@@ -2666,7 +2726,7 @@ export default function App() {
         </div>
       )}
 
-      {/* --- COMPACT NOTE MODAL --- */}
+      {/* NOTE MODAL */}
       {showModal === 'note' && (
         <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-3 backdrop-blur-3xl">
           <div className={`w-full max-w-xs p-4 rounded-2xl border relative shadow-2xl ${
@@ -2708,11 +2768,10 @@ export default function App() {
         </div>
       )}
 
-      {/* --- INVOICE MODAL --- */}
+      {/* INVOICE MODAL */}
       {showModal === 'invoice' && selectedShop && (
         <div className="fixed inset-0 bg-black z-[100] overflow-y-auto">
           <div className="min-h-screen p-3 max-w-lg mx-auto pb-32">
-            {/* Header */}
             <div className="flex justify-between items-center mb-4 sticky top-0 bg-black/95 py-3 border-b border-white/10 backdrop-blur-xl z-10">
               <div>
                 <h2 className="text-xl font-black uppercase text-white">{selectedShop.name}</h2>
@@ -2726,7 +2785,6 @@ export default function App() {
               </button>
             </div>
 
-            {/* Brand List - SHOW SEQUENTIAL NUMBERS */}
             <div className="space-y-2">
               {data.brands.map((b, index) => (
                 <div
@@ -2779,7 +2837,6 @@ export default function App() {
               )}
             </div>
 
-            {/* Fixed Bottom Bar */}
             <div className="fixed bottom-0 inset-x-0 p-3 bg-black/95 border-t border-white/10 backdrop-blur-2xl z-20">
               <div className="max-w-lg mx-auto">
                 <div className="flex justify-between items-center mb-3">
@@ -2809,11 +2866,10 @@ export default function App() {
         </div>
       )}
 
-      {/* --- MANUAL ORDER MODAL --- */}
+      {/* MANUAL ORDER MODAL */}
       {showModal === 'manual' && (
         <div className="fixed inset-0 bg-black z-[100] overflow-y-auto">
           <div className="min-h-screen p-3 max-w-lg mx-auto pb-40">
-            {/* Header */}
             <div className="flex justify-between items-center mb-4 sticky top-0 bg-black/95 py-3 border-b border-white/10 backdrop-blur-xl z-10">
               <div>
                 <h2 className="text-xl font-black uppercase text-white">Manual Order</h2>
@@ -2830,7 +2886,6 @@ export default function App() {
             </button>
             </div>
 
-            {/* Shop Selection */}
             <div className="mb-4">
               <label className="text-xs font-black uppercase opacity-60 mb-2 block">Select Shop</label>
               <select
@@ -2849,7 +2904,6 @@ export default function App() {
               </select>
             </div>
 
-            {/* Manual Items */}
             <div className="space-y-3">
               <div className="flex justify-between items-center">
                 <h3 className="text-xs font-black uppercase opacity-60">Custom Items</h3>
@@ -2920,7 +2974,6 @@ export default function App() {
               ))}
             </div>
 
-            {/* Fixed Bottom Bar */}
             <div className="fixed bottom-0 inset-x-0 p-3 bg-black/95 border-t border-white/10 backdrop-blur-2xl z-20">
               <div className="max-w-lg mx-auto">
                 <div className="flex justify-between items-center mb-2">
@@ -2951,7 +3004,7 @@ export default function App() {
         </div>
       )}
 
-      {/* --- PREVIEW MODAL --- */}
+      {/* PREVIEW MODAL */}
       {showModal === 'preview' && lastOrder && (
         <div className="fixed inset-0 bg-black/95 z-[110] flex items-center justify-center p-3 backdrop-blur-3xl">
           <div className="bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] w-full max-w-sm p-4 rounded-2xl border border-[#d4af37]/30 shadow-2xl">
@@ -2963,7 +3016,6 @@ export default function App() {
               <p className="text-xs text-white/60 uppercase font-bold mt-1">{lastOrder.shopName}</p>
             </div>
 
-            {/* Order Summary */}
             <div className="bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] rounded-xl p-3 mb-4 border border-white/5">
               <div className="space-y-2 max-h-32 overflow-y-auto pr-1">
                 {lastOrder.items && lastOrder.items.map((it, idx) => (
@@ -2983,7 +3035,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* Action Buttons - ADDED PRINT BUTTON */}
             <div className="space-y-2">
               <button
                 type="button"
@@ -3024,7 +3075,7 @@ export default function App() {
         </div>
       )}
 
-      {/* --- REGISTER MODALS (Shop, Brand, Route) - UPDATED BRAND FORM WITH SEQUENCE --- */}
+      {/* REGISTER MODALS (Shop, Brand, Route) - UPDATED BRAND FORM WITH ERROR */}
       {['route', 'shop', 'brand'].includes(showModal) && (
         <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-3 backdrop-blur-3xl">
           <div className={`w-full max-w-xs p-4 rounded-2xl border relative shadow-2xl ${
@@ -3122,7 +3173,6 @@ export default function App() {
 
               {showModal==='brand' && (
                 <>
-                  {/* Show next sequence number */}
                   <div className={`p-2 rounded-lg border ${isDarkMode ? 'bg-[#d4af37]/10 border-[#d4af37]/30' : 'bg-[#d4af37]/5 border-[#d4af37]/20'} text-center`}>
                     <span className="text-[10px] font-black uppercase opacity-60">Brand Number</span>
                     <div className="text-2xl font-black text-[#d4af37]">{data.brands.length + 1}</div>
@@ -3146,6 +3196,13 @@ export default function App() {
                     }`}
                     required
                   />
+                  
+                  {/* ===== NEW: BRAND ERROR DISPLAY ===== */}
+                  {brandError && (
+                    <div className="p-2 bg-red-500/20 border border-red-500/30 rounded-lg">
+                      <p className="text-red-500 text-xs font-bold text-center">{brandError}</p>
+                    </div>
+                  )}
                 </>
               )}
 
@@ -3191,73 +3248,21 @@ export default function App() {
         }
 
         @media (max-width: 640px) {
-          body {
-            font-size: 13px;
-          }
-          
-          input, button, select, textarea {
-            font-size: 13px;
-          }
-          
-          .text-xs {
-            font-size: 0.7rem !important;
-          }
-          
-          .text-sm {
-            font-size: 0.75rem !important;
-          }
-          
-          h1, h2, h3, h4 {
-            font-size: 0.9rem !important;
-          }
+          body { font-size: 13px; }
+          input, button, select, textarea { font-size: 13px; }
+          .text-xs { font-size: 0.7rem !important; }
+          .text-sm { font-size: 0.75rem !important; }
+          h1, h2, h3, h4 { font-size: 0.9rem !important; }
         }
 
         @media (max-width: 400px) {
-          body {
-            font-size: 12px;
-          }
-          
-          input, button, select, textarea {
-            font-size: 12px;
-          }
-          
-          main {
-            padding: 0.5rem !important;
-          }
-          
-          .p-3 {
-            padding: 0.6rem !important;
-          }
-          
-          .p-4 {
-            padding: 0.75rem !important;
-          }
-          
-          .p-5 {
-            padding: 1rem !important;
-          }
-          
-          .rounded-2xl {
-            border-radius: 1rem !important;
-          }
-        }
-
-        @media (max-width: 320px) {
-          body {
-            font-size: 11px;
-          }
-          
-          .text-xs {
-            font-size: 0.65rem !important;
-          }
-          
-          .p-2 {
-            padding: 0.4rem !important;
-          }
-          
-          .gap-2 {
-            gap: 0.5rem !important;
-          }
+          body { font-size: 12px; }
+          input, button, select, textarea { font-size: 12px; }
+          main { padding: 0.5rem !important; }
+          .p-3 { padding: 0.6rem !important; }
+          .p-4 { padding: 0.75rem !important; }
+          .p-5 { padding: 1rem !important; }
+          .rounded-2xl { border-radius: 1rem !important; }
         }
 
         button {
@@ -3291,32 +3296,8 @@ export default function App() {
           border-radius: 10px;
         }
 
-        button, input[type="button"], input[type="submit"] {
-          min-height: 40px;
-          min-width: 40px;
-        }
-
         .transition-all {
           transition: all 0.2s ease;
-        }
-
-        /* Print styles */
-        @media print {
-          body * {
-            visibility: hidden;
-          }
-          .print-bill, .print-bill * {
-            visibility: visible;
-          }
-          .print-bill {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-            background: white;
-            color: black;
-            padding: 20px;
-          }
         }
       `}</style>
     </div>
