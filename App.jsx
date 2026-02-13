@@ -16,7 +16,8 @@ import {
   ShoppingBag, DollarSign, Fuel, FileText, Navigation, AlertCircle,
   CreditCard, Coffee, Target, Percent, BarChart3, Hash, Package2,
   BookOpen, Filter, Eye, Clock, Download, Mail, Lock, User, Printer,
-  Wifi, WifiOff, Award, Briefcase, Activity
+  Wifi, WifiOff, Award, Briefcase, Activity, Gamepad2, Phone,
+  TrendingUp as TrendingIcon, ShoppingCart, Truck, Gift, Zap
 } from 'lucide-react';
 
 // --- FIREBASE CONFIG ---
@@ -64,8 +65,8 @@ export default function App() {
     expenses: [],
     notes: [],
     locations: [],
-    targets: [],        // NEW: Monthly targets
-    shopProfiles: []    // NEW: Shop profiles
+    targets: [],
+    shopProfiles: []
   });
   const [cart, setCart] = useState({});
   const [selectedShop, setSelectedShop] = useState(null);
@@ -80,7 +81,7 @@ export default function App() {
   const [manualItems, setManualItems] = useState([{ name: '', qty: 1, price: 0, subtotal: 0 }]);
   const [editingBrand, setEditingBrand] = useState(null);
   
-  // Calculator State - UPDATED with percentage discount
+  // Calculator State
   const [totalCalculation, setTotalCalculation] = useState({
     subtotal: 0,
     discount: 0,
@@ -108,24 +109,36 @@ export default function App() {
   const [brandSequence, setBrandSequence] = useState(0);
   const [showPrintPreview, setShowPrintPreview] = useState(false);
   const [printOrder, setPrintOrder] = useState(null);
-  
-  // NEW: Delete Confirm State
   const [showDeleteConfirm, setShowDeleteConfirm] = useState({ show: false, id: null, type: '', name: '' });
-  
-  // NEW: Brand Error State
   const [brandError, setBrandError] = useState('');
-  
-  // NEW: Login Error State
   const [loginError, setLoginError] = useState('');
   
-  // NEW: Target States
+  // NEW: Enhanced Target States
   const [targetAmount, setTargetAmount] = useState('');
   const [targetMonth, setTargetMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [targetType, setTargetType] = useState('revenue'); // 'revenue' or 'units'
+  const [targetProgressType, setTargetProgressType] = useState('revenue'); // For display
   
-  // NEW: Shop Profile States
-  const [shopProfileData, setShopProfileData] = useState({
-    ownerName: '', phone: '', email: '', address: '', gst: '', notes: ''
+  // NEW: Shop Profile States - FIXED
+  const [shopProfileForm, setShopProfileForm] = useState({
+    ownerName: '',
+    phone: '',
+    email: '',
+    address: '',
+    gst: '',
+    notes: ''
   });
+  
+  // NEW: Game State
+  const [showGame, setShowGame] = useState(false);
+  const [gameScore, setGameScore] = useState(0);
+  const [gameHighScore, setGameHighScore] = useState(0);
+  const [gamePosition, setGamePosition] = useState({ x: 50, y: 50 });
+  const [gameTargets, setGameTargets] = useState([]);
+  const [gameActive, setGameActive] = useState(false);
+  
+  // NEW: View Shop Profile State
+  const [viewingShopProfile, setViewingShopProfile] = useState(null);
 
   // Network Status Listener
   useEffect(() => {
@@ -172,7 +185,7 @@ export default function App() {
     };
   }, []);
 
-  // Real-time Data Fetching with Offline Support - UPDATED with targets and shopProfiles
+  // Real-time Data Fetching
   useEffect(() => {
     if (!user) return;
 
@@ -195,7 +208,6 @@ export default function App() {
               ...doc.data()
             }));
 
-            // Sort brands by sequence number
             if (collectionName === 'brands') {
               items.sort((a, b) => (a.sequence || 999) - (b.sequence || 999));
             }
@@ -206,7 +218,6 @@ export default function App() {
             }));
           }, (error) => {
             console.error(`Error fetching ${collectionName}:`, error);
-            // Load from localStorage if offline
             const cached = localStorage.getItem(`${collectionName}_${user.uid}`);
             if (cached) {
               setData(prev => ({
@@ -380,7 +391,7 @@ export default function App() {
     }
   };
 
-  // ===== NEW: DELETE CONFIRM FUNCTIONS =====
+  // Delete Confirm Function
   const confirmDelete = (id, type, name) => {
     setShowDeleteConfirm({ show: true, id, type, name });
   };
@@ -404,16 +415,6 @@ export default function App() {
     } catch (err) {
       showToast(`Error deleting ${type}: ` + err.message, 'error');
     }
-  };
-
-  // Delete Expense - UPDATED with confirm modal
-  const deleteExpense = async (expenseId) => {
-    confirmDelete(expenseId, 'expense', '');
-  };
-
-  // Delete Route - UPDATED with confirm modal
-  const deleteRoute = async (routeId) => {
-    confirmDelete(routeId, 'route', '');
   };
 
   // Save Note with Offline Support
@@ -509,7 +510,7 @@ export default function App() {
     }
   };
 
-  // ===== NEW: CALCULATE TOTAL WITH PERCENTAGE DISCOUNT =====
+  // Calculate Total
   const calculateTotal = () => {
     const subtotal = parseFloat(totalCalculation.subtotal) || 0;
     let discount = parseFloat(totalCalculation.discount) || 0;
@@ -576,7 +577,86 @@ export default function App() {
     }
   };
 
-  // ===== NEW: STATISTICS WITH TARGETS AND MONTHLY EXPENSES =====
+  // ===== FIXED: SHOP STATISTICS FUNCTION =====
+  const getShopStats = (shopId) => {
+    if (!shopId) return { totalSales: 0, orderCount: 0, lastOrder: null, items: {} };
+    
+    const shopOrders = data.orders.filter(o => o.shopId === shopId);
+    const totalSales = shopOrders.reduce((sum, o) => sum + (o.total || 0), 0);
+    const orderCount = shopOrders.length;
+    const lastOrder = shopOrders.length > 0 ? shopOrders[0] : null;
+    
+    const items = {};
+    shopOrders.forEach(o => {
+      if (o.items) {
+        o.items.forEach(i => {
+          if (!items[i.name]) items[i.name] = 0;
+          items[i.name] += i.qty || 0;
+        });
+      }
+    });
+    
+    return { totalSales, orderCount, lastOrder, items };
+  };
+
+  // ===== FIXED: GET SHOP PROFILE =====
+  const getShopProfile = (shopId) => {
+    return data.shopProfiles?.find(p => p.shopId === shopId);
+  };
+
+  // ===== FIXED: SAVE SHOP PROFILE =====
+  const saveShopProfile = async (e) => {
+    e.preventDefault();
+    if (!user || !selectedShop) {
+      showToast("Select a shop first!", "error");
+      return;
+    }
+    
+    try {
+      const profileData = {
+        userId: user.uid,
+        shopId: selectedShop.id,
+        shopName: selectedShop.name,
+        ownerName: shopProfileForm.ownerName?.toUpperCase() || '',
+        phone: shopProfileForm.phone || '',
+        email: shopProfileForm.email || '',
+        address: shopProfileForm.address || '',
+        gst: shopProfileForm.gst?.toUpperCase() || '',
+        notes: shopProfileForm.notes || '',
+        timestamp: Date.now()
+      };
+      
+      const existingProfile = data.shopProfiles?.find(p => p.shopId === selectedShop.id);
+      
+      if (existingProfile) {
+        await updateDoc(doc(db, 'shopProfiles', existingProfile.id), profileData);
+        showToast("✅ Shop profile updated!", "success");
+      } else {
+        await addDoc(collection(db, 'shopProfiles'), profileData);
+        showToast("✅ Shop profile saved!", "success");
+      }
+      
+      setShowModal(null);
+      setShopProfileForm({
+        ownerName: '',
+        phone: '',
+        email: '',
+        address: '',
+        gst: '',
+        notes: ''
+      });
+    } catch (err) {
+      showToast("Error: " + err.message, "error");
+    }
+  };
+
+  // ===== FIXED: VIEW SHOP PROFILE =====
+  const viewShopProfile = (shop) => {
+    const profile = getShopProfile(shop.id);
+    setViewingShopProfile({ shop, profile });
+  };
+
+  // ===== ENHANCED: STATISTICS WITH TARGETS (Rs. OR UNITS) =====
   const stats = useMemo(() => {
     const todayStr = new Date().toLocaleDateString();
     const currentMonth = new Date().getMonth();
@@ -660,7 +740,6 @@ export default function App() {
     const todayExpenses = data.expenses.filter(e => e.date === todayStr);
     const totalExpenses = todayExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
     
-    // NEW: Monthly total expenses
     const monthlyExpenses = data.expenses.filter(e => {
       try {
         return e.date && e.date.startsWith(currentYear + '-' + String(currentMonth + 1).padStart(2, '0'));
@@ -671,10 +750,18 @@ export default function App() {
 
     const todayNotes = data.notes.filter(n => n.date === todayStr);
     
-    // NEW: Current month target
-    const currentTarget = data.targets?.find(t => t.month === currentMonthStr) || { amount: 0 };
+    // Enhanced target handling - can be revenue or units
+    const currentTarget = data.targets?.find(t => t.month === currentMonthStr) || { amount: 0, type: 'revenue' };
     const monthlySales = monthlyOrders.reduce((sum, o) => sum + (o.total || 0), 0);
-    const targetProgress = currentTarget.amount > 0 ? (monthlySales / currentTarget.amount) * 100 : 0;
+    const monthlyUnits = monthlyOrders.reduce((sum, o) => {
+      let units = 0;
+      if (o.items) o.items.forEach(i => units += i.qty || 0);
+      return sum + units;
+    }, 0);
+    
+    const targetValue = currentTarget.type === 'units' ? monthlyUnits : monthlySales;
+    const targetAmount = currentTarget.amount || 0;
+    const targetProgress = targetAmount > 0 ? (targetValue / targetAmount) * 100 : 0;
 
     return {
       daily: getStats(dailyOrders),
@@ -684,38 +771,13 @@ export default function App() {
       notes: todayNotes.length,
       todayExpenses: todayExpenses,
       monthlySales: monthlySales,
-      monthlyTarget: currentTarget.amount || 0,
+      monthlyUnits: monthlyUnits,
+      monthlyTarget: targetAmount,
+      targetType: currentTarget.type || 'revenue',
       targetProgress: targetProgress,
-      targetRemaining: Math.max(0, (currentTarget.amount || 0) - monthlySales)
+      targetRemaining: Math.max(0, targetAmount - targetValue)
     };
   }, [data.orders, data.expenses, data.notes, data.targets]);
-
-  // ===== NEW: SHOP STATISTICS FUNCTION =====
-  const getShopStats = (shopId) => {
-    if (!shopId) return { totalSales: 0, orderCount: 0, lastOrder: null, items: {} };
-    
-    const shopOrders = data.orders.filter(o => o.shopId === shopId || o.shopName === shopId);
-    const totalSales = shopOrders.reduce((sum, o) => sum + (o.total || 0), 0);
-    const orderCount = shopOrders.length;
-    const lastOrder = shopOrders.length > 0 ? shopOrders[0] : null;
-    
-    const items = {};
-    shopOrders.forEach(o => {
-      if (o.items) {
-        o.items.forEach(i => {
-          if (!items[i.name]) items[i.name] = 0;
-          items[i.name] += i.qty || 0;
-        });
-      }
-    });
-    
-    return { totalSales, orderCount, lastOrder, items };
-  };
-
-  // ===== NEW: GET SHOP PROFILE =====
-  const getShopProfile = (shopId) => {
-    return data.shopProfiles?.find(p => p.shopId === shopId);
-  };
 
   // Filter Shops
   const filteredShops = useMemo(() => {
@@ -827,7 +889,7 @@ export default function App() {
     setShowPrintPreview(true);
   };
 
-  // Generate Bill HTML for Printing (NORMAL SIZE - 80mm)
+  // Generate Bill HTML for Printing
   const generateBillHTML = (order) => {
     const companyName = order.companyName || data.settings.company || "MONARCH";
     const shopName = order.shopName || "Unknown Shop";
@@ -854,7 +916,7 @@ export default function App() {
           }
           .header {
             text-align: center;
-            border-bottom: 2px dashed #000;
+            border-bottom: 2px dashed #d4af37;
             padding-bottom: 10px;
             margin-bottom: 10px;
           }
@@ -890,7 +952,7 @@ export default function App() {
             font-size: 11px;
           }
           .total {
-            border-top: 2px solid #000;
+            border-top: 2px solid #d4af37;
             margin-top: 10px;
             padding-top: 10px;
             text-align: right;
@@ -902,7 +964,7 @@ export default function App() {
             text-align: center;
             font-size: 9px;
             color: #666;
-            border-top: 1px dashed #000;
+            border-top: 1px dashed #d4af37;
             padding-top: 8px;
           }
           @media print {
@@ -976,7 +1038,7 @@ export default function App() {
     printWindow.document.close();
   };
 
-  // ===== NEW: AUTH HANDLER WITH CLEAR ERROR MESSAGES =====
+  // Auth Handler
   const handleAuth = async (e) => {
     e.preventDefault();
     setLoginError('');
@@ -1048,7 +1110,7 @@ export default function App() {
     }, 0);
   };
 
-  // Create Order from Cart with Offline Support
+  // Create Order from Cart
   const handleCreateOrder = async () => {
     if (!user) {
       showToast("Please login first!", "error");
@@ -1110,12 +1172,7 @@ export default function App() {
     }
   };
 
-  // Delete Note - UPDATED with confirm modal
-  const deleteNote = async (noteId) => {
-    confirmDelete(noteId, 'note', '');
-  };
-
-  // Save Brand Edit with Sequence Update
+  // Save Brand Edit
   const saveBrandEdit = async (brandId, field, value) => {
     try {
       await updateDoc(doc(db, 'brands', brandId), { 
@@ -1127,7 +1184,7 @@ export default function App() {
     }
   };
 
-  // ===== NEW: VALIDATE BRAND =====
+  // Validate Brand
   const validateBrand = (name, size, price) => {
     if (!name.trim()) return 'Brand name required';
     if (!size.trim()) return 'Size required';
@@ -1141,7 +1198,7 @@ export default function App() {
     return '';
   };
 
-  // Add Brand with Sequential Number - UPDATED with validation
+  // Add Brand with Sequence
   const addBrandWithSequence = async (e) => {
     e.preventDefault();
     if (!user) {
@@ -1154,7 +1211,6 @@ export default function App() {
     const size = form.size.value.toUpperCase();
     const price = parseFloat(form.price.value);
     
-    // Brand validation
     const error = validateBrand(name, size, price);
     if (error) {
       setBrandError(error);
@@ -1221,7 +1277,7 @@ export default function App() {
     }
   };
 
-  // ===== NEW: SAVE MONTHLY TARGET =====
+  // ===== ENHANCED: SAVE MONTHLY TARGET (Rs. or Units) =====
   const saveMonthlyTarget = async (e) => {
     e.preventDefault();
     if (!user) return;
@@ -1231,6 +1287,7 @@ export default function App() {
         userId: user.uid,
         month: targetMonth,
         amount: parseFloat(targetAmount),
+        type: targetType,
         timestamp: Date.now()
       };
       
@@ -1238,10 +1295,10 @@ export default function App() {
       
       if (existingTarget) {
         await updateDoc(doc(db, 'targets', existingTarget.id), targetData);
-        showToast("✅ Target updated!", "success");
+        showToast(`✅ Target updated (${targetType === 'revenue' ? 'Rs.' : 'Units'})!`, "success");
       } else {
         await addDoc(collection(db, 'targets'), targetData);
-        showToast("✅ Target set successfully!", "success");
+        showToast(`✅ Target set (${targetType === 'revenue' ? 'Rs.' : 'Units'})!`, "success");
       }
       
       setTargetAmount('');
@@ -1251,58 +1308,183 @@ export default function App() {
     }
   };
 
-  // ===== NEW: SAVE SHOP PROFILE =====
-  const saveShopProfile = async (e) => {
-    e.preventDefault();
-    if (!user || !selectedShop) {
-      showToast("Select a shop first!", "error");
-      return;
-    }
+  // ===== SIMPLE GAME FUNCTIONS =====
+  const startGame = () => {
+    setGameActive(true);
+    setGameScore(0);
+    setGameTargets([]);
     
-    try {
-      const form = e.target;
-      const profileData = {
-        userId: user.uid,
-        shopId: selectedShop.id,
-        shopName: selectedShop.name,
-        ownerName: form.ownerName?.value?.toUpperCase() || '',
-        phone: form.phone?.value || '',
-        email: form.email?.value || '',
-        address: form.address?.value || '',
-        gst: form.gst?.value?.toUpperCase() || '',
-        notes: form.notes?.value || '',
-        timestamp: Date.now()
-      };
-      
-      const existingProfile = data.shopProfiles?.find(p => p.shopId === selectedShop.id);
-      
-      if (existingProfile) {
-        await updateDoc(doc(db, 'shopProfiles', existingProfile.id), profileData);
-        showToast("✅ Shop profile updated!", "success");
-      } else {
-        await addDoc(collection(db, 'shopProfiles'), profileData);
-        showToast("✅ Shop profile saved!", "success");
-      }
-      
-      setShowModal(null);
-    } catch (err) {
-      showToast("Error: " + err.message, "error");
+    // Generate initial targets
+    const newTargets = [];
+    for (let i = 0; i < 5; i++) {
+      newTargets.push({
+        id: i,
+        x: Math.random() * 80 + 10,
+        y: Math.random() * 80 + 10,
+        active: true
+      });
     }
+    setGameTargets(newTargets);
+    
+    // Game timer
+    setTimeout(() => {
+      if (gameActive) {
+        setGameActive(false);
+        if (gameScore > gameHighScore) {
+          setGameHighScore(gameScore);
+          localStorage.setItem('monarchGameHighScore', gameScore);
+        }
+        showToast(`🎮 Game Over! Score: ${gameScore}`, "info");
+      }
+    }, 30000);
   };
+
+  const handleTargetClick = (id) => {
+    if (!gameActive) return;
+    
+    setGameScore(prev => prev + 10);
+    setGameTargets(prev => prev.filter(t => t.id !== id));
+    
+    // Add new target
+    const newTarget = {
+      id: Date.now() + Math.random(),
+      x: Math.random() * 80 + 10,
+      y: Math.random() * 80 + 10,
+      active: true
+    };
+    setGameTargets(prev => [...prev, newTarget]);
+  };
+
+  // Load high score from localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem('monarchGameHighScore');
+    if (saved) setGameHighScore(parseInt(saved));
+  }, []);
 
   // --- RENDER ---
 
-  // Splash Screen
+  // Splash Screen with Game Easter Egg
   if (isSplash || loading) return (
-    <div className="h-screen bg-gradient-to-br from-black via-[#1a1a1a] to-[#2d2d2d] flex flex-col items-center justify-center">
-      <Crown size={70} className="text-[#d4af37] animate-pulse" />
-      <h1 className="mt-6 text-[#d4af37] text-3xl font-black tracking-widest italic uppercase">Monarch Pro</h1>
-      <p className="mt-2 text-white/50 text-sm uppercase tracking-widest">Sales & Target Manager</p>
-      <div className="mt-6 w-56 h-1.5 bg-white/10 rounded-full overflow-hidden">
+    <div className="h-screen bg-gradient-to-br from-black via-[#1a1a1a] to-[#2d2d2d] flex flex-col items-center justify-center relative overflow-hidden">
+      {/* Animated background */}
+      <div className="absolute inset-0 opacity-10">
+        <div className="absolute top-0 left-0 w-96 h-96 bg-[#d4af37] rounded-full filter blur-3xl animate-pulse"></div>
+        <div className="absolute bottom-0 right-0 w-96 h-96 bg-[#b8860b] rounded-full filter blur-3xl animate-pulse delay-1000"></div>
+      </div>
+      
+      <button 
+        onClick={() => {
+          setShowGame(true);
+          setIsSplash(false);
+        }}
+        className="relative z-10 transform hover:scale-110 transition-all duration-300"
+      >
+        <div className="relative">
+          <Crown size={80} className="text-[#d4af37] animate-pulse" />
+          <Gift size={25} className="text-white absolute -top-2 -right-2 animate-bounce" />
+        </div>
+      </button>
+      
+      <h1 className="mt-6 text-[#d4af37] text-4xl font-black tracking-widest italic uppercase relative z-10">
+        MONARCH
+      </h1>
+      <p className="mt-2 text-white/50 text-sm uppercase tracking-widest relative z-10">
+        Sales & Target Manager
+      </p>
+      <p className="mt-1 text-[#d4af37]/40 text-[10px] uppercase tracking-widest relative z-10">
+        Tap the crown for a surprise!
+      </p>
+      
+      <div className="mt-8 w-56 h-1.5 bg-white/10 rounded-full overflow-hidden relative z-10">
         <div className="h-full bg-gradient-to-r from-[#d4af37] via-[#f5e7a3] to-[#b8860b] animate-progress"></div>
+      </div>
+      
+      <div className="absolute bottom-10 left-0 right-0 text-center text-white/20 text-[10px] uppercase tracking-widest">
+        Monarch Pro v2.0
       </div>
     </div>
   );
+
+  // Game Screen
+  if (showGame) {
+    return (
+      <div className="h-screen bg-gradient-to-br from-black via-[#1a1a1a] to-[#2d2d2d] flex flex-col items-center justify-center p-4 relative overflow-hidden">
+        <div className="absolute inset-0">
+          <div className="absolute top-0 left-0 w-64 h-64 bg-[#d4af37]/5 rounded-full filter blur-3xl"></div>
+          <div className="absolute bottom-0 right-0 w-64 h-64 bg-[#b8860b]/5 rounded-full filter blur-3xl"></div>
+        </div>
+        
+        <div className="relative z-10 w-full max-w-md">
+          <div className="flex justify-between items-center mb-6">
+            <div>
+              <h2 className="text-[#d4af37] text-2xl font-black uppercase flex items-center gap-2">
+                <Gamepad2 size={28} />
+                MONARCH HUNT
+              </h2>
+              <p className="text-white/40 text-xs uppercase mt-1">Tap the gold coins!</p>
+            </div>
+            <div className="text-right">
+              <div className="text-[#d4af37] text-xl font-black">⭐ {gameScore}</div>
+              <div className="text-white/40 text-xs uppercase">Best: {gameHighScore}</div>
+            </div>
+          </div>
+          
+          <div className="bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] rounded-2xl border border-[#d4af37]/30 p-4 mb-4 relative h-96">
+            {!gameActive ? (
+              <div className="h-full flex flex-col items-center justify-center">
+                <Crown size={60} className="text-[#d4af37] mb-4 opacity-50" />
+                <p className="text-white/60 text-center mb-6 text-sm">
+                  Tap the gold coins as fast as you can!<br/>
+                  <span className="text-[#d4af37]">30 seconds challenge</span>
+                </p>
+                <button
+                  onClick={startGame}
+                  className="px-8 py-4 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-xl uppercase text-sm tracking-widest hover:opacity-90 transition-all"
+                >
+                  START GAME
+                </button>
+              </div>
+            ) : (
+              <div className="relative h-full">
+                {gameTargets.map(target => (
+                  <button
+                    key={target.id}
+                    onClick={() => handleTargetClick(target.id)}
+                    className="absolute w-12 h-12 bg-[#d4af37] rounded-full flex items-center justify-center animate-pulse shadow-lg shadow-[#d4af37]/50 transform hover:scale-110 transition-all"
+                    style={{
+                      left: `${target.x}%`,
+                      top: `${target.y}%`,
+                      transform: 'translate(-50%, -50%)'
+                    }}
+                  >
+                    <DollarSign size={20} className="text-black" />
+                  </button>
+                ))}
+                
+                {/* Timer bar */}
+                <div className="absolute bottom-0 left-0 right-0">
+                  <div className="h-1 bg-white/10 rounded-full overflow-hidden">
+                    <div className="h-full bg-gradient-to-r from-[#d4af37] to-[#b8860b] animate-progress-slow"></div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+          
+          <button
+            onClick={() => {
+              setShowGame(false);
+              setIsSplash(true);
+              setTimeout(() => setIsSplash(false), 1500);
+            }}
+            className="w-full py-3 bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] text-white/60 font-black rounded-xl uppercase text-xs border border-white/5 hover:border-white/10 transition-all"
+          >
+            ← BACK TO APP
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // Forgot Password Screen
   if (!user && showForgotPassword) {
@@ -1388,13 +1570,24 @@ export default function App() {
     );
   }
 
-  // ===== NEW: LOGIN SCREEN WITH ERROR DISPLAY =====
+  // Login Screen
   if (!user) return (
-    <div className="min-h-screen bg-gradient-to-br from-black via-[#1a1a1a] to-[#2d2d2d] flex items-center justify-center p-4">
-      <div className="w-full max-w-sm space-y-8">
+    <div className="min-h-screen bg-gradient-to-br from-black via-[#1a1a1a] to-[#2d2d2d] flex items-center justify-center p-4 relative overflow-hidden">
+      {/* Animated background */}
+      <div className="absolute inset-0">
+        <div className="absolute top-0 left-0 w-96 h-96 bg-[#d4af37]/5 rounded-full filter blur-3xl animate-pulse"></div>
+        <div className="absolute bottom-0 right-0 w-96 h-96 bg-[#b8860b]/5 rounded-full filter blur-3xl animate-pulse delay-1000"></div>
+      </div>
+      
+      <div className="w-full max-w-sm space-y-8 relative z-10">
         <div className="text-center">
-          <div className="w-24 h-24 bg-gradient-to-br from-[#d4af37]/20 to-[#b8860b]/20 rounded-full flex items-center justify-center mx-auto border-2 border-[#d4af37]/30 shadow-2xl mb-4">
-            <Crown size={50} className="text-[#d4af37]" />
+          <div className="relative">
+            <div className="w-24 h-24 bg-gradient-to-br from-[#d4af37]/20 to-[#b8860b]/20 rounded-full flex items-center justify-center mx-auto border-2 border-[#d4af37]/30 shadow-2xl mb-4">
+              <Crown size={50} className="text-[#d4af37]" />
+            </div>
+            <div className="absolute -top-2 -right-2 animate-bounce">
+              <Gift size={20} className="text-[#d4af37]" />
+            </div>
           </div>
           <h2 className="text-white font-black text-2xl tracking-widest uppercase">
             {isRegisterMode ? "Create Account" : "Welcome Back"}
@@ -1460,11 +1653,15 @@ export default function App() {
             )}
           </div>
         </form>
+        
+        <div className="text-center text-white/20 text-[10px] uppercase tracking-widest pt-4">
+          Tap the crown for a secret game!
+        </div>
       </div>
     </div>
   );
 
-  // Main App - UPDATED with eye-catching colors
+  // Main App
   return (
     <div className={`min-h-screen pb-40 transition-all duration-500 ${
       isDarkMode 
@@ -1494,7 +1691,7 @@ export default function App() {
         </div>
       )}
 
-      {/* ===== NEW: DELETE CONFIRM MODAL ===== */}
+      {/* Delete Confirm Modal */}
       {showDeleteConfirm.show && (
         <div className="fixed inset-0 bg-black/95 z-[1000] flex items-center justify-center p-4 backdrop-blur-3xl">
           <div className="bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] w-full max-w-sm p-5 rounded-2xl border border-red-500/30 shadow-2xl">
@@ -1533,17 +1730,141 @@ export default function App() {
         </div>
       )}
 
-      {/* Header - UPDATED with eye-catching colors */}
+      {/* View Shop Profile Modal - FIXED */}
+      {viewingShopProfile && (
+        <div className="fixed inset-0 bg-black/95 z-[150] flex items-center justify-center p-3 backdrop-blur-3xl">
+          <div className="w-full max-w-xs p-5 rounded-2xl border border-[#d4af37]/30 bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] text-white">
+            <button 
+              onClick={() => setViewingShopProfile(null)} 
+              className="absolute top-2 right-2 text-white/20 hover:text-white/40 p-1"
+            >
+              <X size={20}/>
+            </button>
+
+            <div className="text-center mb-4">
+              <div className="w-16 h-16 bg-gradient-to-br from-[#d4af37]/20 to-[#b8860b]/20 rounded-full flex items-center justify-center mx-auto mb-2 border border-[#d4af37]/30">
+                <Briefcase size={30} className="text-[#d4af37]" />
+              </div>
+              <h3 className="font-black text-[#d4af37] mb-1 uppercase text-base tracking-widest">Shop Profile</h3>
+              <p className="text-xs text-white/80 font-bold">{viewingShopProfile.shop.name}</p>
+            </div>
+
+            {viewingShopProfile.profile ? (
+              <div className="space-y-3">
+                <div className="bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] p-3 rounded-xl border border-white/5">
+                  <div className="flex items-center gap-2 mb-2">
+                    <User size={14} className="text-[#d4af37]" />
+                    <span className="text-xs font-black uppercase">Owner</span>
+                  </div>
+                  <p className="text-sm font-bold text-white/90">{viewingShopProfile.profile.ownerName || 'Not set'}</p>
+                </div>
+
+                <div className="bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] p-3 rounded-xl border border-white/5">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Phone size={14} className="text-[#d4af37]" />
+                    <span className="text-xs font-black uppercase">Phone</span>
+                  </div>
+                  <p className="text-sm font-bold text-white/90">{viewingShopProfile.profile.phone || 'Not set'}</p>
+                </div>
+
+                <div className="bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] p-3 rounded-xl border border-white/5">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Mail size={14} className="text-[#d4af37]" />
+                    <span className="text-xs font-black uppercase">Email</span>
+                  </div>
+                  <p className="text-sm font-bold text-white/90">{viewingShopProfile.profile.email || 'Not set'}</p>
+                </div>
+
+                <div className="bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] p-3 rounded-xl border border-white/5">
+                  <div className="flex items-center gap-2 mb-2">
+                    <MapPin size={14} className="text-[#d4af37]" />
+                    <span className="text-xs font-black uppercase">Address</span>
+                  </div>
+                  <p className="text-sm font-bold text-white/90">{viewingShopProfile.profile.address || 'Not set'}</p>
+                </div>
+
+                <div className="bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] p-3 rounded-xl border border-white/5">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Hash size={14} className="text-[#d4af37]" />
+                    <span className="text-xs font-black uppercase">GST</span>
+                  </div>
+                  <p className="text-sm font-bold text-white/90">{viewingShopProfile.profile.gst || 'Not set'}</p>
+                </div>
+
+                {viewingShopProfile.profile.notes && (
+                  <div className="bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] p-3 rounded-xl border border-white/5">
+                    <div className="flex items-center gap-2 mb-2">
+                      <FileText size={14} className="text-[#d4af37]" />
+                      <span className="text-xs font-black uppercase">Notes</span>
+                    </div>
+                    <p className="text-sm font-bold text-white/90">{viewingShopProfile.profile.notes}</p>
+                  </div>
+                )}
+
+                <div className="flex gap-2 mt-4">
+                  <button
+                    onClick={() => {
+                      setSelectedShop(viewingShopProfile.shop);
+                      setShopProfileForm({
+                        ownerName: viewingShopProfile.profile.ownerName || '',
+                        phone: viewingShopProfile.profile.phone || '',
+                        email: viewingShopProfile.profile.email || '',
+                        address: viewingShopProfile.profile.address || '',
+                        gst: viewingShopProfile.profile.gst || '',
+                        notes: viewingShopProfile.profile.notes || ''
+                      });
+                      setViewingShopProfile(null);
+                      setShowModal('shopProfile');
+                    }}
+                    className="flex-1 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-black rounded-lg uppercase text-xs tracking-widest hover:opacity-90 transition-all"
+                  >
+                    EDIT
+                  </button>
+                  <button
+                    onClick={() => confirmDelete(viewingShopProfile.profile.id, 'shopProfile', '')}
+                    className="flex-1 py-2.5 bg-gradient-to-r from-red-500 to-red-600 text-white font-black rounded-lg uppercase text-xs tracking-widest hover:opacity-90 transition-all"
+                  >
+                    DELETE
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-6">
+                <p className="text-white/60 text-sm mb-4">No profile found for this shop</p>
+                <button
+                  onClick={() => {
+                    setSelectedShop(viewingShopProfile.shop);
+                    setViewingShopProfile(null);
+                    setShowModal('shopProfile');
+                  }}
+                  className="w-full py-3 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg uppercase text-xs tracking-widest hover:opacity-90 transition-all"
+                >
+                  CREATE PROFILE
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Header with Game Easter Egg */}
       <header className={`p-4 flex justify-between items-center sticky top-0 z-50 backdrop-blur-xl border-b ${
         isDarkMode 
           ? "bg-black/90 border-[#d4af37]/20" 
           : "bg-white/95 border-[#d4af37]/30 shadow-sm"
       }`}>
-        <div className="flex items-center gap-3">
-          <div className={`p-2.5 bg-gradient-to-br from-[#d4af37] to-[#b8860b] rounded-xl text-black shadow-lg ${
-            !isDarkMode && 'shadow-[#d4af37]/30'
-          }`}>
-            <Crown size={20} />
+        <button 
+          onClick={() => setShowGame(true)}
+          className="flex items-center gap-3 hover:opacity-80 transition-all"
+        >
+          <div className="relative">
+            <div className={`p-2.5 bg-gradient-to-br from-[#d4af37] to-[#b8860b] rounded-xl text-black shadow-lg ${
+              !isDarkMode && 'shadow-[#d4af37]/30'
+            }`}>
+              <Crown size={20} />
+            </div>
+            <div className="absolute -top-1 -right-1 w-3 h-3 bg-[#d4af37] rounded-full animate-ping"></div>
+            <div className="absolute -top-1 -right-1 w-3 h-3 bg-[#d4af37] rounded-full"></div>
           </div>
           <div>
             <h1 className="font-black text-lg tracking-tight leading-none uppercase text-[#d4af37]">
@@ -1555,7 +1876,8 @@ export default function App() {
               {data.settings.name || "Sales Representative"}
             </p>
           </div>
-        </div>
+        </button>
+        
         <div className="flex gap-2">
           {isOffline ? (
             <div className="p-2.5 bg-yellow-500/10 text-yellow-500 rounded-xl border border-yellow-500/20">
@@ -1611,12 +1933,13 @@ export default function App() {
       {/* Main Content */}
       <main className="p-3 max-w-lg mx-auto space-y-4" style={{ fontSize: '0.80rem' }}>
 
-        {/* Dashboard Tab - UPDATED with target progress and monthly expenses */}
+        {/* Dashboard Tab */}
         {activeTab === 'dashboard' && (
           <div className="space-y-4">
 
-            {/* Today's Revenue Card - UPDATED with expenses total */}
+            {/* Today's Revenue Card */}
             <div className="bg-gradient-to-br from-[#d4af37] via-[#c19a2e] to-[#b8860b] p-5 rounded-2xl text-black shadow-2xl relative overflow-hidden">
+              <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"%3E%3Cg fill="none" fill-rule="evenodd"%3E%3Cg fill="%23000000" fill-opacity="0.05"%3E%3Cpath d="M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E')] opacity-20"></div>
               <Star className="absolute -right-4 -top-4 opacity-10" size={100} />
               <div className="relative z-10">
                 <p className="text-xs font-black uppercase opacity-80 mb-1 tracking-widest">Today's Revenue</p>
@@ -1634,7 +1957,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* ===== NEW: Target Progress Card ===== */}
+            {/* Target Progress Card - ENHANCED */}
             {stats.monthlyTarget > 0 && (
               <div className={`p-5 rounded-2xl border shadow-xl ${
                 isDarkMode
@@ -1644,19 +1967,24 @@ export default function App() {
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
                     <Award size={20} className="text-[#d4af37]" />
-                    <h3 className="text-sm font-black text-[#d4af37] uppercase tracking-widest">Monthly Target</h3>
+                    <h3 className="text-sm font-black text-[#d4af37] uppercase tracking-widest">
+                      {stats.targetType === 'revenue' ? 'Monthly Revenue Target' : 'Monthly Units Target'}
+                    </h3>
                   </div>
                   <span className="text-xs font-black">
-                    Rs.{stats.monthlySales.toLocaleString()} / Rs.{stats.monthlyTarget.toLocaleString()}
+                    {stats.targetType === 'revenue' ? 'Rs.' : ''}{stats.targetType === 'revenue' ? stats.monthlySales.toLocaleString() : stats.monthlyUnits} / 
+                    {stats.targetType === 'revenue' ? 'Rs.' : ''}{stats.monthlyTarget.toLocaleString()}
                   </span>
                 </div>
                 
                 {/* Progress Bar */}
-                <div className="w-full h-3 bg-white/10 rounded-full overflow-hidden mb-2">
+                <div className="w-full h-4 bg-white/10 rounded-full overflow-hidden mb-2">
                   <div 
-                    className="h-full bg-gradient-to-r from-[#d4af37] to-[#b8860b] rounded-full transition-all duration-500"
+                    className="h-full bg-gradient-to-r from-[#d4af37] to-[#b8860b] rounded-full transition-all duration-500 relative"
                     style={{ width: `${Math.min(stats.targetProgress, 100)}%` }}
-                  ></div>
+                  >
+                    <div className="absolute inset-0 bg-white/20 animate-pulse"></div>
+                  </div>
                 </div>
                 
                 <div className="flex justify-between items-center">
@@ -1664,12 +1992,13 @@ export default function App() {
                     {stats.targetProgress.toFixed(1)}% Complete
                   </span>
                   {stats.targetRemaining > 0 ? (
-                    <span className="text-xs font-black text-red-500">
-                      Rs.{stats.targetRemaining.toLocaleString()} to go
+                    <span className="text-xs font-black text-red-500 flex items-center gap-1">
+                      <Zap size={14} />
+                      {stats.targetType === 'revenue' ? 'Rs.' : ''}{stats.targetRemaining.toLocaleString()} to go
                     </span>
                   ) : (
                     <span className="text-xs font-black text-green-500 flex items-center gap-1">
-                      <CheckCircle2 size={14} /> Target Achieved!
+                      <CheckCircle2 size={14} /> Target Achieved! 🎉
                     </span>
                   )}
                 </div>
@@ -1734,7 +2063,7 @@ export default function App() {
               </button>
             </div>
 
-            {/* Monthly Performance - UPDATED with monthly expenses */}
+            {/* Monthly Performance */}
             <div className={`p-5 rounded-2xl border shadow-xl ${
               isDarkMode
                 ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/10"
@@ -1973,7 +2302,7 @@ export default function App() {
           </div>
         )}
 
-        {/* Shops Tab - UPDATED with shop stats and profiles */}
+        {/* Shops Tab - FIXED with working shop profiles */}
         {activeTab === 'shops' && (
           <div className="space-y-3">
             <div className="space-y-2">
@@ -2005,8 +2334,7 @@ export default function App() {
                       : isDarkMode
                         ? 'bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/10 text-white/60'
                         : 'bg-gray-100 border-gray-200 text-gray-600'
-                  }`}
-                >
+                  }`}>
                   ALL
                 </button>
                 {data.routes.map((r) => (
@@ -2019,8 +2347,7 @@ export default function App() {
                       : isDarkMode
                         ? 'bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/10 text-white/60'
                         : 'bg-gray-100 border-gray-200 text-gray-600'
-                    }`}
-                  >
+                    }`}>
                     {r.name}
                   </button>
                 ))}
@@ -2069,7 +2396,7 @@ export default function App() {
                         <div className="p-3 bg-gradient-to-br from-[#d4af37]/10 to-[#b8860b]/5 rounded-xl text-[#d4af37] border border-[#d4af37]/20">
                           <Store size={18}/>
                         </div>
-                        <div>
+                        <div className="flex-1">
                           <h4 className="text-sm font-black uppercase leading-tight" style={{ color: isDarkMode ? 'white' : 'black' }}>
                             {s.name}
                           </h4>
@@ -2079,7 +2406,7 @@ export default function App() {
                               {s.area}
                             </p>
                           </div>
-                          {/* ===== NEW: Shop Stats ===== */}
+                          {/* Shop Stats */}
                           <div className="flex items-center gap-3 mt-2">
                             <div className="text-[10px]">
                               <span className="opacity-60">Total:</span>
@@ -2090,11 +2417,11 @@ export default function App() {
                               <span className="ml-1 font-black">{shopStats.orderCount}</span>
                             </div>
                           </div>
-                          {/* ===== NEW: Shop Profile Indicator ===== */}
+                          {/* Shop Profile Indicator */}
                           {shopProfile && (
                             <div className="flex items-center gap-1 mt-1">
-                              <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
-                              <span className="text-[8px] opacity-60">Profile Added</span>
+                              <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
+                              <span className="text-[8px] opacity-60">Profile: {shopProfile.ownerName || 'Added'}</span>
                             </div>
                           )}
                         </div>
@@ -2116,17 +2443,33 @@ export default function App() {
                         >
                           BILL
                         </button>
-                        {/* ===== NEW: Shop Profile Button ===== */}
+                        {/* FIXED: Shop Profile Button */}
                         <button
-                          onClick={() => { setSelectedShop(s); setShowModal('shopProfile'); }}
+                          onClick={() => {
+                            const profile = getShopProfile(s.id);
+                            if (profile) {
+                              viewShopProfile(s);
+                            } else {
+                              setSelectedShop(s);
+                              setShopProfileForm({
+                                ownerName: '',
+                                phone: '',
+                                email: '',
+                                address: '',
+                                gst: '',
+                                notes: ''
+                              });
+                              setShowModal('shopProfile');
+                            }
+                          }}
                           className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-3 py-1.5 rounded-lg text-[8px] font-black uppercase hover:opacity-90 transition-all"
                         >
-                          PROFILE
+                          {shopProfile ? 'VIEW' : 'ADD'} PROFILE
                         </button>
                       </div>
                     </div>
                     
-                    {/* ===== NEW: Last Order Info ===== */}
+                    {/* Last Order Info */}
                     {shopStats.lastOrder && (
                       <div className="mt-3 pt-2 border-t border-white/10 text-[9px] opacity-60">
                         Last order: {new Date(shopStats.lastOrder.timestamp).toLocaleDateString()} - Rs.{shopStats.lastOrder.total.toLocaleString()}
@@ -2145,7 +2488,7 @@ export default function App() {
           </div>
         )}
 
-        {/* History Tab - UPDATED with confirm delete */}
+        {/* History Tab */}
         {activeTab === 'history' && (
           <div className="space-y-3">
             <div className={`p-4 rounded-2xl border flex items-center gap-3 ${
@@ -2274,7 +2617,7 @@ export default function App() {
           </div>
         )}
 
-        {/* NOTES TAB - UPDATED with confirm delete */}
+        {/* NOTES TAB */}
         {activeTab === 'notes' && (
           <div className="space-y-3">
             <div className={`p-4 rounded-2xl border flex items-center gap-3 ${
@@ -2359,7 +2702,7 @@ export default function App() {
           </div>
         )}
 
-        {/* Settings Tab - UPDATED with targets and confirm delete */}
+        {/* Settings Tab - ENHANCED */}
         {activeTab === 'settings' && (
           <div className="space-y-4 pb-16">
             {/* Profile Settings */}
@@ -2403,7 +2746,7 @@ export default function App() {
               </button>
             </form>
 
-            {/* Quick Add Buttons - UPDATED with Target button */}
+            {/* Quick Add Buttons */}
             <div className="grid grid-cols-2 gap-3">
               <button
                 onClick={() => setShowModal('route')}
@@ -2425,7 +2768,7 @@ export default function App() {
               >
                 <Package size={20}/> ADD BRAND
               </button>
-              {/* ===== NEW: Set Target Button ===== */}
+              {/* Enhanced Target Button */}
               <button
                 onClick={() => setShowModal('target')}
                 className={`py-4 rounded-xl border text-[#d4af37] font-black uppercase text-xs flex flex-col items-center gap-1.5 hover:border-[#d4af37] transition-all col-span-2 ${
@@ -2438,7 +2781,7 @@ export default function App() {
               </button>
             </div>
 
-            {/* Routes Management Section - UPDATED with confirm delete */}
+            {/* Routes Management Section */}
             <div>
               <div className="flex items-center justify-between mb-3">
                 <h4 className="text-xs font-black text-[#d4af37] uppercase tracking-widest">Routes List</h4>
@@ -2480,7 +2823,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* Brands List - UPDATED with confirm delete and brand error */}
+            {/* Brands List */}
             <div>
               <div className="flex items-center justify-between mb-3">
                 <h4 className="text-xs font-black text-[#d4af37] uppercase tracking-widest">Brands List</h4>
@@ -2642,7 +2985,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* Today's Expenses - UPDATED with confirm delete */}
+            {/* Today's Expenses */}
             <div>
               <div className="flex items-center justify-between mb-3">
                 <h4 className="text-xs font-black text-[#d4af37] uppercase tracking-widest">Today's Expenses</h4>
@@ -2816,7 +3159,7 @@ export default function App() {
         </div>
       )}
 
-      {/* ===== NEW: CALCULATOR MODAL WITH PERCENTAGE DISCOUNT ===== */}
+      {/* CALCULATOR MODAL */}
       {showCalculator && (
         <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-3 backdrop-blur-3xl">
           <div className={`w-full max-w-xs p-4 rounded-2xl border relative shadow-2xl ${
@@ -3400,57 +3743,76 @@ export default function App() {
         </div>
       )}
 
-      {/* ===== NEW: SHOP PROFILE MODAL ===== */}
+      {/* SHOP PROFILE MODAL - FIXED */}
       {showModal === 'shopProfile' && selectedShop && (
-        <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-3 backdrop-blur-3xl">
-          <div className="w-full max-w-xs p-4 rounded-2xl border border-[#d4af37]/30 bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] text-white">
-            <button onClick={() => setShowModal(null)} className="absolute top-2 right-2 text-white/20 hover:text-white/40 p-1">
+        <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-3 backdrop-blur-3xl overflow-y-auto">
+          <div className="w-full max-w-xs p-5 rounded-2xl border border-[#d4af37]/30 bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] text-white">
+            <button 
+              onClick={() => {
+                setShowModal(null);
+                setShopProfileForm({
+                  ownerName: '',
+                  phone: '',
+                  email: '',
+                  address: '',
+                  gst: '',
+                  notes: ''
+                });
+              }} 
+              className="absolute top-2 right-2 text-white/20 hover:text-white/40 p-1"
+            >
               <X size={20}/>
             </button>
 
             <div className="text-center mb-4">
               <Briefcase size={30} className="text-[#d4af37] mx-auto mb-2" />
               <h3 className="font-black text-[#d4af37] mb-1 uppercase text-base tracking-widest">Shop Profile</h3>
-              <p className="text-[10px] opacity-50">{selectedShop.name}</p>
+              <p className="text-xs text-white/80 font-bold">{selectedShop.name}</p>
             </div>
 
             <form onSubmit={saveShopProfile} className="space-y-3">
               <input
                 name="ownerName"
                 placeholder="Owner Name"
-                defaultValue={getShopProfile(selectedShop.id)?.ownerName || ''}
+                value={shopProfileForm.ownerName}
+                onChange={(e) => setShopProfileForm({...shopProfileForm, ownerName: e.target.value})}
                 className="w-full p-3 rounded-lg border border-white/10 bg-black/40 text-white font-bold uppercase outline-none text-xs focus:border-[#d4af37] transition-all"
               />
               <input
                 name="phone"
                 placeholder="Phone Number"
-                defaultValue={getShopProfile(selectedShop.id)?.phone || ''}
+                value={shopProfileForm.phone}
+                onChange={(e) => setShopProfileForm({...shopProfileForm, phone: e.target.value})}
                 className="w-full p-3 rounded-lg border border-white/10 bg-black/40 text-white font-bold outline-none text-xs focus:border-[#d4af37] transition-all"
               />
               <input
                 name="email"
                 type="email"
                 placeholder="Email Address"
-                defaultValue={getShopProfile(selectedShop.id)?.email || ''}
+                value={shopProfileForm.email}
+                onChange={(e) => setShopProfileForm({...shopProfileForm, email: e.target.value})}
                 className="w-full p-3 rounded-lg border border-white/10 bg-black/40 text-white font-bold outline-none text-xs focus:border-[#d4af37] transition-all"
               />
               <input
                 name="address"
                 placeholder="Address"
-                defaultValue={getShopProfile(selectedShop.id)?.address || ''}
+                value={shopProfileForm.address}
+                onChange={(e) => setShopProfileForm({...shopProfileForm, address: e.target.value})}
                 className="w-full p-3 rounded-lg border border-white/10 bg-black/40 text-white font-bold uppercase outline-none text-xs focus:border-[#d4af37] transition-all"
               />
               <input
                 name="gst"
                 placeholder="GST Number"
-                defaultValue={getShopProfile(selectedShop.id)?.gst || ''}
+                value={shopProfileForm.gst}
+                onChange={(e) => setShopProfileForm({...shopProfileForm, gst: e.target.value})}
                 className="w-full p-3 rounded-lg border border-white/10 bg-black/40 text-white font-bold uppercase outline-none text-xs focus:border-[#d4af37] transition-all"
               />
               <textarea
                 name="notes"
                 placeholder="Additional Notes"
                 rows="2"
-                defaultValue={getShopProfile(selectedShop.id)?.notes || ''}
+                value={shopProfileForm.notes}
+                onChange={(e) => setShopProfileForm({...shopProfileForm, notes: e.target.value})}
                 className="w-full p-3 rounded-lg border border-white/10 bg-black/40 text-white text-xs outline-none resize-none focus:border-[#d4af37] transition-all"
               />
 
@@ -3465,16 +3827,19 @@ export default function App() {
         </div>
       )}
 
-      {/* ===== NEW: TARGET MODAL ===== */}
+      {/* TARGET MODAL - ENHANCED */}
       {showModal === 'target' && (
         <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-3 backdrop-blur-3xl">
-          <div className="w-full max-w-xs p-4 rounded-2xl border border-[#d4af37]/30 bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] text-white">
+          <div className="w-full max-w-xs p-5 rounded-2xl border border-[#d4af37]/30 bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] text-white">
             <button onClick={() => setShowModal(null)} className="absolute top-2 right-2 text-white/20 hover:text-white/40 p-1">
               <X size={20}/>
             </button>
 
             <div className="text-center mb-4">
-              <Target size={30} className="text-[#d4af37] mx-auto mb-2" />
+              <div className="relative">
+                <Target size={30} className="text-[#d4af37] mx-auto mb-2" />
+                <div className="absolute -top-1 -right-1 w-3 h-3 bg-[#d4af37] rounded-full animate-ping"></div>
+              </div>
               <h3 className="font-black text-[#d4af37] mb-1 uppercase text-base tracking-widest">Monthly Target</h3>
               <p className="text-[10px] opacity-50">Set your sales goal</p>
             </div>
@@ -3490,13 +3855,46 @@ export default function App() {
                 />
               </div>
 
+              {/* Target Type Selection */}
               <div>
-                <label className="text-[10px] font-black uppercase opacity-40 mb-1 block">Target Amount (Rs.)</label>
+                <label className="text-[10px] font-black uppercase opacity-40 mb-2 block">Target Type</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setTargetType('revenue')}
+                    className={`p-3 rounded-lg border flex flex-col items-center gap-1 transition-all ${
+                      targetType === 'revenue'
+                        ? 'bg-[#d4af37]/20 border-[#d4af37] text-[#d4af37]'
+                        : 'border-white/10 text-white/60 hover:border-white/30'
+                    }`}
+                  >
+                    <DollarSign size={20} />
+                    <span className="text-[9px] font-black uppercase">Revenue (Rs.)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTargetType('units')}
+                    className={`p-3 rounded-lg border flex flex-col items-center gap-1 transition-all ${
+                      targetType === 'units'
+                        ? 'bg-[#d4af37]/20 border-[#d4af37] text-[#d4af37]'
+                        : 'border-white/10 text-white/60 hover:border-white/30'
+                    }`}
+                  >
+                    <Package2 size={20} />
+                    <span className="text-[9px] font-black uppercase">Units</span>
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-black uppercase opacity-40 mb-1 block">
+                  Target Amount {targetType === 'revenue' ? '(Rs.)' : '(Units)'}
+                </label>
                 <input
                   type="number"
                   value={targetAmount}
                   onChange={(e) => setTargetAmount(e.target.value)}
-                  placeholder="0.00"
+                  placeholder="0"
                   className="w-full p-3 rounded-lg border border-white/10 bg-black/40 text-white font-bold text-center outline-none text-xs focus:border-[#d4af37] transition-all"
                 />
               </div>
@@ -3504,8 +3902,14 @@ export default function App() {
               {stats.monthlyTarget > 0 && (
                 <div className="p-3 bg-[#d4af37]/10 rounded-lg border border-[#d4af37]/30">
                   <p className="text-xs opacity-60">Current Target</p>
-                  <p className="text-lg font-black text-[#d4af37]">Rs.{stats.monthlyTarget.toLocaleString()}</p>
+                  <p className="text-lg font-black text-[#d4af37]">
+                    {stats.targetType === 'revenue' ? 'Rs.' : ''}{stats.monthlyTarget.toLocaleString()}
+                    {stats.targetType === 'units' ? ' units' : ''}
+                  </p>
                   <p className="text-xs opacity-60 mt-1">Progress: {stats.targetProgress.toFixed(1)}%</p>
+                  <p className="text-[10px] mt-2 text-white/80">
+                    Current {stats.targetType === 'revenue' ? 'Sales' : 'Units'}: {stats.targetType === 'revenue' ? 'Rs.' : ''}{stats.targetType === 'revenue' ? stats.monthlySales.toLocaleString() : stats.monthlyUnits}
+                  </p>
                 </div>
               )}
 
@@ -3520,7 +3924,7 @@ export default function App() {
         </div>
       )}
 
-      {/* REGISTER MODALS (Shop, Brand, Route) - UPDATED BRAND FORM WITH ERROR */}
+      {/* REGISTER MODALS (Shop, Brand, Route) */}
       {['route', 'shop', 'brand'].includes(showModal) && (
         <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-3 backdrop-blur-3xl">
           <div className={`w-full max-w-xs p-4 rounded-2xl border relative shadow-2xl ${
@@ -3642,7 +4046,7 @@ export default function App() {
                     required
                   />
                   
-                  {/* ===== NEW: Brand Error Display ===== */}
+                  {/* Brand Error Display */}
                   {brandError && (
                     <div className="p-2 bg-red-500/20 border border-red-500/30 rounded-lg">
                       <p className="text-red-500 text-xs font-bold text-center">{brandError}</p>
@@ -3665,9 +4069,18 @@ export default function App() {
           0% { width: 0%; }
           100% { width: 100%; }
         }
+        
+        @keyframes progress-slow {
+          0% { width: 100%; }
+          100% { width: 0%; }
+        }
 
         .animate-progress {
-          animation: progress 2.5s ease-in-out;
+          animation: progress 1.5s ease-in-out;
+        }
+        
+        .animate-progress-slow {
+          animation: progress-slow 30s linear forwards;
         }
 
         * {
