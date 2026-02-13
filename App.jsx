@@ -17,7 +17,9 @@ import {
   CreditCard, Coffee, Target, Percent, BarChart3, Hash, Package2,
   BookOpen, Filter, Eye, Clock, Download, Mail, Lock, User, Printer,
   Wifi, WifiOff, Award, Briefcase, Activity, Gamepad2, Phone,
-  TrendingUp as TrendingIcon, ShoppingCart, Truck, Gift, Zap, Info
+  TrendingUp as TrendingIcon, ShoppingCart, Truck, Gift, Zap, Info,
+  Receipt, Wallet, BadgePercent, Box, Circle, Square, Triangle,
+  RotateCcw, Volume2, VolumeX, Trophy, Timer, Users, Shield
 } from 'lucide-react';
 
 // --- FIREBASE CONFIG ---
@@ -79,7 +81,7 @@ export default function App() {
   const [manualItems, setManualItems] = useState([{ name: '', qty: 1, price: 0, subtotal: 0 }]);
   const [editingBrand, setEditingBrand] = useState(null);
   
-  // Calculator State
+  // Calculator State - Fixed
   const [totalCalculation, setTotalCalculation] = useState({
     subtotal: 0,
     discount: 0,
@@ -110,31 +112,46 @@ export default function App() {
   const [brandError, setBrandError] = useState('');
   const [loginError, setLoginError] = useState('');
   
-  // Target States
+  // Target States - Enhanced
   const [targetAmount, setTargetAmount] = useState('');
   const [targetMonth, setTargetMonth] = useState(new Date().toISOString().slice(0, 7));
   const [targetType, setTargetType] = useState('revenue');
+  const [targetCase, setTargetCase] = useState('units'); // For case targets (6x75cl, etc.)
+  const [targetBrand, setTargetBrand] = useState('');
+  const [targetSpecific, setTargetSpecific] = useState('total'); // 'total' or 'brand'
   
-  // Shop Profile States
+  // Shop Profile States - Enhanced
   const [shopProfileForm, setShopProfileForm] = useState({
     ownerName: '',
     phone: '',
     email: '',
     address: '',
     gst: '',
-    notes: ''
+    notes: '',
+    creditLimit: '',
+    paymentTerms: '',
+    shopType: 'retail',
+    location: ''
   });
+  const [editingProfile, setEditingProfile] = useState(null);
   
-  // Game State
+  // Game State - Enhanced Mobile Game
   const [showGame, setShowGame] = useState(false);
   const [gameScore, setGameScore] = useState(0);
   const [gameHighScore, setGameHighScore] = useState(0);
   const [gameTargets, setGameTargets] = useState([]);
   const [gameActive, setGameActive] = useState(false);
+  const [gameTimeLeft, setGameTimeLeft] = useState(30);
+  const [gameLevel, setGameLevel] = useState(1);
+  const [gameSound, setGameSound] = useState(true);
+  const [gameCombo, setGameCombo] = useState(0);
+  const [gameBestCombo, setGameBestCombo] = useState(0);
   
   // View States
   const [viewingShopProfile, setViewingShopProfile] = useState(null);
-  const [viewingShopOrders, setViewingShopOrders] = useState(null); // NEW: Shop orders view
+  const [viewingShopOrders, setViewingShopOrders] = useState(null);
+  const [viewingOrderDetails, setViewingOrderDetails] = useState(null);
+  const [showShopProfileMenu, setShowShopProfileMenu] = useState(null); // For profile menu popup
 
   // ========== NETWORK STATUS LISTENER ==========
   useEffect(() => {
@@ -187,8 +204,10 @@ export default function App() {
     try {
       const saved = localStorage.getItem('monarchGameHighScore');
       if (saved) setGameHighScore(parseInt(saved));
+      const savedCombo = localStorage.getItem('monarchGameBestCombo');
+      if (savedCombo) setGameBestCombo(parseInt(savedCombo));
     } catch (err) {
-      console.error("Error loading game high score:", err);
+      console.error("Error loading game data:", err);
     }
   }, []);
 
@@ -214,7 +233,6 @@ export default function App() {
               ...doc.data()
             }));
             
-            // Sort client-side by timestamp
             items.sort((a, b) => {
               const timeA = a.timestamp || 0;
               const timeB = b.timestamp || 0;
@@ -544,7 +562,7 @@ export default function App() {
     }
   };
 
-  // ========== CALCULATE TOTAL ==========
+  // ========== CALCULATOR - FIXED ==========
   const calculateTotal = () => {
     const subtotal = parseFloat(totalCalculation.subtotal) || 0;
     let discount = parseFloat(totalCalculation.discount) || 0;
@@ -566,7 +584,13 @@ export default function App() {
     showToast(`💰 Grand Total: Rs.${grandTotal.toLocaleString()}`, "info");
   };
 
-  // ========== RESET CALCULATOR ==========
+  // Fixed: Clear placeholder when typing
+  const handleInputFocus = (e) => {
+    if (e.target.value === '0') {
+      e.target.value = '';
+    }
+  };
+
   const resetCalculator = () => {
     setTotalCalculation({
       subtotal: 0,
@@ -630,7 +654,7 @@ export default function App() {
     return data.shopProfiles?.find(p => p.shopId === shopId);
   };
 
-  // ========== SAVE SHOP PROFILE ==========
+  // ========== SAVE SHOP PROFILE - ENHANCED ==========
   const saveShopProfile = async (e) => {
     e.preventDefault();
     if (!user || !selectedShop) {
@@ -649,6 +673,10 @@ export default function App() {
         address: shopProfileForm.address || '',
         gst: shopProfileForm.gst?.toUpperCase() || '',
         notes: shopProfileForm.notes || '',
+        creditLimit: shopProfileForm.creditLimit || '',
+        paymentTerms: shopProfileForm.paymentTerms || '',
+        shopType: shopProfileForm.shopType || 'retail',
+        location: shopProfileForm.location || '',
         timestamp: Date.now()
       };
       
@@ -663,17 +691,40 @@ export default function App() {
       }
       
       setShowModal(null);
+      setEditingProfile(null);
       setShopProfileForm({
         ownerName: '',
         phone: '',
         email: '',
         address: '',
         gst: '',
-        notes: ''
+        notes: '',
+        creditLimit: '',
+        paymentTerms: '',
+        shopType: 'retail',
+        location: ''
       });
     } catch (err) {
       showToast("Error: " + err.message, "error");
     }
+  };
+
+  // ========== EDIT SHOP PROFILE ==========
+  const editShopProfile = (profile) => {
+    setShopProfileForm({
+      ownerName: profile.ownerName || '',
+      phone: profile.phone || '',
+      email: profile.email || '',
+      address: profile.address || '',
+      gst: profile.gst || '',
+      notes: profile.notes || '',
+      creditLimit: profile.creditLimit || '',
+      paymentTerms: profile.paymentTerms || '',
+      shopType: profile.shopType || 'retail',
+      location: profile.location || ''
+    });
+    setEditingProfile(profile);
+    setShowModal('shopProfile');
   };
 
   // ========== VIEW SHOP PROFILE ==========
@@ -682,7 +733,7 @@ export default function App() {
     setViewingShopProfile({ shop, profile });
   };
 
-  // ========== VIEW SHOP ORDERS (NEW) ==========
+  // ========== VIEW SHOP ORDERS ==========
   const viewShopOrders = (shop) => {
     const shopOrders = data.orders.filter(o => o.shopId === shop.id);
     const stats = getShopStats(shop.id);
@@ -738,7 +789,8 @@ export default function App() {
         topBrand: topBrandByRevenue ? topBrandByRevenue[0] : 'N/A',
         topBrandRevenue: topBrandByRevenue ? topBrandByRevenue[1].revenue : 0,
         avgPrice: totalUnits > 0 ? totalSales / totalUnits : 0,
-        allBrands: allBrandsSorted
+        allBrands: allBrandsSorted,
+        topBrandUnits: topBrandByRevenue ? topBrandByRevenue[1].units : 0
       };
     };
 
@@ -765,7 +817,7 @@ export default function App() {
 
     const todayNotes = data.notes.filter(n => n.date === todayStr);
     
-    const currentTarget = data.targets?.find(t => t.month === currentMonthStr) || { amount: 0, type: 'revenue' };
+    const currentTarget = data.targets?.find(t => t.month === currentMonthStr) || { amount: 0, type: 'revenue', specific: 'total', case: 'units' };
     const monthlySales = monthlyOrders.reduce((sum, o) => sum + (o.total || 0), 0);
     const monthlyUnits = monthlyOrders.reduce((sum, o) => {
       let units = 0;
@@ -773,7 +825,27 @@ export default function App() {
       return sum + units;
     }, 0);
     
-    const targetValue = currentTarget.type === 'units' ? monthlyUnits : monthlySales;
+    let targetValue = 0;
+    if (currentTarget.specific === 'brand' && currentTarget.brand) {
+      // Calculate target for specific brand
+      targetValue = monthlyOrders.reduce((sum, o) => {
+        if (o.items) {
+          o.items.forEach(i => {
+            if (i.name.includes(currentTarget.brand)) {
+              if (currentTarget.type === 'revenue') {
+                sum += i.subtotal || 0;
+              } else {
+                sum += i.qty || 0;
+              }
+            }
+          });
+        }
+        return sum;
+      }, 0);
+    } else {
+      targetValue = currentTarget.type === 'units' ? monthlyUnits : monthlySales;
+    }
+    
     const targetAmount = currentTarget.amount || 0;
     const targetProgress = targetAmount > 0 ? (targetValue / targetAmount) * 100 : 0;
 
@@ -789,7 +861,10 @@ export default function App() {
       monthlyTarget: targetAmount,
       targetType: currentTarget.type || 'revenue',
       targetProgress: targetProgress,
-      targetRemaining: Math.max(0, targetAmount - targetValue)
+      targetRemaining: Math.max(0, targetAmount - targetValue),
+      targetSpecific: currentTarget.specific || 'total',
+      targetBrand: currentTarget.brand || '',
+      targetCase: currentTarget.case || 'units'
     };
   }, [data.orders, data.expenses, data.notes, data.targets]);
 
@@ -819,7 +894,7 @@ export default function App() {
 
   const updateManualItem = (index, field, value) => {
     const updated = [...manualItems];
-    updated[index][field] = value;
+    updated[index][field] = field === 'name' ? value.toUpperCase() : value;
 
     if (field === 'qty' || field === 'price') {
       const qty = parseFloat(updated[index].qty) || 0;
@@ -1198,7 +1273,7 @@ export default function App() {
     }
   };
 
-  // ========== SAVE MONTHLY TARGET ==========
+  // ========== SAVE MONTHLY TARGET - ENHANCED ==========
   const saveMonthlyTarget = async (e) => {
     e.preventDefault();
     if (!user) return;
@@ -1209,6 +1284,9 @@ export default function App() {
         month: targetMonth,
         amount: parseFloat(targetAmount),
         type: targetType,
+        specific: targetSpecific,
+        brand: targetSpecific === 'brand' ? targetBrand : '',
+        case: targetCase,
         timestamp: Date.now()
       };
       
@@ -1216,67 +1294,104 @@ export default function App() {
       
       if (existingTarget) {
         await updateDoc(doc(db, 'targets', existingTarget.id), targetData);
-        showToast(`✅ Target updated (${targetType === 'revenue' ? 'Rs.' : 'Units'})!`, "success");
+        showToast(`✅ Target updated!`, "success");
       } else {
         await addDoc(collection(db, 'targets'), targetData);
-        showToast(`✅ Target set (${targetType === 'revenue' ? 'Rs.' : 'Units'})!`, "success");
+        showToast(`✅ Target set!`, "success");
       }
       
       setTargetAmount('');
+      setTargetBrand('');
       setShowModal(null);
     } catch (err) {
       showToast("Error: " + err.message, "error");
     }
   };
 
-  // ========== GAME FUNCTIONS ==========
+  // ========== GAME FUNCTIONS - ENHANCED MOBILE GAME ==========
   const startGame = () => {
     setGameActive(true);
     setGameScore(0);
-    setGameTargets([]);
+    setGameTimeLeft(30);
+    setGameLevel(1);
+    setGameCombo(0);
     
     const newTargets = [];
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 5 + gameLevel * 2; i++) {
       newTargets.push({
         id: i,
         x: Math.random() * 80 + 10,
-        y: Math.random() * 80 + 10
+        y: Math.random() * 80 + 10,
+        value: 10 * gameLevel,
+        type: Math.random() > 0.3 ? 'coin' : 'bonus'
       });
     }
     setGameTargets(newTargets);
-    
-    setTimeout(() => {
-      setGameActive(false);
-      setGameScore(prev => {
-        if (prev > gameHighScore) {
-          setGameHighScore(prev);
-          localStorage.setItem('monarchGameHighScore', prev);
-        }
-        return prev;
-      });
-      showToast(`🎮 Game Over! Score: ${gameScore}`, "info");
-    }, 30000);
   };
 
-  const handleTargetClick = (id) => {
+  useEffect(() => {
+    let timer;
+    if (gameActive && gameTimeLeft > 0) {
+      timer = setTimeout(() => {
+        setGameTimeLeft(prev => prev - 1);
+      }, 1000);
+    } else if (gameTimeLeft === 0) {
+      endGame();
+    }
+    return () => clearTimeout(timer);
+  }, [gameActive, gameTimeLeft]);
+
+  const endGame = () => {
+    setGameActive(false);
+    if (gameScore > gameHighScore) {
+      setGameHighScore(gameScore);
+      localStorage.setItem('monarchGameHighScore', gameScore);
+    }
+    if (gameCombo > gameBestCombo) {
+      setGameBestCombo(gameCombo);
+      localStorage.setItem('monarchGameBestCombo', gameCombo);
+    }
+    showToast(`🎮 Game Over! Score: ${gameScore}`, "info");
+  };
+
+  const handleTargetClick = (id, type) => {
     if (!gameActive) return;
     
-    setGameScore(prev => prev + 10);
+    let points = type === 'bonus' ? 20 * gameLevel : 10 * gameLevel;
+    setGameScore(prev => prev + points);
+    setGameCombo(prev => prev + 1);
+    
+    if (gameSound) {
+      // Play sound effect (using vibration for mobile)
+      if (navigator.vibrate) {
+        navigator.vibrate(50);
+      }
+    }
+    
     setGameTargets(prev => prev.filter(t => t.id !== id));
     
+    // Add new target
     const newTarget = {
       id: Date.now() + Math.random(),
       x: Math.random() * 80 + 10,
-      y: Math.random() * 80 + 10
+      y: Math.random() * 80 + 10,
+      value: 10 * gameLevel,
+      type: Math.random() > 0.3 ? 'coin' : 'bonus'
     };
     setGameTargets(prev => [...prev, newTarget]);
+    
+    // Level up every 100 points
+    if (gameScore > 100 * gameLevel) {
+      setGameLevel(prev => prev + 1);
+      showToast(`🎯 Level ${gameLevel + 1}!`, "success");
+    }
   };
 
   // ========== RENDER ==========
   if (isSplash || loading) {
     return (
       <div className="h-screen bg-gradient-to-br from-black via-[#1a1a1a] to-[#2d2d2d] flex flex-col items-center justify-center relative overflow-hidden">
-        <div className="absolute inset-0 opacity-10">
+        <div className="absolute inset-0">
           <div className="absolute top-0 left-0 w-96 h-96 bg-[#d4af37] rounded-full filter blur-3xl animate-pulse"></div>
           <div className="absolute bottom-0 right-0 w-96 h-96 bg-[#b8860b] rounded-full filter blur-3xl animate-pulse delay-1000"></div>
         </div>
@@ -1324,28 +1439,61 @@ export default function App() {
         </div>
         
         <div className="relative z-10 w-full max-w-md">
-          <div className="flex justify-between items-center mb-6">
+          <div className="flex justify-between items-center mb-4">
             <div>
               <h2 className="text-[#d4af37] text-2xl font-black uppercase flex items-center gap-2">
                 <Gamepad2 size={28} />
                 MONARCH HUNT
               </h2>
-              <p className="text-white/40 text-xs uppercase mt-1">Tap the gold coins!</p>
+              <p className="text-white/40 text-xs uppercase mt-1">Tap gold coins to score!</p>
             </div>
-            <div className="text-right">
-              <div className="text-[#d4af37] text-xl font-black">⭐ {gameScore}</div>
-              <div className="text-white/40 text-xs uppercase">Best: {gameHighScore}</div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setGameSound(!gameSound)}
+                className="p-2 bg-white/10 rounded-lg"
+              >
+                {gameSound ? <Volume2 size={18} className="text-[#d4af37]"/> : <VolumeX size={18} className="text-white/40"/>}
+              </button>
             </div>
           </div>
           
-          <div className="bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] rounded-2xl border border-[#d4af37]/30 p-4 mb-4 relative h-96">
+          <div className="grid grid-cols-4 gap-2 mb-4">
+            <div className="bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] p-2 rounded-xl text-center">
+              <p className="text-[#d4af37] text-xs uppercase">Score</p>
+              <p className="text-white text-lg font-black">{gameScore}</p>
+            </div>
+            <div className="bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] p-2 rounded-xl text-center">
+              <p className="text-[#d4af37] text-xs uppercase">Level</p>
+              <p className="text-white text-lg font-black">{gameLevel}</p>
+            </div>
+            <div className="bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] p-2 rounded-xl text-center">
+              <p className="text-[#d4af37] text-xs uppercase">Combo</p>
+              <p className="text-white text-lg font-black">{gameCombo}</p>
+            </div>
+            <div className="bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] p-2 rounded-xl text-center">
+              <p className="text-[#d4af37] text-xs uppercase">Time</p>
+              <p className="text-white text-lg font-black">{gameTimeLeft}s</p>
+            </div>
+          </div>
+          
+          <div className="bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] rounded-2xl border border-[#d4af37]/30 p-4 mb-4 relative h-[400px]">
             {!gameActive ? (
               <div className="h-full flex flex-col items-center justify-center">
-                <Crown size={60} className="text-[#d4af37] mb-4 opacity-50" />
-                <p className="text-white/60 text-center mb-6 text-sm">
-                  Tap the gold coins as fast as you can!<br/>
+                <Trophy size={60} className="text-[#d4af37] mb-4 opacity-50" />
+                <p className="text-white/60 text-center mb-2 text-sm">
+                  Tap the coins as fast as you can!<br/>
                   <span className="text-[#d4af37]">30 seconds challenge</span>
                 </p>
+                <div className="flex gap-4 mb-4">
+                  <div className="text-center">
+                    <p className="text-white/40 text-xs">Best Score</p>
+                    <p className="text-[#d4af37] text-xl font-black">{gameHighScore}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-white/40 text-xs">Best Combo</p>
+                    <p className="text-[#d4af37] text-xl font-black">{gameBestCombo}</p>
+                  </div>
+                </div>
                 <button
                   onClick={startGame}
                   className="px-8 py-4 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-xl uppercase text-sm tracking-widest hover:opacity-90 transition-all"
@@ -1358,20 +1506,34 @@ export default function App() {
                 {gameTargets.map(target => (
                   <button
                     key={target.id}
-                    onClick={() => handleTargetClick(target.id)}
-                    className="absolute w-12 h-12 bg-[#d4af37] rounded-full flex items-center justify-center animate-pulse shadow-lg shadow-[#d4af37]/50 transform hover:scale-110 transition-all"
+                    onClick={() => handleTargetClick(target.id, target.type)}
+                    className={`absolute w-14 h-14 rounded-full flex items-center justify-center animate-pulse shadow-lg transform hover:scale-110 transition-all ${
+                      target.type === 'bonus' 
+                        ? 'bg-gradient-to-r from-purple-500 to-pink-500' 
+                        : 'bg-gradient-to-r from-[#d4af37] to-[#b8860b]'
+                    }`}
                     style={{
                       left: `${target.x}%`,
                       top: `${target.y}%`,
                       transform: 'translate(-50%, -50%)'
                     }}
                   >
-                    <DollarSign size={20} className="text-black" />
+                    {target.type === 'bonus' ? (
+                      <Gift size={20} className="text-white" />
+                    ) : (
+                      <DollarSign size={20} className="text-black" />
+                    )}
+                    <span className="absolute -top-5 text-[10px] text-white font-black">
+                      +{target.value}
+                    </span>
                   </button>
                 ))}
                 <div className="absolute bottom-0 left-0 right-0">
-                  <div className="h-1 bg-white/10 rounded-full overflow-hidden">
-                    <div className="h-full bg-gradient-to-r from-[#d4af37] to-[#b8860b] animate-progress-slow"></div>
+                  <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-gradient-to-r from-[#d4af37] to-[#b8860b]"
+                      style={{ width: `${(gameTimeLeft / 30) * 100}%` }}
+                    ></div>
                   </div>
                 </div>
               </div>
@@ -1602,6 +1764,7 @@ export default function App() {
                 {showDeleteConfirm.type === 'expense' && 'Delete this expense?'}
                 {showDeleteConfirm.type === 'note' && 'Delete this note?'}
                 {showDeleteConfirm.type === 'target' && 'Delete this target?'}
+                {showDeleteConfirm.type === 'shopProfile' && 'Delete this shop profile?'}
               </p>
               <p className="text-red-500 text-xs font-bold mt-3">This action cannot be undone!</p>
             </div>
@@ -1623,7 +1786,7 @@ export default function App() {
         </div>
       )}
 
-      {/* SHOP ORDERS VIEW MODAL - NEW */}
+      {/* SHOP ORDERS VIEW MODAL */}
       {viewingShopOrders && (
         <div className="fixed inset-0 bg-black/95 z-[200] flex items-center justify-center p-3 backdrop-blur-3xl overflow-y-auto">
           <div className="w-full max-w-md p-5 rounded-2xl border border-[#d4af37]/30 bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] text-white max-h-[90vh] overflow-y-auto">
@@ -1741,7 +1904,7 @@ export default function App() {
         </div>
       )}
 
-      {/* Shop Profile View Modal */}
+      {/* Shop Profile View Modal - ENHANCED */}
       {viewingShopProfile && (
         <div className="fixed inset-0 bg-black/95 z-[150] flex items-center justify-center p-3 backdrop-blur-3xl">
           <div className="w-full max-w-xs p-5 rounded-2xl border border-[#d4af37]/30 bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] text-white">
@@ -1794,6 +1957,36 @@ export default function App() {
                   <p className="text-sm font-bold text-white/90">{viewingShopProfile.profile.address || 'Not set'}</p>
                 </div>
 
+                {viewingShopProfile.profile.gst && (
+                  <div className="bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] p-3 rounded-xl border border-white/5">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Receipt size={14} className="text-[#d4af37]" />
+                      <span className="text-xs font-black uppercase">GST</span>
+                    </div>
+                    <p className="text-sm font-bold text-white/90">{viewingShopProfile.profile.gst}</p>
+                  </div>
+                )}
+
+                {viewingShopProfile.profile.shopType && (
+                  <div className="bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] p-3 rounded-xl border border-white/5">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Store size={14} className="text-[#d4af37]" />
+                      <span className="text-xs font-black uppercase">Shop Type</span>
+                    </div>
+                    <p className="text-sm font-bold text-white/90 capitalize">{viewingShopProfile.profile.shopType}</p>
+                  </div>
+                )}
+
+                {viewingShopProfile.profile.creditLimit && (
+                  <div className="bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] p-3 rounded-xl border border-white/5">
+                    <div className="flex items-center gap-2 mb-2">
+                      <CreditCard size={14} className="text-[#d4af37]" />
+                      <span className="text-xs font-black uppercase">Credit Limit</span>
+                    </div>
+                    <p className="text-sm font-bold text-white/90">Rs.{viewingShopProfile.profile.creditLimit}</p>
+                  </div>
+                )}
+
                 {viewingShopProfile.profile.notes && (
                   <div className="bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] p-3 rounded-xl border border-white/5">
                     <div className="flex items-center gap-2 mb-2">
@@ -1807,30 +2000,21 @@ export default function App() {
                 <div className="flex gap-2 mt-4">
                   <button
                     onClick={() => {
-                      setSelectedShop(viewingShopProfile.shop);
-                      setShopProfileForm({
-                        ownerName: viewingShopProfile.profile.ownerName || '',
-                        phone: viewingShopProfile.profile.phone || '',
-                        email: viewingShopProfile.profile.email || '',
-                        address: viewingShopProfile.profile.address || '',
-                        gst: viewingShopProfile.profile.gst || '',
-                        notes: viewingShopProfile.profile.notes || ''
-                      });
+                      editShopProfile(viewingShopProfile.profile);
                       setViewingShopProfile(null);
-                      setShowModal('shopProfile');
                     }}
-                    className="flex-1 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-black rounded-lg uppercase text-xs tracking-widest hover:opacity-90 transition-all"
+                    className="flex-1 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-black rounded-lg uppercase text-xs tracking-widest hover:opacity-90 transition-all flex items-center justify-center gap-1"
                   >
-                    EDIT
+                    <Edit2 size={14} /> EDIT
                   </button>
                   <button
                     onClick={() => {
-                      confirmDelete(viewingShopProfile.profile.id, 'shopProfile', '');
+                      confirmDelete(viewingShopProfile.profile.id, 'shopProfile', viewingShopProfile.shop.name);
                       setViewingShopProfile(null);
                     }}
-                    className="flex-1 py-2.5 bg-gradient-to-r from-red-500 to-red-600 text-white font-black rounded-lg uppercase text-xs tracking-widest hover:opacity-90 transition-all"
+                    className="flex-1 py-2.5 bg-gradient-to-r from-red-500 to-red-600 text-white font-black rounded-lg uppercase text-xs tracking-widest hover:opacity-90 transition-all flex items-center justify-center gap-1"
                   >
-                    DELETE
+                    <Trash2 size={14} /> DELETE
                   </button>
                 </div>
               </div>
@@ -1939,30 +2123,78 @@ export default function App() {
       {/* Main Content */}
       <main className="p-3 max-w-lg mx-auto space-y-4">
 
-        {/* DASHBOARD TAB */}
+        {/* DASHBOARD TAB - FIXED */}
         {activeTab === 'dashboard' && (
           <div className="space-y-4">
-            {/* Today's Revenue Card */}
+            {/* Today's Revenue & Expenses Card - FIXED */}
             <div className="bg-gradient-to-br from-[#d4af37] via-[#c19a2e] to-[#b8860b] p-5 rounded-2xl text-black shadow-2xl relative overflow-hidden">
               <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"%3E%3Cg fill="none" fill-rule="evenodd"%3E%3Cg fill="%23000000" fill-opacity="0.05"%3E%3Cpath d="M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E')] opacity-20"></div>
               <Star className="absolute -right-4 -top-4 opacity-10" size={100} />
               <div className="relative z-10">
-                <p className="text-xs font-black uppercase opacity-80 mb-1 tracking-widest">Today's Revenue</p>
-                <h2 className="text-3xl font-black italic tracking-tighter">Rs.{stats.daily.totalSales.toLocaleString()}</h2>
-                <div className="mt-5 flex items-center justify-between">
+                <div className="flex justify-between items-start mb-3">
+                  <div>
+                    <p className="text-xs font-black uppercase opacity-80 mb-1 tracking-widest">Today's Revenue</p>
+                    <h2 className="text-3xl font-black italic tracking-tighter">Rs.{stats.daily.totalSales.toLocaleString()}</h2>
+                  </div>
+                  <div className="bg-black/20 p-2 rounded-xl text-right">
+                    <p className="text-[10px] font-black uppercase">Expenses</p>
+                    <p className="text-base font-black text-red-800">- Rs.{stats.expenses.toLocaleString()}</p>
+                  </div>
+                </div>
+                
+                <div className="mt-4 flex items-center justify-between">
                   <div className="flex items-center gap-2 bg-black/10 px-3 py-1.5 rounded-full border border-black/10">
                     <Target size={12} />
-                    <span className="text-xs font-black uppercase italic">Top: {stats.daily.topBrand}</span>
+                    <span className="text-xs font-black uppercase italic">Net: Rs.{(stats.daily.totalSales - stats.expenses).toLocaleString()}</span>
                   </div>
                   <div className="text-right">
-                    <p className="text-xs font-black uppercase opacity-80">Expenses</p>
-                    <p className="text-sm font-black text-red-700">Rs.{stats.expenses.toLocaleString()}</p>
+                    <p className="text-xs font-black uppercase opacity-80">Top Brand</p>
+                    <p className="text-sm font-black">{stats.daily.topBrand}</p>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Target Progress Card */}
+            {/* Today's Expenses Summary - NEW */}
+            <div className={`p-4 rounded-2xl border shadow-xl ${
+              isDarkMode
+                ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/10"
+                : "bg-white border-gray-200 shadow-lg"
+            }`}>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Wallet size={18} className="text-[#d4af37]" />
+                  <h3 className="text-sm font-black text-[#d4af37] uppercase tracking-widest">Today's Expenses</h3>
+                </div>
+                <span className="text-xs font-black text-red-500">Rs.{stats.expenses.toLocaleString()}</span>
+              </div>
+
+              <div className="space-y-2">
+                {stats.todayExpenses.length > 0 ? (
+                  stats.todayExpenses.slice(0, 3).map((exp, idx) => (
+                    <div key={idx} className="flex justify-between items-center text-xs">
+                      <div className="flex items-center gap-2">
+                        {exp.type === 'fuel' && <Fuel size={12} className="text-red-500" />}
+                        {exp.type === 'food' && <Coffee size={12} className="text-amber-500" />}
+                        {exp.type === 'transport' && <Navigation size={12} className="text-blue-500" />}
+                        <span className="capitalize">{exp.type}</span>
+                      </div>
+                      <span className="font-bold">Rs.{exp.amount.toLocaleString()}</span>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-xs opacity-50 italic text-center py-2">No expenses today</p>
+                )}
+                <button
+                  onClick={() => setShowModal('expense')}
+                  className="mt-2 w-full py-2 bg-white/10 rounded-lg text-xs font-black uppercase hover:bg-white/20 transition-all"
+                >
+                  + ADD EXPENSE
+                </button>
+              </div>
+            </div>
+
+            {/* Target Progress Card - ENHANCED */}
             {stats.monthlyTarget > 0 && (
               <div className={`p-5 rounded-2xl border shadow-xl ${
                 isDarkMode
@@ -1973,12 +2205,13 @@ export default function App() {
                   <div className="flex items-center gap-2">
                     <Award size={20} className="text-[#d4af37]" />
                     <h3 className="text-sm font-black text-[#d4af37] uppercase tracking-widest">
-                      {stats.targetType === 'revenue' ? 'Monthly Revenue Target' : 'Monthly Units Target'}
+                      {stats.targetSpecific === 'brand' ? `Target: ${stats.targetBrand}` : 'Monthly Target'}
                     </h3>
                   </div>
                   <span className="text-xs font-black">
                     {stats.targetType === 'revenue' ? 'Rs.' : ''}{stats.targetType === 'revenue' ? stats.monthlySales.toLocaleString() : stats.monthlyUnits} / 
                     {stats.targetType === 'revenue' ? 'Rs.' : ''}{stats.monthlyTarget.toLocaleString()}
+                    {stats.targetCase === 'cases' ? ' cases' : ' units'}
                   </span>
                 </div>
                 
@@ -2257,7 +2490,7 @@ export default function App() {
           </div>
         )}
 
-        {/* SHOPS TAB - WITH ORDER HISTORY VIEW BUTTON */}
+        {/* SHOPS TAB - WITH ENHANCED PROFILE MENU */}
         {activeTab === 'shops' && (
           <div className="space-y-3">
             <div className="space-y-2">
@@ -2332,6 +2565,7 @@ export default function App() {
               {filteredShops.map(s => {
                 const shopStats = getShopStats(s.id);
                 const shopProfile = getShopProfile(s.id);
+                const showMenu = showShopProfileMenu === s.id;
                 
                 return (
                   <div
@@ -2375,6 +2609,8 @@ export default function App() {
                           )}
                         </div>
                       </div>
+                      
+                      {/* Action Buttons - Compact and Themed */}
                       <div className="flex flex-col gap-1.5">
                         <button
                           onClick={() => confirmDelete(s.id, 'shop', s.name)}
@@ -2384,42 +2620,81 @@ export default function App() {
                               : 'text-red-400 hover:text-red-600 hover:bg-red-50'
                           }`}
                         >
-                          <Trash2 size={16}/>
+                          <Trash2 size={14}/>
                         </button>
-                        <button
-                          onClick={() => { setSelectedShop(s); setShowModal('invoice'); }}
-                          className="bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black px-3 py-1.5 rounded-lg text-[10px] font-black uppercase shadow-lg hover:opacity-90 transition-all"
-                        >
-                          BILL
-                        </button>
-                        <button
-                          onClick={() => viewShopOrders(s)} // NEW: View orders
-                          className="bg-gradient-to-r from-purple-500 to-purple-600 text-white px-3 py-1.5 rounded-lg text-[8px] font-black uppercase hover:opacity-90 transition-all flex items-center gap-1"
-                        >
-                          <History size={12}/> ORDERS
-                        </button>
-                        <button
-                          onClick={() => {
-                            const profile = getShopProfile(s.id);
-                            if (profile) {
-                              viewShopProfile(s);
-                            } else {
-                              setSelectedShop(s);
-                              setShopProfileForm({
-                                ownerName: '',
-                                phone: '',
-                                email: '',
-                                address: '',
-                                gst: '',
-                                notes: ''
-                              });
-                              setShowModal('shopProfile');
-                            }
-                          }}
-                          className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-3 py-1.5 rounded-lg text-[8px] font-black uppercase hover:opacity-90 transition-all"
-                        >
-                          {shopProfile ? 'VIEW' : 'ADD'} PROFILE
-                        </button>
+                        
+                        <div className="relative">
+                          <button
+                            onClick={() => setShowShopProfileMenu(showMenu ? null : s.id)}
+                            className={`p-2 rounded-lg transition-all ${
+                              isDarkMode
+                                ? 'text-[#d4af37]/60 hover:text-[#d4af37] hover:bg-[#d4af37]/10'
+                                : 'text-amber-600 hover:text-amber-700 hover:bg-amber-50'
+                            }`}
+                          >
+                            <Briefcase size={14}/>
+                          </button>
+                          
+                          {/* Profile Menu Popup */}
+                          {showMenu && (
+                            <div className="absolute right-0 bottom-full mb-2 w-48 bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] rounded-xl border border-[#d4af37]/30 shadow-2xl z-50 overflow-hidden">
+                              <div className="p-1">
+                                <button
+                                  onClick={() => {
+                                    setShowShopProfileMenu(null);
+                                    setSelectedShop(s);
+                                    setShowModal('invoice');
+                                  }}
+                                  className="w-full px-4 py-2 text-left text-xs font-black uppercase hover:bg-white/10 rounded-lg flex items-center gap-2"
+                                >
+                                  <Receipt size={12} className="text-[#d4af37]"/> New Bill
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setShowShopProfileMenu(null);
+                                    viewShopOrders(s);
+                                  }}
+                                  className="w-full px-4 py-2 text-left text-xs font-black uppercase hover:bg-white/10 rounded-lg flex items-center gap-2"
+                                >
+                                  <History size={12} className="text-blue-500"/> View Orders
+                                </button>
+                                {shopProfile ? (
+                                  <>
+                                    <button
+                                      onClick={() => {
+                                        setShowShopProfileMenu(null);
+                                        viewShopProfile(s);
+                                      }}
+                                      className="w-full px-4 py-2 text-left text-xs font-black uppercase hover:bg-white/10 rounded-lg flex items-center gap-2"
+                                    >
+                                      <Eye size={12} className="text-green-500"/> View Profile
+                                    </button>
+                                    <button
+                                      onClick={() => {
+                                        setShowShopProfileMenu(null);
+                                        editShopProfile(shopProfile);
+                                      }}
+                                      className="w-full px-4 py-2 text-left text-xs font-black uppercase hover:bg-white/10 rounded-lg flex items-center gap-2"
+                                    >
+                                      <Edit2 size={12} className="text-blue-500"/> Edit Profile
+                                    </button>
+                                  </>
+                                ) : (
+                                  <button
+                                    onClick={() => {
+                                      setShowShopProfileMenu(null);
+                                      setSelectedShop(s);
+                                      setShowModal('shopProfile');
+                                    }}
+                                    className="w-full px-4 py-2 text-left text-xs font-black uppercase hover:bg-white/10 rounded-lg flex items-center gap-2"
+                                  >
+                                    <Plus size={12} className="text-[#d4af37]"/> Add Profile
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                     
@@ -2652,7 +2927,7 @@ export default function App() {
           </div>
         )}
 
-        {/* SETTINGS TAB */}
+        {/* SETTINGS TAB - ENHANCED TARGET */}
         {activeTab === 'settings' && (
           <div className="space-y-4 pb-16">
             {/* Profile Settings */}
@@ -3106,7 +3381,7 @@ export default function App() {
         </div>
       )}
 
-      {/* CALCULATOR MODAL */}
+      {/* CALCULATOR MODAL - FIXED */}
       {showCalculator && (
         <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-3 backdrop-blur-3xl">
           <div className={`w-full max-w-xs p-4 rounded-2xl border relative shadow-2xl ${
@@ -3135,9 +3410,10 @@ export default function App() {
                 <label className="text-[10px] font-black uppercase opacity-40 mb-1 block">Subtotal (Rs.)</label>
                 <input
                   type="number"
-                  value={totalCalculation.subtotal}
+                  value={totalCalculation.subtotal || ''}
                   onChange={(e) => setTotalCalculation({...totalCalculation, subtotal: parseFloat(e.target.value) || 0})}
-                  placeholder="0.00"
+                  onFocus={handleInputFocus}
+                  placeholder="0"
                   className={`w-full p-3 rounded-lg border font-bold text-center outline-none focus:border-[#d4af37] transition-all text-sm ${
                     isDarkMode 
                       ? "bg-black/40 border-white/5 text-white" 
@@ -3174,9 +3450,10 @@ export default function App() {
                   <label className="text-[10px] font-black uppercase opacity-40 mb-1 block">Discount (%)</label>
                   <input
                     type="number"
-                    value={totalCalculation.discountPercent}
+                    value={totalCalculation.discountPercent || ''}
                     onChange={(e) => setTotalCalculation({...totalCalculation, discountPercent: parseFloat(e.target.value) || 0})}
-                    placeholder="0%"
+                    onFocus={handleInputFocus}
+                    placeholder="0"
                     className={`w-full p-2 rounded-lg border font-bold text-center outline-none focus:border-[#d4af37] transition-all text-sm ${
                       isDarkMode 
                         ? "bg-black/40 border-white/5 text-white" 
@@ -3189,9 +3466,10 @@ export default function App() {
                   <label className="text-[10px] font-black uppercase opacity-40 mb-1 block">Discount (Rs.)</label>
                   <input
                     type="number"
-                    value={totalCalculation.discount}
+                    value={totalCalculation.discount || ''}
                     onChange={(e) => setTotalCalculation({...totalCalculation, discount: parseFloat(e.target.value) || 0})}
-                    placeholder="0.00"
+                    onFocus={handleInputFocus}
+                    placeholder="0"
                     className={`w-full p-2 rounded-lg border font-bold text-center outline-none focus:border-[#d4af37] transition-all text-sm ${
                       isDarkMode 
                         ? "bg-black/40 border-white/5 text-white" 
@@ -3205,9 +3483,10 @@ export default function App() {
                 <label className="text-[10px] font-black uppercase opacity-40 mb-1 block">Tax (Rs.)</label>
                 <input
                   type="number"
-                  value={totalCalculation.tax}
+                  value={totalCalculation.tax || ''}
                   onChange={(e) => setTotalCalculation({...totalCalculation, tax: parseFloat(e.target.value) || 0})}
-                  placeholder="0.00"
+                  onFocus={handleInputFocus}
+                  placeholder="0"
                   className={`w-full p-2 rounded-lg border font-bold text-center outline-none focus:border-[#d4af37] transition-all text-sm ${
                     isDarkMode 
                       ? "bg-black/40 border-white/5 text-white" 
@@ -3307,7 +3586,8 @@ export default function App() {
                   type="number"
                   value={expenseAmount}
                   onChange={(e) => setExpenseAmount(e.target.value)}
-                  placeholder="0.00"
+                  onFocus={handleInputFocus}
+                  placeholder="0"
                   className={`w-full p-3 rounded-lg border font-bold text-center outline-none focus:border-[#d4af37] transition-all text-base ${
                     isDarkMode ? 'bg-black/40 border-white/5 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'
                   }`}
@@ -3428,6 +3708,7 @@ export default function App() {
                       type="number"
                       value={cart[b.id] || ''}
                       onChange={(e) => setCart({...cart, [b.id]: e.target.value})}
+                      onFocus={handleInputFocus}
                       className="w-12 bg-transparent text-center font-black text-[#d4af37] text-base outline-none"
                       placeholder="0"
                     />
@@ -3560,6 +3841,7 @@ export default function App() {
                         type="number"
                         value={item.qty}
                         onChange={(e) => updateManualItem(index, 'qty', e.target.value)}
+                        onFocus={handleInputFocus}
                         className="w-full bg-black/40 p-2 rounded border border-white/5 text-white font-bold text-center outline-none text-xs focus:border-[#d4af37] transition-all"
                       />
                     </div>
@@ -3570,7 +3852,8 @@ export default function App() {
                         type="number"
                         value={item.price}
                         onChange={(e) => updateManualItem(index, 'price', e.target.value)}
-                        placeholder="0.00"
+                        onFocus={handleInputFocus}
+                        placeholder="0"
                         className="w-full bg-black/40 p-2 rounded border border-white/5 text-white font-bold text-center outline-none text-xs focus:border-[#d4af37] transition-all"
                       />
                     </div>
@@ -3687,20 +3970,25 @@ export default function App() {
         </div>
       )}
 
-      {/* SHOP PROFILE MODAL */}
+      {/* SHOP PROFILE MODAL - ENHANCED */}
       {showModal === 'shopProfile' && selectedShop && (
         <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-3 backdrop-blur-3xl overflow-y-auto">
           <div className="w-full max-w-xs p-5 rounded-2xl border border-[#d4af37]/30 bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] text-white">
             <button 
               onClick={() => {
                 setShowModal(null);
+                setEditingProfile(null);
                 setShopProfileForm({
                   ownerName: '',
                   phone: '',
                   email: '',
                   address: '',
                   gst: '',
-                  notes: ''
+                  notes: '',
+                  creditLimit: '',
+                  paymentTerms: '',
+                  shopType: 'retail',
+                  location: ''
                 });
               }} 
               className="absolute top-2 right-2 text-white/20 hover:text-white/40 p-1"
@@ -3710,7 +3998,9 @@ export default function App() {
 
             <div className="text-center mb-4">
               <Briefcase size={30} className="text-[#d4af37] mx-auto mb-2" />
-              <h3 className="font-black text-[#d4af37] mb-1 uppercase text-base tracking-widest">Shop Profile</h3>
+              <h3 className="font-black text-[#d4af37] mb-1 uppercase text-base tracking-widest">
+                {editingProfile ? 'Edit Profile' : 'Shop Profile'}
+              </h3>
               <p className="text-xs text-white/80 font-bold">{selectedShop.name}</p>
             </div>
 
@@ -3751,6 +4041,41 @@ export default function App() {
                 onChange={(e) => setShopProfileForm({...shopProfileForm, gst: e.target.value})}
                 className="w-full p-3 rounded-lg border border-white/10 bg-black/40 text-white font-bold uppercase outline-none text-xs focus:border-[#d4af37] transition-all"
               />
+              
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <p className="text-[9px] font-black uppercase opacity-40 mb-1">Shop Type</p>
+                  <select
+                    value={shopProfileForm.shopType}
+                    onChange={(e) => setShopProfileForm({...shopProfileForm, shopType: e.target.value})}
+                    className="w-full p-2 rounded-lg border border-white/10 bg-black/40 text-white font-bold text-xs outline-none focus:border-[#d4af37]"
+                  >
+                    <option value="retail">Retail</option>
+                    <option value="wholesale">Wholesale</option>
+                    <option value="distributor">Distributor</option>
+                  </select>
+                </div>
+                <div>
+                  <p className="text-[9px] font-black uppercase opacity-40 mb-1">Credit Limit</p>
+                  <input
+                    type="number"
+                    placeholder="Rs."
+                    value={shopProfileForm.creditLimit}
+                    onChange={(e) => setShopProfileForm({...shopProfileForm, creditLimit: e.target.value})}
+                    onFocus={handleInputFocus}
+                    className="w-full p-2 rounded-lg border border-white/10 bg-black/40 text-white font-bold text-xs outline-none focus:border-[#d4af37]"
+                  />
+                </div>
+              </div>
+
+              <input
+                name="location"
+                placeholder="Location / Area"
+                value={shopProfileForm.location}
+                onChange={(e) => setShopProfileForm({...shopProfileForm, location: e.target.value})}
+                className="w-full p-3 rounded-lg border border-white/10 bg-black/40 text-white font-bold uppercase outline-none text-xs focus:border-[#d4af37] transition-all"
+              />
+
               <textarea
                 name="notes"
                 placeholder="Additional Notes"
@@ -3764,17 +4089,17 @@ export default function App() {
                 type="submit"
                 className="w-full py-3 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg uppercase text-xs tracking-widest hover:opacity-90 transition-all"
               >
-                SAVE PROFILE
+                {editingProfile ? 'UPDATE PROFILE' : 'SAVE PROFILE'}
               </button>
             </form>
           </div>
         </div>
       )}
 
-      {/* TARGET MODAL */}
+      {/* TARGET MODAL - ENHANCED */}
       {showModal === 'target' && (
-        <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-3 backdrop-blur-3xl">
-          <div className="w-full max-w-xs p-5 rounded-2xl border border-[#d4af37]/30 bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] text-white">
+        <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-3 backdrop-blur-3xl overflow-y-auto">
+          <div className="w-full max-w-xs p-5 rounded-2xl border border-[#d4af37]/30 bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] text-white max-h-[90vh] overflow-y-auto">
             <button onClick={() => setShowModal(null)} className="absolute top-2 right-2 text-white/20 hover:text-white/40 p-1">
               <X size={20}/>
             </button>
@@ -3801,7 +4126,7 @@ export default function App() {
 
               <div>
                 <label className="text-[10px] font-black uppercase opacity-40 mb-2 block">Target Type</label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-2 mb-3">
                   <button
                     type="button"
                     onClick={() => setTargetType('revenue')}
@@ -3812,7 +4137,7 @@ export default function App() {
                     }`}
                   >
                     <DollarSign size={20} />
-                    <span className="text-[9px] font-black uppercase">Revenue (Rs.)</span>
+                    <span className="text-[9px] font-black uppercase">Revenue</span>
                   </button>
                   <button
                     type="button"
@@ -3827,16 +4152,88 @@ export default function App() {
                     <span className="text-[9px] font-black uppercase">Units</span>
                   </button>
                 </div>
+
+                <div className="grid grid-cols-2 gap-2 mb-3">
+                  <button
+                    type="button"
+                    onClick={() => setTargetCase('units')}
+                    className={`p-2 rounded-lg border text-xs font-black uppercase transition-all ${
+                      targetCase === 'units'
+                        ? 'bg-[#d4af37]/20 border-[#d4af37] text-[#d4af37]'
+                        : 'border-white/10 text-white/60 hover:border-white/30'
+                    }`}
+                  >
+                    Per Unit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTargetCase('cases')}
+                    className={`p-2 rounded-lg border text-xs font-black uppercase transition-all ${
+                      targetCase === 'cases'
+                        ? 'bg-[#d4af37]/20 border-[#d4af37] text-[#d4af37]'
+                        : 'border-white/10 text-white/60 hover:border-white/30'
+                    }`}
+                  >
+                    Cases (6x)
+                  </button>
+                </div>
               </div>
+
+              <div>
+                <label className="text-[10px] font-black uppercase opacity-40 mb-2 block">Target Scope</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setTargetSpecific('total')}
+                    className={`p-2 rounded-lg border text-xs font-black uppercase transition-all ${
+                      targetSpecific === 'total'
+                        ? 'bg-[#d4af37]/20 border-[#d4af37] text-[#d4af37]'
+                        : 'border-white/10 text-white/60 hover:border-white/30'
+                    }`}
+                  >
+                    Total Sales
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTargetSpecific('brand')}
+                    className={`p-2 rounded-lg border text-xs font-black uppercase transition-all ${
+                      targetSpecific === 'brand'
+                        ? 'bg-[#d4af37]/20 border-[#d4af37] text-[#d4af37]'
+                        : 'border-white/10 text-white/60 hover:border-white/30'
+                    }`}
+                  >
+                    Specific Brand
+                  </button>
+                </div>
+              </div>
+
+              {targetSpecific === 'brand' && (
+                <div>
+                  <label className="text-[10px] font-black uppercase opacity-40 mb-1 block">Select Brand</label>
+                  <select
+                    value={targetBrand}
+                    onChange={(e) => setTargetBrand(e.target.value)}
+                    className="w-full p-3 rounded-lg border border-white/10 bg-black/40 text-white font-bold outline-none text-xs focus:border-[#d4af37] transition-all"
+                    required
+                  >
+                    <option value="">-- SELECT BRAND --</option>
+                    {data.brands.map(b => (
+                      <option key={b.id} value={b.name}>{b.name} ({b.size})</option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               <div>
                 <label className="text-[10px] font-black uppercase opacity-40 mb-1 block">
                   Target Amount {targetType === 'revenue' ? '(Rs.)' : '(Units)'}
+                  {targetCase === 'cases' && targetType === 'units' ? ' (in cases)' : ''}
                 </label>
                 <input
                   type="number"
                   value={targetAmount}
                   onChange={(e) => setTargetAmount(e.target.value)}
+                  onFocus={handleInputFocus}
                   placeholder="0"
                   className="w-full p-3 rounded-lg border border-white/10 bg-black/40 text-white font-bold text-center outline-none text-xs focus:border-[#d4af37] transition-all"
                 />
@@ -3847,11 +4244,14 @@ export default function App() {
                   <p className="text-xs opacity-60">Current Target</p>
                   <p className="text-lg font-black text-[#d4af37]">
                     {stats.targetType === 'revenue' ? 'Rs.' : ''}{stats.monthlyTarget.toLocaleString()}
-                    {stats.targetType === 'units' ? ' units' : ''}
+                    {stats.targetCase === 'cases' ? ' cases' : ' units'}
                   </p>
+                  {stats.targetSpecific === 'brand' && stats.targetBrand && (
+                    <p className="text-[10px] opacity-70 mt-1">For: {stats.targetBrand}</p>
+                  )}
                   <p className="text-xs opacity-60 mt-1">Progress: {stats.targetProgress.toFixed(1)}%</p>
                   <p className="text-[10px] mt-2 text-white/80">
-                    Current {stats.targetType === 'revenue' ? 'Sales' : 'Units'}: {stats.targetType === 'revenue' ? 'Rs.' : ''}{stats.targetType === 'revenue' ? stats.monthlySales.toLocaleString() : stats.monthlyUnits}
+                    Current: {stats.targetType === 'revenue' ? 'Rs.' : ''}{stats.targetType === 'revenue' ? stats.monthlySales.toLocaleString() : stats.monthlyUnits}
                   </p>
                 </div>
               )}
@@ -4034,6 +4434,7 @@ export default function App() {
                 type="number"
                 step="0.01"
                 placeholder="UNIT PRICE (Rs.)"
+                onFocus={handleInputFocus}
                 className={`w-full p-3 rounded-lg border font-bold outline-none text-xs focus:border-[#d4af37] transition-all ${
                   isDarkMode ? 'bg-black/40 border-white/5 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'
                 }`}
