@@ -8,7 +8,7 @@ import {
   signOut,
   sendPasswordResetEmail 
 } from 'firebase/auth';
-import { getFirestore, doc, collection, onSnapshot, addDoc, deleteDoc, query, orderBy, where, enableIndexedDbPersistence, setDoc, updateDoc, disableNetwork, enableNetwork } from 'firebase/firestore';
+import { getFirestore, doc, collection, onSnapshot, addDoc, deleteDoc, query, where, enableIndexedDbPersistence, setDoc, updateDoc, disableNetwork, enableNetwork } from 'firebase/firestore';
 import {
   LayoutDashboard, Store, Plus, X, Trash2, Crown, Settings, LogOut,
   MapPin, Package, History, Calendar, Sun, Moon, Save, Star, Search,
@@ -17,7 +17,7 @@ import {
   CreditCard, Coffee, Target, Percent, BarChart3, Hash, Package2,
   BookOpen, Filter, Eye, Clock, Download, Mail, Lock, User, Printer,
   Wifi, WifiOff, Award, Briefcase, Activity, Gamepad2, Phone,
-  TrendingUp as TrendingIcon, ShoppingCart, Truck, Gift, Zap
+  TrendingUp as TrendingIcon, ShoppingCart, Truck, Gift, Zap, Info
 } from 'lucide-react';
 
 // --- FIREBASE CONFIG ---
@@ -35,7 +35,6 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 
 // Enable offline persistence
-let offlineMode = false;
 try {
   enableIndexedDbPersistence(db).catch((err) => {
     if (err.code === 'failed-precondition') {
@@ -49,7 +48,7 @@ try {
 }
 
 export default function App() {
-  // State Variables
+  // ========== STATE VARIABLES ==========
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isSplash, setIsSplash] = useState(true);
@@ -70,7 +69,6 @@ export default function App() {
   });
   const [cart, setCart] = useState({});
   const [selectedShop, setSelectedShop] = useState(null);
-  const [selectedShopProfile, setSelectedShopProfile] = useState(null);
   const [showModal, setShowModal] = useState(null);
   const [searchDate, setSearchDate] = useState(new Date().toISOString().split('T')[0]);
   const [noteSearchDate, setNoteSearchDate] = useState(new Date().toISOString().split('T')[0]);
@@ -106,20 +104,18 @@ export default function App() {
   const [isSendingReset, setIsSendingReset] = useState(false);
   const [resetSuccess, setResetSuccess] = useState(false);
   const [pendingOrders, setPendingOrders] = useState([]);
-  const [brandSequence, setBrandSequence] = useState(0);
   const [showPrintPreview, setShowPrintPreview] = useState(false);
   const [printOrder, setPrintOrder] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState({ show: false, id: null, type: '', name: '' });
   const [brandError, setBrandError] = useState('');
   const [loginError, setLoginError] = useState('');
   
-  // NEW: Enhanced Target States
+  // Target States
   const [targetAmount, setTargetAmount] = useState('');
   const [targetMonth, setTargetMonth] = useState(new Date().toISOString().slice(0, 7));
-  const [targetType, setTargetType] = useState('revenue'); // 'revenue' or 'units'
-  const [targetProgressType, setTargetProgressType] = useState('revenue'); // For display
+  const [targetType, setTargetType] = useState('revenue');
   
-  // NEW: Shop Profile States - FIXED
+  // Shop Profile States
   const [shopProfileForm, setShopProfileForm] = useState({
     ownerName: '',
     phone: '',
@@ -129,29 +125,30 @@ export default function App() {
     notes: ''
   });
   
-  // NEW: Game State
+  // Game State
   const [showGame, setShowGame] = useState(false);
   const [gameScore, setGameScore] = useState(0);
   const [gameHighScore, setGameHighScore] = useState(0);
-  const [gamePosition, setGamePosition] = useState({ x: 50, y: 50 });
   const [gameTargets, setGameTargets] = useState([]);
   const [gameActive, setGameActive] = useState(false);
   
-  // NEW: View Shop Profile State
+  // View States
   const [viewingShopProfile, setViewingShopProfile] = useState(null);
+  const [viewingShopOrders, setViewingShopOrders] = useState(null); // NEW: Shop orders view
 
-  // Network Status Listener
+  // ========== NETWORK STATUS LISTENER ==========
   useEffect(() => {
     const handleOnline = () => {
       setIsOffline(false);
       enableNetwork(db).then(() => {
         showToast("📶 Back online - Syncing data...", "success");
         syncPendingOrders();
-      });
+      }).catch(err => console.error("Error enabling network:", err));
     };
+    
     const handleOffline = () => {
       setIsOffline(true);
-      disableNetwork(db);
+      disableNetwork(db).catch(err => console.error("Error disabling network:", err));
       showToast("📴 Offline mode - Changes saved locally", "info");
     };
 
@@ -164,7 +161,7 @@ export default function App() {
     };
   }, []);
 
-  // Toast Notification
+  // ========== TOAST NOTIFICATION ==========
   const showToast = (message, type = 'success') => {
     setToast({ show: true, message, type });
     setTimeout(() => {
@@ -172,7 +169,7 @@ export default function App() {
     }, 3000);
   };
 
-  // Splash Screen & Auth Listener
+  // ========== SPLASH SCREEN & AUTH LISTENER ==========
   useEffect(() => {
     const timer = setTimeout(() => setIsSplash(false), 1500);
     const unsubAuth = onAuthStateChanged(auth, (user) => {
@@ -185,7 +182,17 @@ export default function App() {
     };
   }, []);
 
-  // Real-time Data Fetching
+  // ========== LOAD HIGH SCORE ==========
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('monarchGameHighScore');
+      if (saved) setGameHighScore(parseInt(saved));
+    } catch (err) {
+      console.error("Error loading game high score:", err);
+    }
+  }, []);
+
+  // ========== REAL-TIME DATA FETCHING ==========
   useEffect(() => {
     if (!user) return;
 
@@ -198,8 +205,7 @@ export default function App() {
         try {
           const q = query(
             collection(db, collectionName),
-            where("userId", "==", user.uid),
-            orderBy("timestamp", "desc")
+            where("userId", "==", user.uid)
           );
 
           const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -207,6 +213,13 @@ export default function App() {
               id: doc.id,
               ...doc.data()
             }));
+            
+            // Sort client-side by timestamp
+            items.sort((a, b) => {
+              const timeA = a.timestamp || 0;
+              const timeB = b.timestamp || 0;
+              return timeB - timeA;
+            });
 
             if (collectionName === 'brands') {
               items.sort((a, b) => (a.sequence || 999) - (b.sequence || 999));
@@ -216,14 +229,20 @@ export default function App() {
               ...prev,
               [collectionName]: items
             }));
+            
+            localStorage.setItem(`${collectionName}_${user.uid}`, JSON.stringify(items));
           }, (error) => {
             console.error(`Error fetching ${collectionName}:`, error);
             const cached = localStorage.getItem(`${collectionName}_${user.uid}`);
             if (cached) {
-              setData(prev => ({
-                ...prev,
-                [collectionName]: JSON.parse(cached)
-              }));
+              try {
+                setData(prev => ({
+                  ...prev,
+                  [collectionName]: JSON.parse(cached)
+                }));
+              } catch (e) {
+                console.error("Error parsing cached data:", e);
+              }
             }
           });
 
@@ -256,7 +275,7 @@ export default function App() {
     return () => {
       unsubscribeFunctions.forEach(unsub => {
         try {
-          unsub();
+          if (unsub) unsub();
         } catch (error) {
           console.error("Error unsubscribing:", error);
         }
@@ -264,22 +283,29 @@ export default function App() {
     };
   }, [user]);
 
-  // Sync pending orders when back online
+  // ========== SYNC PENDING ORDERS ==========
   const syncPendingOrders = async () => {
-    const pending = JSON.parse(localStorage.getItem('pendingOrders') || '[]');
-    for (const order of pending) {
-      try {
-        await addDoc(collection(db, 'orders'), order);
-        showToast("✅ Synced order for " + order.shopName, "success");
-      } catch (err) {
-        console.error("Sync failed:", err);
+    try {
+      const pending = JSON.parse(localStorage.getItem('pendingOrders') || '[]');
+      for (const order of pending) {
+        try {
+          await addDoc(collection(db, 'orders'), {
+            ...order,
+            timestamp: Date.now()
+          });
+          showToast("✅ Synced order for " + order.shopName, "success");
+        } catch (err) {
+          console.error("Sync failed:", err);
+        }
       }
+      localStorage.removeItem('pendingOrders');
+      setPendingOrders([]);
+    } catch (err) {
+      console.error("Error syncing pending orders:", err);
     }
-    localStorage.removeItem('pendingOrders');
-    setPendingOrders([]);
   };
 
-  // Get Current Location
+  // ========== GET LOCATION ==========
   const getLocation = () => {
     if (!user) {
       showToast("Please login first!", "error");
@@ -301,7 +327,8 @@ export default function App() {
             userId: user.uid,
             date: new Date().toISOString().split('T')[0],
             type: 'user_location',
-            name: `${data.settings.name || 'Rep'} Location`
+            name: `${data.settings.name || 'Rep'} Location`,
+            timestamp: Date.now()
           };
 
           if (isOffline) {
@@ -312,12 +339,16 @@ export default function App() {
           } else {
             addDoc(collection(db, 'locations'), locationData)
               .then(() => showToast("📍 Location saved successfully!", "success"))
-              .catch(err => showToast("Error saving location", "error"));
+              .catch(err => showToast("Error saving location: " + err.message, "error"));
           }
         },
         (error) => {
           console.error("Error getting location:", error);
-          showToast("Location access denied or unavailable", "error");
+          let errorMsg = "Location access denied";
+          if (error.code === 1) errorMsg = "Location permission denied";
+          if (error.code === 2) errorMsg = "Location unavailable";
+          if (error.code === 3) errorMsg = "Location request timeout";
+          showToast(errorMsg, "error");
         }
       );
     } else {
@@ -325,7 +356,7 @@ export default function App() {
     }
   };
 
-  // Save Profile
+  // ========== SAVE PROFILE ==========
   const handleSaveProfile = async (e) => {
     e.preventDefault();
     if (!user) {
@@ -348,7 +379,7 @@ export default function App() {
     }
   };
 
-  // Save Expense with Offline Support
+  // ========== SAVE EXPENSE ==========
   const saveExpense = async () => {
     if (!user) {
       showToast("Please login first!", "error");
@@ -365,7 +396,7 @@ export default function App() {
       const expenseData = {
         type: expenseType,
         amount: parseFloat(expenseAmount),
-        note: expenseNote,
+        note: expenseNote || '',
         userId: user.uid,
         timestamp: Date.now(),
         date: new Date().toISOString().split('T')[0]
@@ -391,7 +422,7 @@ export default function App() {
     }
   };
 
-  // Delete Confirm Function
+  // ========== DELETE CONFIRM ==========
   const confirmDelete = (id, type, name) => {
     setShowDeleteConfirm({ show: true, id, type, name });
   };
@@ -417,7 +448,7 @@ export default function App() {
     }
   };
 
-  // Save Note with Offline Support
+  // ========== SAVE NOTE ==========
   const saveNote = async () => {
     if (!user) {
       showToast("Please login first!", "error");
@@ -457,7 +488,7 @@ export default function App() {
     }
   };
 
-  // Save Manual Order with Offline Support
+  // ========== SAVE MANUAL ORDER ==========
   const saveManualOrder = async () => {
     if (!user) {
       showToast("Please login first!", "error");
@@ -498,19 +529,22 @@ export default function App() {
         pending.push(orderData);
         localStorage.setItem('pendingOrders', JSON.stringify(pending));
         showToast("✅ Order saved offline - Will sync when online", "info");
+        setLastOrder(orderData);
+        setShowModal('preview');
+        setManualItems([{ name: '', qty: 1, price: 0, subtotal: 0 }]);
       } else {
-        await addDoc(collection(db, 'orders'), orderData);
+        const docRef = await addDoc(collection(db, 'orders'), orderData);
+        setLastOrder({ ...orderData, id: docRef.id });
+        setShowModal('preview');
+        setManualItems([{ name: '', qty: 1, price: 0, subtotal: 0 }]);
+        showToast("✅ Order saved successfully!", "success");
       }
-
-      setLastOrder(orderData);
-      setShowModal('preview');
-      setManualItems([{ name: '', qty: 1, price: 0, subtotal: 0 }]);
     } catch (err) {
       showToast("Error saving order: " + err.message, "error");
     }
   };
 
-  // Calculate Total
+  // ========== CALCULATE TOTAL ==========
   const calculateTotal = () => {
     const subtotal = parseFloat(totalCalculation.subtotal) || 0;
     let discount = parseFloat(totalCalculation.discount) || 0;
@@ -532,7 +566,7 @@ export default function App() {
     showToast(`💰 Grand Total: Rs.${grandTotal.toLocaleString()}`, "info");
   };
 
-  // Reset calculator
+  // ========== RESET CALCULATOR ==========
   const resetCalculator = () => {
     setTotalCalculation({
       subtotal: 0,
@@ -544,16 +578,10 @@ export default function App() {
     });
   };
 
-  // Forgot Password Handler
+  // ========== FORGOT PASSWORD ==========
   const handleForgotPassword = async () => {
     if (!resetEmail.trim()) {
       showToast("Please enter your email address", "error");
-      return;
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(resetEmail)) {
-      showToast("Please enter a valid email address", "error");
       return;
     }
 
@@ -568,8 +596,6 @@ export default function App() {
         errorMessage = "No account found with this email";
       } else if (err.code === 'auth/too-many-requests') {
         errorMessage = "Too many attempts. Please try again later";
-      } else if (err.code === 'auth/invalid-email') {
-        errorMessage = "Invalid email address";
       }
       showToast(errorMessage, "error");
     } finally {
@@ -577,7 +603,7 @@ export default function App() {
     }
   };
 
-  // ===== FIXED: SHOP STATISTICS FUNCTION =====
+  // ========== SHOP STATISTICS ==========
   const getShopStats = (shopId) => {
     if (!shopId) return { totalSales: 0, orderCount: 0, lastOrder: null, items: {} };
     
@@ -599,12 +625,12 @@ export default function App() {
     return { totalSales, orderCount, lastOrder, items };
   };
 
-  // ===== FIXED: GET SHOP PROFILE =====
+  // ========== GET SHOP PROFILE ==========
   const getShopProfile = (shopId) => {
     return data.shopProfiles?.find(p => p.shopId === shopId);
   };
 
-  // ===== FIXED: SAVE SHOP PROFILE =====
+  // ========== SAVE SHOP PROFILE ==========
   const saveShopProfile = async (e) => {
     e.preventDefault();
     if (!user || !selectedShop) {
@@ -650,13 +676,20 @@ export default function App() {
     }
   };
 
-  // ===== FIXED: VIEW SHOP PROFILE =====
+  // ========== VIEW SHOP PROFILE ==========
   const viewShopProfile = (shop) => {
     const profile = getShopProfile(shop.id);
     setViewingShopProfile({ shop, profile });
   };
 
-  // ===== ENHANCED: STATISTICS WITH TARGETS (Rs. OR UNITS) =====
+  // ========== VIEW SHOP ORDERS (NEW) ==========
+  const viewShopOrders = (shop) => {
+    const shopOrders = data.orders.filter(o => o.shopId === shop.id);
+    const stats = getShopStats(shop.id);
+    setViewingShopOrders({ shop, orders: shopOrders, stats });
+  };
+
+  // ========== STATISTICS ==========
   const stats = useMemo(() => {
     const todayStr = new Date().toLocaleDateString();
     const currentMonth = new Date().getMonth();
@@ -673,28 +706,18 @@ export default function App() {
         if (o.items && Array.isArray(o.items)) {
           o.items.forEach(i => {
             const qty = i.qty || 0;
-            const price = i.price || 0;
             const subtotal = i.subtotal || 0;
-
             const itemName = i.name.split('(')[0].trim();
-
             totalUnits += qty;
 
             if (!summary[itemName]) {
-              summary[itemName] = {
-                units: 0,
-                revenue: 0,
-                price: price
-              };
+              summary[itemName] = { units: 0, revenue: 0 };
             }
             summary[itemName].units += qty;
             summary[itemName].revenue += subtotal;
           });
         }
       });
-
-      const sortedByUnits = Object.entries(summary).sort((a, b) => b[1].units - a[1].units);
-      const topBrandByUnits = sortedByUnits[0];
 
       const sortedByRevenue = Object.entries(summary).sort((a, b) => b[1].revenue - a[1].revenue);
       const topBrandByRevenue = sortedByRevenue[0];
@@ -712,22 +735,14 @@ export default function App() {
         totalSales,
         totalUnits,
         summary: allBrandsSorted,
-        topBrand: topBrandByUnits ? topBrandByUnits[0] : 'N/A',
-        topBrandUnits: topBrandByUnits ? topBrandByUnits[1].units : 0,
+        topBrand: topBrandByRevenue ? topBrandByRevenue[0] : 'N/A',
         topBrandRevenue: topBrandByRevenue ? topBrandByRevenue[1].revenue : 0,
         avgPrice: totalUnits > 0 ? totalSales / totalUnits : 0,
         allBrands: allBrandsSorted
       };
     };
 
-    const dailyOrders = data.orders.filter(o => {
-      try {
-        return o.dateString === todayStr;
-      } catch {
-        return false;
-      }
-    });
-
+    const dailyOrders = data.orders.filter(o => o.dateString === todayStr);
     const monthlyOrders = data.orders.filter(o => {
       try {
         const d = new Date(o.timestamp);
@@ -750,7 +765,6 @@ export default function App() {
 
     const todayNotes = data.notes.filter(n => n.date === todayStr);
     
-    // Enhanced target handling - can be revenue or units
     const currentTarget = data.targets?.find(t => t.month === currentMonthStr) || { amount: 0, type: 'revenue' };
     const monthlySales = monthlyOrders.reduce((sum, o) => sum + (o.total || 0), 0);
     const monthlyUnits = monthlyOrders.reduce((sum, o) => {
@@ -779,7 +793,7 @@ export default function App() {
     };
   }, [data.orders, data.expenses, data.notes, data.targets]);
 
-  // Filter Shops
+  // ========== FILTER SHOPS ==========
   const filteredShops = useMemo(() => {
     return data.shops.filter(s => {
       const shopName = s.name || '';
@@ -793,18 +807,12 @@ export default function App() {
     });
   }, [data.shops, shopSearch, selectedRouteFilter]);
 
-  // Filter Notes by Date
+  // ========== FILTER NOTES ==========
   const filteredNotes = useMemo(() => {
-    return data.notes.filter(note => {
-      try {
-        return note.date === noteSearchDate;
-      } catch {
-        return false;
-      }
-    });
+    return data.notes.filter(note => note.date === noteSearchDate);
   }, [data.notes, noteSearchDate]);
 
-  // Manual Items Handlers
+  // ========== MANUAL ITEMS HANDLERS ==========
   const addManualItem = () => {
     setManualItems([...manualItems, { name: '', qty: 1, price: 0, subtotal: 0 }]);
   };
@@ -828,7 +836,7 @@ export default function App() {
     }
   };
 
-  // WhatsApp Share Functions
+  // ========== WHATSAPP SHARE ==========
   const shareToWhatsApp = (order) => {
     if (!order) return;
 
@@ -866,8 +874,6 @@ export default function App() {
     if (currentLocation) {
       const mapsUrl = `https://www.google.com/maps?q=${currentLocation.lat},${currentLocation.lng}`;
       msg += `📍 *Delivery Location:* ${mapsUrl}\n`;
-    } else {
-      showToast("Location not available. Sending bill without location.", "info");
     }
 
     msg += `\n*ITEMS:*\n`;
@@ -883,93 +889,35 @@ export default function App() {
     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
   };
 
-  // Print Bill Function
+  // ========== PRINT BILL ==========
   const printBill = (order) => {
     setPrintOrder(order);
     setShowPrintPreview(true);
   };
 
-  // Generate Bill HTML for Printing
   const generateBillHTML = (order) => {
     const companyName = order.companyName || data.settings.company || "MONARCH";
     const shopName = order.shopName || "Unknown Shop";
     const date = order.timestamp ? new Date(order.timestamp).toLocaleString() : new Date().toLocaleString();
     const billNumber = order.id ? order.id.slice(-6) : Math.floor(Math.random() * 1000000);
     
-    let html = `
-      <!DOCTYPE html>
+    let html = `<!DOCTYPE html>
       <html>
       <head>
         <title>Bill - ${shopName}</title>
         <style>
-          body {
-            font-family: 'Courier New', monospace;
-            margin: 0;
-            padding: 10px;
-            background: white;
-            color: black;
-          }
-          .bill {
-            max-width: 80mm;
-            margin: 0 auto;
-            padding: 10px;
-          }
-          .header {
-            text-align: center;
-            border-bottom: 2px dashed #d4af37;
-            padding-bottom: 10px;
-            margin-bottom: 10px;
-          }
-          .company {
-            font-size: 18px;
-            font-weight: bold;
-            color: #d4af37;
-            margin: 0;
-            text-transform: uppercase;
-          }
-          .shop {
-            font-size: 16px;
-            font-weight: bold;
-            margin: 5px 0;
-          }
-          .details {
-            font-size: 11px;
-            margin: 3px 0;
-          }
-          .items {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 10px 0;
-          }
-          .items th {
-            border-bottom: 1px solid #000;
-            padding: 5px;
-            font-size: 11px;
-            text-align: left;
-          }
-          .items td {
-            padding: 5px;
-            font-size: 11px;
-          }
-          .total {
-            border-top: 2px solid #d4af37;
-            margin-top: 10px;
-            padding-top: 10px;
-            text-align: right;
-            font-size: 14px;
-            font-weight: bold;
-          }
-          .footer {
-            margin-top: 15px;
-            text-align: center;
-            font-size: 9px;
-            color: #666;
-            border-top: 1px dashed #d4af37;
-            padding-top: 8px;
-          }
-          @media print {
-            body { margin: 0; padding: 5px; }
-          }
+          body { font-family: 'Courier New', monospace; margin: 0; padding: 10px; background: white; color: black; }
+          .bill { max-width: 80mm; margin: 0 auto; padding: 10px; }
+          .header { text-align: center; border-bottom: 2px dashed #d4af37; padding-bottom: 10px; margin-bottom: 10px; }
+          .company { font-size: 18px; font-weight: bold; color: #d4af37; margin: 0; text-transform: uppercase; }
+          .shop { font-size: 16px; font-weight: bold; margin: 5px 0; }
+          .details { font-size: 11px; margin: 3px 0; }
+          .items { width: 100%; border-collapse: collapse; margin: 10px 0; }
+          .items th { border-bottom: 1px solid #000; padding: 5px; font-size: 11px; text-align: left; }
+          .items td { padding: 5px; font-size: 11px; }
+          .total { border-top: 2px solid #d4af37; margin-top: 10px; padding-top: 10px; text-align: right; font-size: 14px; font-weight: bold; }
+          .footer { margin-top: 15px; text-align: center; font-size: 9px; color: #666; border-top: 1px dashed #d4af37; padding-top: 8px; }
+          @media print { body { margin: 0; padding: 5px; } }
         </style>
       </head>
       <body>
@@ -980,9 +928,6 @@ export default function App() {
             <div class="details">${date}</div>
             <div class="details">Bill #: ${billNumber}</div>
           </div>
-    `;
-
-    html += `
           <table class="items">
             <thead>
               <tr>
@@ -992,30 +937,24 @@ export default function App() {
                 <th>Total</th>
               </tr>
             </thead>
-            <tbody>
-    `;
+            <tbody>`;
 
     if (order.items && Array.isArray(order.items)) {
       order.items.forEach(item => {
-        html += `
-              <tr>
+        html += `<tr>
                 <td>${item.name || 'Item'}</td>
                 <td>${item.qty || 0}</td>
-                <td>${(item.price || 0).toLocaleString()}</td>
-                <td>${(item.subtotal || 0).toLocaleString()}</td>
-              </tr>
-        `;
+                <td>Rs.${(item.price || 0).toLocaleString()}</td>
+                <td>Rs.${(item.subtotal || 0).toLocaleString()}</td>
+              </tr>`;
       });
     }
 
-    html += `
-            </tbody>
+    html += `</tbody>
           </table>
-          
           <div class="total">
             TOTAL: Rs.${(order.total || 0).toLocaleString()}
           </div>
-          
           <div class="footer">
             Thank you for your business!<br>
             Generated by Monarch Pro
@@ -1023,22 +962,20 @@ export default function App() {
         </div>
         <script>
           window.onload = function() { window.print(); window.onafterprint = function() { window.close(); } }
-        </script>
+        <\/script>
       </body>
-      </html>
-    `;
+      </html>`;
 
     return html;
   };
 
-  // Execute Print
   const handlePrint = (order) => {
     const printWindow = window.open('', '_blank');
     printWindow.document.write(generateBillHTML(order));
     printWindow.document.close();
   };
 
-  // Auth Handler
+  // ========== AUTH HANDLER ==========
   const handleAuth = async (e) => {
     e.preventDefault();
     setLoginError('');
@@ -1052,14 +989,14 @@ export default function App() {
           return;
         }
         
-        await createUserWithEmailAndPassword(auth, email, password);
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         showToast("🎉 Account created successfully!", "success");
         
         try {
-          await setDoc(doc(db, "settings", auth.currentUser.uid), {
+          await setDoc(doc(db, "settings", userCredential.user.uid), {
             name: email.split('@')[0].toUpperCase(),
             company: "MONARCH",
-            userId: auth.currentUser.uid,
+            userId: userCredential.user.uid,
             createdAt: Date.now()
           });
         } catch (profileErr) {
@@ -1070,37 +1007,20 @@ export default function App() {
         showToast("👑 Welcome back!", "success");
       }
     } catch (err) {
-      let errorMessage = "";
-      
-      switch (err.code) {
-        case 'auth/user-not-found':
-          errorMessage = "❌ Wrong Password or Email";
-          break;
-        case 'auth/wrong-password':
-          errorMessage = "❌ Wrong Password or Email";
-          break;
-        case 'auth/too-many-requests':
-          errorMessage = "❌ Too many failed attempts. Try again later";
-          break;
-        case 'auth/email-already-in-use':
-          errorMessage = "❌ Email already registered. Try login instead";
-          break;
-        case 'auth/invalid-email':
-          errorMessage = "❌ Invalid email address";
-          break;
-        case 'auth/weak-password':
-          errorMessage = "❌ Password should be at least 6 characters";
-          break;
-        default:
-          errorMessage = "❌ Login Failed";
+      let errorMessage = "❌ Login Failed";
+      if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
+        errorMessage = "❌ Wrong Password or Email";
+      } else if (err.code === 'auth/too-many-requests') {
+        errorMessage = "❌ Too many failed attempts. Try again later";
+      } else if (err.code === 'auth/email-already-in-use') {
+        errorMessage = "❌ Email already registered. Try login instead";
       }
-      
       setLoginError(errorMessage);
       showToast(errorMessage, "error");
     }
   };
 
-  // Cart Total
+  // ========== CART TOTAL ==========
   const calculateCartTotal = () => {
     return Object.entries(cart).reduce((acc, [id, q]) => {
       const brand = data.brands.find(b => b.id === id);
@@ -1110,7 +1030,7 @@ export default function App() {
     }, 0);
   };
 
-  // Create Order from Cart
+  // ========== CREATE ORDER ==========
   const handleCreateOrder = async () => {
     if (!user) {
       showToast("Please login first!", "error");
@@ -1159,20 +1079,22 @@ export default function App() {
         pending.push(orderData);
         localStorage.setItem('pendingOrders', JSON.stringify(pending));
         showToast("✅ Order saved offline - Will sync when online", "info");
+        setCart({});
+        setLastOrder(orderData);
+        setShowModal('preview');
       } else {
-        await addDoc(collection(db, 'orders'), orderData);
+        const docRef = await addDoc(collection(db, 'orders'), orderData);
+        setCart({});
+        setLastOrder({ ...orderData, id: docRef.id });
+        setShowModal('preview');
+        showToast("✅ Order saved successfully!", "success");
       }
-      
-      setCart({});
-      setLastOrder(orderData);
-      setShowModal('preview');
-      showToast("Order saved successfully!", "success");
     } catch (err) {
       showToast("Error saving order: " + err.message, "error");
     }
   };
 
-  // Save Brand Edit
+  // ========== SAVE BRAND EDIT ==========
   const saveBrandEdit = async (brandId, field, value) => {
     try {
       await updateDoc(doc(db, 'brands', brandId), { 
@@ -1184,7 +1106,7 @@ export default function App() {
     }
   };
 
-  // Validate Brand
+  // ========== VALIDATE BRAND ==========
   const validateBrand = (name, size, price) => {
     if (!name.trim()) return 'Brand name required';
     if (!size.trim()) return 'Size required';
@@ -1198,7 +1120,7 @@ export default function App() {
     return '';
   };
 
-  // Add Brand with Sequence
+  // ========== ADD BRAND ==========
   const addBrandWithSequence = async (e) => {
     e.preventDefault();
     if (!user) {
@@ -1228,8 +1150,7 @@ export default function App() {
         name: name,
         size: size,
         price: price,
-        sequence: sequence,
-        displayNumber: sequence
+        sequence: sequence
       };
 
       if (isOffline) {
@@ -1237,7 +1158,7 @@ export default function App() {
         cached.unshift({ ...brandData, id: 'temp_' + Date.now() });
         cached.sort((a, b) => (a.sequence || 999) - (b.sequence || 999));
         localStorage.setItem(`brands_${user.uid}`, JSON.stringify(cached));
-        showToast("✅ Brand added offline (Number: " + sequence + ")", "info");
+        showToast(`✅ Brand added offline (Number: ${sequence})`, "info");
       } else {
         await addDoc(collection(db, 'brands'), brandData);
         showToast(`✅ Brand added successfully! (#${sequence})`, "success");
@@ -1250,7 +1171,7 @@ export default function App() {
     }
   };
 
-  // Reorder Brands
+  // ========== REORDER BRANDS ==========
   const reorderBrands = async (brandId, direction) => {
     if (!user || isOffline) {
       showToast("Cannot reorder in offline mode", "error");
@@ -1277,7 +1198,7 @@ export default function App() {
     }
   };
 
-  // ===== ENHANCED: SAVE MONTHLY TARGET (Rs. or Units) =====
+  // ========== SAVE MONTHLY TARGET ==========
   const saveMonthlyTarget = async (e) => {
     e.preventDefault();
     if (!user) return;
@@ -1308,34 +1229,32 @@ export default function App() {
     }
   };
 
-  // ===== SIMPLE GAME FUNCTIONS =====
+  // ========== GAME FUNCTIONS ==========
   const startGame = () => {
     setGameActive(true);
     setGameScore(0);
     setGameTargets([]);
     
-    // Generate initial targets
     const newTargets = [];
     for (let i = 0; i < 5; i++) {
       newTargets.push({
         id: i,
         x: Math.random() * 80 + 10,
-        y: Math.random() * 80 + 10,
-        active: true
+        y: Math.random() * 80 + 10
       });
     }
     setGameTargets(newTargets);
     
-    // Game timer
     setTimeout(() => {
-      if (gameActive) {
-        setGameActive(false);
-        if (gameScore > gameHighScore) {
-          setGameHighScore(gameScore);
-          localStorage.setItem('monarchGameHighScore', gameScore);
+      setGameActive(false);
+      setGameScore(prev => {
+        if (prev > gameHighScore) {
+          setGameHighScore(prev);
+          localStorage.setItem('monarchGameHighScore', prev);
         }
-        showToast(`🎮 Game Over! Score: ${gameScore}`, "info");
-      }
+        return prev;
+      });
+      showToast(`🎮 Game Over! Score: ${gameScore}`, "info");
     }, 30000);
   };
 
@@ -1345,67 +1264,57 @@ export default function App() {
     setGameScore(prev => prev + 10);
     setGameTargets(prev => prev.filter(t => t.id !== id));
     
-    // Add new target
     const newTarget = {
       id: Date.now() + Math.random(),
       x: Math.random() * 80 + 10,
-      y: Math.random() * 80 + 10,
-      active: true
+      y: Math.random() * 80 + 10
     };
     setGameTargets(prev => [...prev, newTarget]);
   };
 
-  // Load high score from localStorage
-  useEffect(() => {
-    const saved = localStorage.getItem('monarchGameHighScore');
-    if (saved) setGameHighScore(parseInt(saved));
-  }, []);
-
-  // --- RENDER ---
-
-  // Splash Screen with Game Easter Egg
-  if (isSplash || loading) return (
-    <div className="h-screen bg-gradient-to-br from-black via-[#1a1a1a] to-[#2d2d2d] flex flex-col items-center justify-center relative overflow-hidden">
-      {/* Animated background */}
-      <div className="absolute inset-0 opacity-10">
-        <div className="absolute top-0 left-0 w-96 h-96 bg-[#d4af37] rounded-full filter blur-3xl animate-pulse"></div>
-        <div className="absolute bottom-0 right-0 w-96 h-96 bg-[#b8860b] rounded-full filter blur-3xl animate-pulse delay-1000"></div>
-      </div>
-      
-      <button 
-        onClick={() => {
-          setShowGame(true);
-          setIsSplash(false);
-        }}
-        className="relative z-10 transform hover:scale-110 transition-all duration-300"
-      >
-        <div className="relative">
-          <Crown size={80} className="text-[#d4af37] animate-pulse" />
-          <Gift size={25} className="text-white absolute -top-2 -right-2 animate-bounce" />
+  // ========== RENDER ==========
+  if (isSplash || loading) {
+    return (
+      <div className="h-screen bg-gradient-to-br from-black via-[#1a1a1a] to-[#2d2d2d] flex flex-col items-center justify-center relative overflow-hidden">
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute top-0 left-0 w-96 h-96 bg-[#d4af37] rounded-full filter blur-3xl animate-pulse"></div>
+          <div className="absolute bottom-0 right-0 w-96 h-96 bg-[#b8860b] rounded-full filter blur-3xl animate-pulse delay-1000"></div>
         </div>
-      </button>
-      
-      <h1 className="mt-6 text-[#d4af37] text-4xl font-black tracking-widest italic uppercase relative z-10">
-        MONARCH
-      </h1>
-      <p className="mt-2 text-white/50 text-sm uppercase tracking-widest relative z-10">
-        Sales & Target Manager
-      </p>
-      <p className="mt-1 text-[#d4af37]/40 text-[10px] uppercase tracking-widest relative z-10">
-        Tap the crown for a surprise!
-      </p>
-      
-      <div className="mt-8 w-56 h-1.5 bg-white/10 rounded-full overflow-hidden relative z-10">
-        <div className="h-full bg-gradient-to-r from-[#d4af37] via-[#f5e7a3] to-[#b8860b] animate-progress"></div>
+        
+        <button 
+          onClick={() => {
+            setShowGame(true);
+            setIsSplash(false);
+          }}
+          className="relative z-10 transform hover:scale-110 transition-all duration-300"
+        >
+          <div className="relative">
+            <Crown size={80} className="text-[#d4af37] animate-pulse" />
+            <Gift size={25} className="text-white absolute -top-2 -right-2 animate-bounce" />
+          </div>
+        </button>
+        
+        <h1 className="mt-6 text-[#d4af37] text-4xl font-black tracking-widest italic uppercase relative z-10">
+          MONARCH
+        </h1>
+        <p className="mt-2 text-white/50 text-sm uppercase tracking-widest relative z-10">
+          Sales & Target Manager
+        </p>
+        <p className="mt-1 text-[#d4af37]/40 text-[10px] uppercase tracking-widest relative z-10">
+          Tap the crown for a surprise!
+        </p>
+        
+        <div className="mt-8 w-56 h-1.5 bg-white/10 rounded-full overflow-hidden relative z-10">
+          <div className="h-full bg-gradient-to-r from-[#d4af37] via-[#f5e7a3] to-[#b8860b] animate-progress"></div>
+        </div>
+        
+        <div className="absolute bottom-10 left-0 right-0 text-center text-white/20 text-[10px] uppercase tracking-widest">
+          Monarch Pro v2.0
+        </div>
       </div>
-      
-      <div className="absolute bottom-10 left-0 right-0 text-center text-white/20 text-[10px] uppercase tracking-widest">
-        Monarch Pro v2.0
-      </div>
-    </div>
-  );
+    );
+  }
 
-  // Game Screen
   if (showGame) {
     return (
       <div className="h-screen bg-gradient-to-br from-black via-[#1a1a1a] to-[#2d2d2d] flex flex-col items-center justify-center p-4 relative overflow-hidden">
@@ -1460,8 +1369,6 @@ export default function App() {
                     <DollarSign size={20} className="text-black" />
                   </button>
                 ))}
-                
-                {/* Timer bar */}
                 <div className="absolute bottom-0 left-0 right-0">
                   <div className="h-1 bg-white/10 rounded-full overflow-hidden">
                     <div className="h-full bg-gradient-to-r from-[#d4af37] to-[#b8860b] animate-progress-slow"></div>
@@ -1486,7 +1393,6 @@ export default function App() {
     );
   }
 
-  // Forgot Password Screen
   if (!user && showForgotPassword) {
     return (
       <div className="h-screen bg-gradient-to-br from-black to-[#1a1a1a] flex items-center justify-center p-4">
@@ -1515,54 +1421,48 @@ export default function App() {
                 </p>
               </div>
               
-              <div className="space-y-2">
-                <button
-                  onClick={() => {
-                    setShowForgotPassword(false);
-                    setResetSuccess(false);
-                    setResetEmail('');
-                  }}
-                  className="w-full py-3 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-xl uppercase text-sm tracking-widest hover:opacity-90 transition-all shadow-lg"
-                >
-                  Back to Login
-                </button>
-              </div>
+              <button
+                onClick={() => {
+                  setShowForgotPassword(false);
+                  setResetSuccess(false);
+                  setResetEmail('');
+                }}
+                className="w-full py-3 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-xl uppercase text-sm tracking-widest hover:opacity-90 transition-all shadow-lg"
+              >
+                Back to Login
+              </button>
             </div>
           ) : (
             <div className="space-y-4">
-              <div>
-                <input
-                  type="email"
-                  value={resetEmail}
-                  onChange={(e) => setResetEmail(e.target.value)}
-                  placeholder="YOUR EMAIL ADDRESS"
-                  className="w-full bg-black/50 backdrop-blur-sm p-4 rounded-xl border border-white/10 text-white font-bold outline-none focus:border-[#d4af37] transition-all"
-                />
-              </div>
+              <input
+                type="email"
+                value={resetEmail}
+                onChange={(e) => setResetEmail(e.target.value)}
+                placeholder="YOUR EMAIL ADDRESS"
+                className="w-full bg-black/50 backdrop-blur-sm p-4 rounded-xl border border-white/10 text-white font-bold outline-none focus:border-[#d4af37] transition-all"
+              />
 
-              <div className="space-y-2">
-                <button
-                  onClick={handleForgotPassword}
-                  disabled={isSendingReset}
-                  className={`w-full py-4 font-black rounded-xl uppercase text-sm tracking-widest transition-all ${
-                    isSendingReset
-                      ? 'bg-gray-700 text-gray-400'
-                      : 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black hover:opacity-90 shadow-lg'
-                  }`}
-                >
-                  {isSendingReset ? 'SENDING...' : 'SEND RESET LINK'}
-                </button>
+              <button
+                onClick={handleForgotPassword}
+                disabled={isSendingReset}
+                className={`w-full py-4 font-black rounded-xl uppercase text-sm tracking-widest transition-all ${
+                  isSendingReset
+                    ? 'bg-gray-700 text-gray-400'
+                    : 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black hover:opacity-90 shadow-lg'
+                }`}
+              >
+                {isSendingReset ? 'SENDING...' : 'SEND RESET LINK'}
+              </button>
 
-                <button
-                  onClick={() => {
-                    setShowForgotPassword(false);
-                    setResetEmail('');
-                  }}
-                  className="w-full py-3 text-white/60 font-bold rounded-xl text-sm hover:text-white transition-all"
-                >
-                  ← Back to Login
-                </button>
-              </div>
+              <button
+                onClick={() => {
+                  setShowForgotPassword(false);
+                  setResetEmail('');
+                }}
+                className="w-full py-3 text-white/60 font-bold rounded-xl text-sm hover:text-white transition-all"
+              >
+                ← Back to Login
+              </button>
             </div>
           )}
         </div>
@@ -1570,35 +1470,33 @@ export default function App() {
     );
   }
 
-  // Login Screen
-  if (!user) return (
-    <div className="min-h-screen bg-gradient-to-br from-black via-[#1a1a1a] to-[#2d2d2d] flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Animated background */}
-      <div className="absolute inset-0">
-        <div className="absolute top-0 left-0 w-96 h-96 bg-[#d4af37]/5 rounded-full filter blur-3xl animate-pulse"></div>
-        <div className="absolute bottom-0 right-0 w-96 h-96 bg-[#b8860b]/5 rounded-full filter blur-3xl animate-pulse delay-1000"></div>
-      </div>
-      
-      <div className="w-full max-w-sm space-y-8 relative z-10">
-        <div className="text-center">
-          <div className="relative">
-            <div className="w-24 h-24 bg-gradient-to-br from-[#d4af37]/20 to-[#b8860b]/20 rounded-full flex items-center justify-center mx-auto border-2 border-[#d4af37]/30 shadow-2xl mb-4">
-              <Crown size={50} className="text-[#d4af37]" />
-            </div>
-            <div className="absolute -top-2 -right-2 animate-bounce">
-              <Gift size={20} className="text-[#d4af37]" />
-            </div>
-          </div>
-          <h2 className="text-white font-black text-2xl tracking-widest uppercase">
-            {isRegisterMode ? "Create Account" : "Welcome Back"}
-          </h2>
-          <p className="text-[#d4af37]/70 text-sm mt-2 font-bold">
-            {isRegisterMode ? "Join Monarch Pro Today" : "Sign in to continue"}
-          </p>
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-black via-[#1a1a1a] to-[#2d2d2d] flex items-center justify-center p-4 relative overflow-hidden">
+        <div className="absolute inset-0">
+          <div className="absolute top-0 left-0 w-96 h-96 bg-[#d4af37]/5 rounded-full filter blur-3xl animate-pulse"></div>
+          <div className="absolute bottom-0 right-0 w-96 h-96 bg-[#b8860b]/5 rounded-full filter blur-3xl animate-pulse delay-1000"></div>
         </div>
+        
+        <div className="w-full max-w-sm space-y-8 relative z-10">
+          <div className="text-center">
+            <div className="relative">
+              <div className="w-24 h-24 bg-gradient-to-br from-[#d4af37]/20 to-[#b8860b]/20 rounded-full flex items-center justify-center mx-auto border-2 border-[#d4af37]/30 shadow-2xl mb-4">
+                <Crown size={50} className="text-[#d4af37]" />
+              </div>
+              <div className="absolute -top-2 -right-2 animate-bounce">
+                <Gift size={20} className="text-[#d4af37]" />
+              </div>
+            </div>
+            <h2 className="text-white font-black text-2xl tracking-widest uppercase">
+              {isRegisterMode ? "Create Account" : "Welcome Back"}
+            </h2>
+            <p className="text-[#d4af37]/70 text-sm mt-2 font-bold">
+              {isRegisterMode ? "Join Monarch Pro Today" : "Sign in to continue"}
+            </p>
+          </div>
 
-        <form onSubmit={handleAuth} className="space-y-4">
-          <div>
+          <form onSubmit={handleAuth} className="space-y-4">
             <input
               name="email"
               type="email"
@@ -1606,8 +1504,6 @@ export default function App() {
               className="w-full bg-black/50 backdrop-blur-sm p-4 rounded-xl border border-white/10 text-white font-bold outline-none focus:border-[#d4af37] transition-all placeholder:text-white/30"
               required
             />
-          </div>
-          <div>
             <input
               name="password"
               type="password"
@@ -1615,69 +1511,59 @@ export default function App() {
               className="w-full bg-black/50 backdrop-blur-sm p-4 rounded-xl border border-white/10 text-white font-bold outline-none focus:border-[#d4af37] transition-all placeholder:text-white/30"
               required
             />
-          </div>
-          
-          {loginError && (
-            <div className="p-3 bg-red-500/20 border border-red-500/30 rounded-xl">
-              <p className="text-red-500 text-xs font-bold text-center">{loginError}</p>
-            </div>
-          )}
-
-          <button 
-            type="submit" 
-            className="w-full py-4 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-xl shadow-lg uppercase text-sm tracking-widest hover:opacity-90 transition-all transform hover:scale-[1.02]"
-          >
-            {isRegisterMode ? "Sign Up" : "Login"}
-          </button>
-
-          <div className="flex justify-between items-center pt-2">
-            <button
-              type="button"
-              onClick={() => {
-                setIsRegisterMode(!isRegisterMode);
-                setLoginError('');
-              }}
-              className="text-[#d4af37] text-sm font-bold uppercase tracking-widest opacity-80 hover:opacity-100 transition-all"
-            >
-              {isRegisterMode ? "← Sign In" : "Register"}
-            </button>
             
-            {!isRegisterMode && (
+            {loginError && (
+              <div className="p-3 bg-red-500/20 border border-red-500/30 rounded-xl">
+                <p className="text-red-500 text-xs font-bold text-center">{loginError}</p>
+              </div>
+            )}
+
+            <button 
+              type="submit" 
+              className="w-full py-4 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-xl shadow-lg uppercase text-sm tracking-widest hover:opacity-90 transition-all transform hover:scale-[1.02]"
+            >
+              {isRegisterMode ? "Sign Up" : "Login"}
+            </button>
+
+            <div className="flex justify-between items-center pt-2">
               <button
                 type="button"
-                onClick={() => setShowForgotPassword(true)}
-                className="text-white/60 text-sm font-bold uppercase tracking-widest opacity-80 hover:opacity-100 hover:text-[#d4af37] transition-all"
+                onClick={() => {
+                  setIsRegisterMode(!isRegisterMode);
+                  setLoginError('');
+                }}
+                className="text-[#d4af37] text-sm font-bold uppercase tracking-widest opacity-80 hover:opacity-100 transition-all"
               >
-                Forgot Password?
+                {isRegisterMode ? "← Sign In" : "Register"}
               </button>
-            )}
+              
+              {!isRegisterMode && (
+                <button
+                  type="button"
+                  onClick={() => setShowForgotPassword(true)}
+                  className="text-white/60 text-sm font-bold uppercase tracking-widest opacity-80 hover:opacity-100 hover:text-[#d4af37] transition-all"
+                >
+                  Forgot Password?
+                </button>
+              )}
+            </div>
+          </form>
+          
+          <div className="text-center text-white/20 text-[10px] uppercase tracking-widest pt-4">
+            Tap the crown for a secret game!
           </div>
-        </form>
-        
-        <div className="text-center text-white/20 text-[10px] uppercase tracking-widest pt-4">
-          Tap the crown for a secret game!
         </div>
       </div>
-    </div>
-  );
+    );
+  }
 
-  // Main App
   return (
     <div className={`min-h-screen pb-40 transition-all duration-500 ${
       isDarkMode 
         ? "bg-gradient-to-br from-[#0a0a0a] via-[#1a1a1a] to-[#0f0f0f] text-white" 
         : "bg-gradient-to-br from-amber-50 via-yellow-50 to-orange-50 text-gray-900"
     }`}>
-      <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
-
-      {/* Offline Indicator */}
-      {isOffline && (
-        <div className="fixed top-16 left-1/2 transform -translate-x-1/2 z-[90] px-4 py-2 bg-yellow-500/20 text-yellow-500 rounded-full border border-yellow-500/30 backdrop-blur-xl text-xs font-bold flex items-center gap-2">
-          <WifiOff size={14} />
-          OFFLINE MODE
-        </div>
-      )}
-
+      
       {/* Toast Notification */}
       {toast.show && (
         <div className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-[1000] px-6 py-3 rounded-xl shadow-2xl backdrop-blur-xl border flex items-center gap-3 ${
@@ -1688,6 +1574,14 @@ export default function App() {
           {toast.type === 'success' && <CheckCircle2 size={20} />}
           {toast.type === 'error' && <AlertCircle size={20} />}
           <span className="font-bold text-sm">{toast.message}</span>
+        </div>
+      )}
+
+      {/* Offline Indicator */}
+      {isOffline && (
+        <div className="fixed top-16 left-1/2 transform -translate-x-1/2 z-[90] px-4 py-2 bg-yellow-500/20 text-yellow-500 rounded-full border border-yellow-500/30 backdrop-blur-xl text-xs font-bold flex items-center gap-2">
+          <WifiOff size={14} />
+          OFFLINE MODE
         </div>
       )}
 
@@ -1708,7 +1602,6 @@ export default function App() {
                 {showDeleteConfirm.type === 'expense' && 'Delete this expense?'}
                 {showDeleteConfirm.type === 'note' && 'Delete this note?'}
                 {showDeleteConfirm.type === 'target' && 'Delete this target?'}
-                {showDeleteConfirm.type === 'shopProfile' && 'Delete shop profile?'}
               </p>
               <p className="text-red-500 text-xs font-bold mt-3">This action cannot be undone!</p>
             </div>
@@ -1730,7 +1623,125 @@ export default function App() {
         </div>
       )}
 
-      {/* View Shop Profile Modal - FIXED */}
+      {/* SHOP ORDERS VIEW MODAL - NEW */}
+      {viewingShopOrders && (
+        <div className="fixed inset-0 bg-black/95 z-[200] flex items-center justify-center p-3 backdrop-blur-3xl overflow-y-auto">
+          <div className="w-full max-w-md p-5 rounded-2xl border border-[#d4af37]/30 bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] text-white max-h-[90vh] overflow-y-auto">
+            <button 
+              onClick={() => setViewingShopOrders(null)} 
+              className="absolute top-2 right-2 text-white/20 hover:text-white/40 p-1"
+            >
+              <X size={20}/>
+            </button>
+
+            <div className="text-center mb-4">
+              <div className="w-16 h-16 bg-gradient-to-br from-[#d4af37]/20 to-[#b8860b]/20 rounded-full flex items-center justify-center mx-auto mb-2 border border-[#d4af37]/30">
+                <Store size={30} className="text-[#d4af37]" />
+              </div>
+              <h3 className="font-black text-[#d4af37] mb-1 uppercase text-base tracking-widest">Shop Orders</h3>
+              <p className="text-sm text-white/80 font-bold">{viewingShopOrders.shop.name}</p>
+              <p className="text-xs text-white/60 mt-1">{viewingShopOrders.shop.area}</p>
+            </div>
+
+            {/* Shop Statistics */}
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <div className="bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] p-3 rounded-xl border border-white/5">
+                <p className="text-[10px] font-black uppercase opacity-60">Total Sales</p>
+                <p className="text-lg font-black text-[#d4af37]">Rs.{viewingShopOrders.stats.totalSales.toLocaleString()}</p>
+              </div>
+              <div className="bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] p-3 rounded-xl border border-white/5">
+                <p className="text-[10px] font-black uppercase opacity-60">Total Orders</p>
+                <p className="text-lg font-black text-[#d4af37]">{viewingShopOrders.stats.orderCount}</p>
+              </div>
+            </div>
+
+            {/* Top Items */}
+            {Object.keys(viewingShopOrders.stats.items).length > 0 && (
+              <div className="mb-4">
+                <p className="text-xs font-black uppercase text-[#d4af37] mb-2">Top Items</p>
+                <div className="space-y-2">
+                  {Object.entries(viewingShopOrders.stats.items)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 5)
+                    .map(([item, qty], idx) => (
+                      <div key={idx} className="bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] p-2 rounded-lg border border-white/5 flex justify-between">
+                        <span className="text-xs">{item}</span>
+                        <span className="text-xs font-black text-[#d4af37]">{qty} units</span>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
+
+            {/* Orders List */}
+            <div>
+              <p className="text-xs font-black uppercase text-[#d4af37] mb-2">Order History</p>
+              {viewingShopOrders.orders.length > 0 ? (
+                <div className="space-y-2">
+                  {viewingShopOrders.orders.slice(0, 10).map((order, idx) => (
+                    <div key={idx} className="bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] p-3 rounded-lg border border-white/5">
+                      <div className="flex justify-between items-start mb-1">
+                        <span className="text-[10px] opacity-60">
+                          {new Date(order.timestamp).toLocaleDateString()}
+                        </span>
+                        <span className="text-xs font-black text-[#d4af37]">Rs.{order.total.toLocaleString()}</span>
+                      </div>
+                      <div className="text-[9px] opacity-50">
+                        {order.items?.length || 0} items
+                      </div>
+                      <div className="flex gap-1 mt-2">
+                        <button
+                          onClick={() => {
+                            setViewingShopOrders(null);
+                            printBill(order);
+                          }}
+                          className="text-[8px] bg-blue-500/20 text-blue-500 px-2 py-1 rounded"
+                        >
+                          Print
+                        </button>
+                        <button
+                          onClick={() => {
+                            setViewingShopOrders(null);
+                            shareToWhatsApp(order);
+                          }}
+                          className="text-[8px] bg-[#d4af37]/20 text-[#d4af37] px-2 py-1 rounded"
+                        >
+                          Share
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-4">
+                  <p className="text-xs opacity-30 italic">No orders found</p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-2 mt-4">
+              <button
+                onClick={() => {
+                  setSelectedShop(viewingShopOrders.shop);
+                  setViewingShopOrders(null);
+                  setShowModal('invoice');
+                }}
+                className="flex-1 py-2.5 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg uppercase text-xs tracking-widest hover:opacity-90 transition-all"
+              >
+                NEW ORDER
+              </button>
+              <button
+                onClick={() => setViewingShopOrders(null)}
+                className="flex-1 py-2.5 bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] text-white/80 font-black rounded-lg uppercase text-xs border border-white/5 hover:border-white/10 transition-all"
+              >
+                CLOSE
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Shop Profile View Modal */}
       {viewingShopProfile && (
         <div className="fixed inset-0 bg-black/95 z-[150] flex items-center justify-center p-3 backdrop-blur-3xl">
           <div className="w-full max-w-xs p-5 rounded-2xl border border-[#d4af37]/30 bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] text-white">
@@ -1783,14 +1794,6 @@ export default function App() {
                   <p className="text-sm font-bold text-white/90">{viewingShopProfile.profile.address || 'Not set'}</p>
                 </div>
 
-                <div className="bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] p-3 rounded-xl border border-white/5">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Hash size={14} className="text-[#d4af37]" />
-                    <span className="text-xs font-black uppercase">GST</span>
-                  </div>
-                  <p className="text-sm font-bold text-white/90">{viewingShopProfile.profile.gst || 'Not set'}</p>
-                </div>
-
                 {viewingShopProfile.profile.notes && (
                   <div className="bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] p-3 rounded-xl border border-white/5">
                     <div className="flex items-center gap-2 mb-2">
@@ -1821,7 +1824,10 @@ export default function App() {
                     EDIT
                   </button>
                   <button
-                    onClick={() => confirmDelete(viewingShopProfile.profile.id, 'shopProfile', '')}
+                    onClick={() => {
+                      confirmDelete(viewingShopProfile.profile.id, 'shopProfile', '');
+                      setViewingShopProfile(null);
+                    }}
                     className="flex-1 py-2.5 bg-gradient-to-r from-red-500 to-red-600 text-white font-black rounded-lg uppercase text-xs tracking-widest hover:opacity-90 transition-all"
                   >
                     DELETE
@@ -1847,7 +1853,7 @@ export default function App() {
         </div>
       )}
 
-      {/* Header with Game Easter Egg */}
+      {/* Header */}
       <header className={`p-4 flex justify-between items-center sticky top-0 z-50 backdrop-blur-xl border-b ${
         isDarkMode 
           ? "bg-black/90 border-[#d4af37]/20" 
@@ -1931,12 +1937,11 @@ export default function App() {
       </header>
 
       {/* Main Content */}
-      <main className="p-3 max-w-lg mx-auto space-y-4" style={{ fontSize: '0.80rem' }}>
+      <main className="p-3 max-w-lg mx-auto space-y-4">
 
-        {/* Dashboard Tab */}
+        {/* DASHBOARD TAB */}
         {activeTab === 'dashboard' && (
           <div className="space-y-4">
-
             {/* Today's Revenue Card */}
             <div className="bg-gradient-to-br from-[#d4af37] via-[#c19a2e] to-[#b8860b] p-5 rounded-2xl text-black shadow-2xl relative overflow-hidden">
               <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"%3E%3Cg fill="none" fill-rule="evenodd"%3E%3Cg fill="%23000000" fill-opacity="0.05"%3E%3Cpath d="M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E')] opacity-20"></div>
@@ -1957,7 +1962,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* Target Progress Card - ENHANCED */}
+            {/* Target Progress Card */}
             {stats.monthlyTarget > 0 && (
               <div className={`p-5 rounded-2xl border shadow-xl ${
                 isDarkMode
@@ -1977,7 +1982,6 @@ export default function App() {
                   </span>
                 </div>
                 
-                {/* Progress Bar */}
                 <div className="w-full h-4 bg-white/10 rounded-full overflow-hidden mb-2">
                   <div 
                     className="h-full bg-gradient-to-r from-[#d4af37] to-[#b8860b] rounded-full transition-all duration-500 relative"
@@ -2098,10 +2102,10 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Monthly Top Brand Section */}
+              {/* Monthly Top Brands */}
               <div className="mb-5">
                 <div className="flex items-center justify-between mb-2">
-                  <p className="text-[9px] font-black uppercase" style={{ color: isDarkMode ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)' }}>Monthly Top Brands</p>
+                  <p className="text-[9px] font-black uppercase opacity-60">Monthly Top Brands</p>
                   <button
                     onClick={() => setShowAllMonthlyBrands(!showAllMonthlyBrands)}
                     className="text-[#d4af37] text-[9px] font-black uppercase"
@@ -2110,7 +2114,7 @@ export default function App() {
                   </button>
                 </div>
 
-                {/* Top Brand Highlight */}
+                {/* Top Brand */}
                 <div className={`p-3 rounded-xl border mb-2 ${
                   isDarkMode
                     ? "bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5"
@@ -2120,20 +2124,20 @@ export default function App() {
                     <div>
                       <div className="flex items-center gap-2 mb-1">
                         <Target size={14} className="text-[#d4af37]" />
-                        <p className="text-sm font-black uppercase" style={{ color: isDarkMode ? 'white' : 'black' }}>
+                        <p className="text-sm font-black uppercase">
                           {stats.monthly.topBrand || 'N/A'}
                         </p>
                       </div>
                       <div className="flex items-center gap-3">
                         <div className="flex items-center gap-1">
-                          <Package2 size={11} style={{ opacity: 0.5 }} />
-                          <span className="text-xs" style={{ opacity: 0.7, color: isDarkMode ? 'white' : 'black' }}>
+                          <Package2 size={11} className="opacity-60" />
+                          <span className="text-xs opacity-70">
                             {stats.monthly.topBrandUnits} units
                           </span>
                         </div>
                         <div className="flex items-center gap-1">
-                          <DollarSign size={11} style={{ opacity: 0.5 }} />
-                          <span className="text-xs" style={{ opacity: 0.7, color: isDarkMode ? 'white' : 'black' }}>
+                          <DollarSign size={11} className="opacity-60" />
+                          <span className="text-xs opacity-70">
                             Rs.{stats.monthly.topBrandRevenue?.toLocaleString() || 0}
                           </span>
                         </div>
@@ -2149,7 +2153,7 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Show All Brands Performance */}
+                {/* All Brands */}
                 {showAllMonthlyBrands && stats.monthly.allBrands.length > 0 && (
                   <div className="space-y-2 mt-3">
                     <p className="text-[9px] font-black uppercase opacity-60">All Brands Performance</p>
@@ -2166,7 +2170,7 @@ export default function App() {
                             <span className="text-xs font-black">{index + 1}</span>
                           </div>
                           <div>
-                            <p className="text-xs font-bold" style={{ color: isDarkMode ? 'white' : 'black' }}>
+                            <p className="text-xs font-bold">
                               {brand.name}
                             </p>
                             <div className="flex items-center gap-2 mt-0.5">
@@ -2196,11 +2200,11 @@ export default function App() {
 
               <div className="space-y-1.5">
                 <div className="flex justify-between items-center">
-                  <p className="text-[9px] font-black uppercase" style={{ color: isDarkMode ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)' }}>Avg Price per Unit</p>
-                  <p className="text-xs font-black" style={{ color: isDarkMode ? 'white' : 'black' }}>Rs.{stats.monthly.avgPrice.toFixed(2)}</p>
+                  <p className="text-[9px] font-black uppercase opacity-60">Avg Price per Unit</p>
+                  <p className="text-xs font-black">Rs.{stats.monthly.avgPrice.toFixed(2)}</p>
                 </div>
                 <div className="flex justify-between items-center">
-                  <p className="text-[9px] font-black uppercase" style={{ color: isDarkMode ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)' }}>Today's Notes</p>
+                  <p className="text-[9px] font-black uppercase opacity-60">Today's Notes</p>
                   <p className="text-xs font-black text-[#d4af37]">{stats.notes}</p>
                 </div>
               </div>
@@ -2228,17 +2232,17 @@ export default function App() {
                       : "bg-gray-50 border-gray-100 hover:border-[#d4af37]"
                   }`}>
                     <div className="flex-1">
-                      <p className="text-xs font-black uppercase tracking-tight mb-1" style={{ color: isDarkMode ? 'white' : 'black' }}>{item.name}</p>
+                      <p className="text-xs font-black uppercase tracking-tight mb-1">{item.name}</p>
                       <div className="flex items-center gap-3">
                         <div className="flex items-center gap-1">
-                          <Hash size={9} style={{ opacity: 0.5 }} />
-                          <span className="text-[9px]" style={{ opacity: 0.7, color: isDarkMode ? 'white' : 'black' }}>{item.units} UNITS</span>
+                          <Hash size={9} className="opacity-50" />
+                          <span className="text-[9px] opacity-70">{item.units} UNITS</span>
                         </div>
                       </div>
                     </div>
                     <div className="text-right">
                       <p className="font-black text-base tabular-nums text-[#d4af37]">Rs.{item.revenue.toLocaleString()}</p>
-                      <p className="text-[8px] opacity-50" style={{ color: isDarkMode ? 'white' : 'black' }}>Revenue</p>
+                      <p className="text-[8px] opacity-50">Revenue</p>
                     </div>
                   </div>
                 ))}
@@ -2250,59 +2254,10 @@ export default function App() {
                 )}
               </div>
             </div>
-
-            {/* Today's Expenses Breakdown */}
-            {stats.todayExpenses.length > 0 && (
-              <div className={`p-5 rounded-2xl border shadow-xl ${
-                isDarkMode
-                  ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/10"
-                  : "bg-white border-gray-200 shadow-lg"
-              }`}>
-                <div className="flex items-center justify-between mb-5">
-                  <div>
-                    <h3 className="text-sm font-black text-[#d4af37] uppercase tracking-widest">Today's Expenses</h3>
-                    <p className="text-[9px] opacity-50 mt-1">Breakdown by Category</p>
-                  </div>
-                  <CreditCard size={16} className="text-[#d4af37] opacity-60" />
-                </div>
-
-                <div className="space-y-2">
-                  {Object.entries(
-                    stats.todayExpenses.reduce((acc, expense) => {
-                      const type = expense.type || 'other';
-                      if (!acc[type]) acc[type] = 0;
-                      acc[type] += expense.amount || 0;
-                      return acc;
-                    }, {})
-                  ).map(([type, amount], index) => (
-                    <div key={index} className={`p-3 rounded-xl border flex justify-between items-center transition-all ${
-                      isDarkMode
-                        ? "bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5 hover:border-red-500/30"
-                        : "bg-gray-50 border-gray-100 hover:border-red-500"
-                    }`}>
-                      <div className="flex items-center gap-2">
-                        {type === 'fuel' && <Fuel size={16} className="text-red-500" />}
-                        {type === 'food' && <Coffee size={16} className="text-amber-500" />}
-                        {type === 'transport' && <Navigation size={16} className="text-blue-500" />}
-                        {type === 'other' && <AlertCircle size={16} className="text-gray-500" />}
-                        <div>
-                          <p className="text-xs font-black uppercase" style={{ color: isDarkMode ? 'white' : 'black' }}>
-                            {type.charAt(0).toUpperCase() + type.slice(1)}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-black text-base tabular-nums text-red-500">Rs.{amount.toLocaleString()}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
         )}
 
-        {/* Shops Tab - FIXED with working shop profiles */}
+        {/* SHOPS TAB - WITH ORDER HISTORY VIEW BUTTON */}
         {activeTab === 'shops' && (
           <div className="space-y-3">
             <div className="space-y-2">
@@ -2317,11 +2272,7 @@ export default function App() {
                   onChange={(e) => setShopSearch(e.target.value)}
                   placeholder="SEARCH SHOP BY NAME OR AREA..."
                   className="bg-transparent text-xs font-black uppercase outline-none w-full placeholder:opacity-30"
-                  style={{ 
-                    color: isDarkMode ? 'white' : 'black',
-                    fontWeight: '900',
-                    letterSpacing: '0.5px'
-                  }}
+                  style={{ color: isDarkMode ? 'white' : 'black' }}
                 />
               </div>
 
@@ -2397,16 +2348,15 @@ export default function App() {
                           <Store size={18}/>
                         </div>
                         <div className="flex-1">
-                          <h4 className="text-sm font-black uppercase leading-tight" style={{ color: isDarkMode ? 'white' : 'black' }}>
+                          <h4 className="text-sm font-black uppercase leading-tight">
                             {s.name}
                           </h4>
                           <div className="flex items-center gap-1.5 mt-1">
                             <MapPin size={11} className="opacity-40" />
-                            <p className="text-[10px] font-bold uppercase tracking-tighter" style={{ opacity: 0.6 }}>
+                            <p className="text-[10px] font-bold uppercase tracking-tighter opacity-60">
                               {s.area}
                             </p>
                           </div>
-                          {/* Shop Stats */}
                           <div className="flex items-center gap-3 mt-2">
                             <div className="text-[10px]">
                               <span className="opacity-60">Total:</span>
@@ -2417,7 +2367,6 @@ export default function App() {
                               <span className="ml-1 font-black">{shopStats.orderCount}</span>
                             </div>
                           </div>
-                          {/* Shop Profile Indicator */}
                           {shopProfile && (
                             <div className="flex items-center gap-1 mt-1">
                               <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
@@ -2443,7 +2392,12 @@ export default function App() {
                         >
                           BILL
                         </button>
-                        {/* FIXED: Shop Profile Button */}
+                        <button
+                          onClick={() => viewShopOrders(s)} // NEW: View orders
+                          className="bg-gradient-to-r from-purple-500 to-purple-600 text-white px-3 py-1.5 rounded-lg text-[8px] font-black uppercase hover:opacity-90 transition-all flex items-center gap-1"
+                        >
+                          <History size={12}/> ORDERS
+                        </button>
                         <button
                           onClick={() => {
                             const profile = getShopProfile(s.id);
@@ -2469,7 +2423,6 @@ export default function App() {
                       </div>
                     </div>
                     
-                    {/* Last Order Info */}
                     {shopStats.lastOrder && (
                       <div className="mt-3 pt-2 border-t border-white/10 text-[9px] opacity-60">
                         Last order: {new Date(shopStats.lastOrder.timestamp).toLocaleDateString()} - Rs.{shopStats.lastOrder.total.toLocaleString()}
@@ -2488,7 +2441,7 @@ export default function App() {
           </div>
         )}
 
-        {/* History Tab */}
+        {/* HISTORY TAB */}
         {activeTab === 'history' && (
           <div className="space-y-3">
             <div className={`p-4 rounded-2xl border flex items-center gap-3 ${
@@ -2528,7 +2481,7 @@ export default function App() {
                   <div>
                     <h4 className="text-xs font-black uppercase text-[#d4af37] mb-1">{o.shopName}</h4>
                     <div className="flex items-center gap-2">
-                      <p className="text-[10px] opacity-60 font-black uppercase" style={{ color: isDarkMode ? 'white' : 'black' }}>{o.companyName}</p>
+                      <p className="text-[10px] opacity-60 font-black uppercase">{o.companyName}</p>
                       {o.isManual && (
                         <span className="text-[8px] bg-gradient-to-r from-green-500/20 to-green-600/20 text-green-500 px-2 py-0.5 rounded-full border border-green-500/30">
                           MANUAL
@@ -2544,7 +2497,6 @@ export default function App() {
                           ? 'text-blue-500 hover:bg-blue-500/10'
                           : 'text-blue-600 hover:bg-blue-100'
                       }`}
-                      title="Print Bill"
                     >
                       <Printer size={16}/>
                     </button>
@@ -2555,7 +2507,6 @@ export default function App() {
                           ? 'text-[#d4af37] hover:bg-[#d4af37]/10'
                           : 'text-[#d4af37] hover:bg-[#d4af37]/20'
                       }`}
-                      title="Share with Location"
                     >
                       <Navigation size={16}/>
                     </button>
@@ -2566,7 +2517,6 @@ export default function App() {
                           ? 'text-[#d4af37] hover:bg-[#d4af37]/10'
                           : 'text-[#d4af37] hover:bg-[#d4af37]/20'
                       }`}
-                      title="Share Bill"
                     >
                       <Share2 size={16}/>
                     </button>
@@ -2587,8 +2537,8 @@ export default function App() {
                   {o.items && o.items.map((i, k) => (
                     <div key={k} className="flex justify-between items-center text-xs uppercase font-bold">
                       <div className="flex items-center gap-2">
-                        <span style={{ opacity: 0.6, color: isDarkMode ? 'white' : 'black' }}>{i.name}</span>
-                        <span className="text-[9px]" style={{ opacity: 0.4, color: isDarkMode ? 'white' : 'black' }}>x{i.qty} @ Rs.{i.price}</span>
+                        <span className="opacity-60">{i.name}</span>
+                        <span className="text-[9px] opacity-40">x{i.qty} @ Rs.{i.price}</span>
                       </div>
                       <span className="text-[#d4af37] font-black">Rs.{i.subtotal.toLocaleString()}</span>
                     </div>
@@ -2596,7 +2546,7 @@ export default function App() {
                 </div>
 
                 <div className="flex justify-between items-center font-black pt-2">
-                  <span className="text-xs uppercase" style={{ opacity: 0.4, color: isDarkMode ? 'white' : 'black' }}>Total Amount</span>
+                  <span className="text-xs uppercase opacity-40">Total Amount</span>
                   <span className="text-xl text-[#d4af37]">Rs.{o.total.toLocaleString()}</span>
                 </div>
               </div>
@@ -2679,7 +2629,7 @@ export default function App() {
                   </div>
 
                   <div className="mt-3">
-                    <p className="text-xs leading-relaxed" style={{ color: isDarkMode ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.8)' }}>
+                    <p className="text-xs leading-relaxed opacity-90">
                       {note.text}
                     </p>
                   </div>
@@ -2702,7 +2652,7 @@ export default function App() {
           </div>
         )}
 
-        {/* Settings Tab - ENHANCED */}
+        {/* SETTINGS TAB */}
         {activeTab === 'settings' && (
           <div className="space-y-4 pb-16">
             {/* Profile Settings */}
@@ -2716,7 +2666,7 @@ export default function App() {
             >
               <div>
                 <h3 className="text-xs font-black text-[#d4af37] uppercase tracking-widest mb-1">Profile Settings</h3>
-                <p className="text-[10px]" style={{ opacity: 0.5, color: isDarkMode ? 'white' : 'black' }}>Update your personal information</p>
+                <p className="text-[10px] opacity-50">Update your personal information</p>
               </div>
 
               <input
@@ -2768,7 +2718,6 @@ export default function App() {
               >
                 <Package size={20}/> ADD BRAND
               </button>
-              {/* Enhanced Target Button */}
               <button
                 onClick={() => setShowModal('target')}
                 className={`py-4 rounded-xl border text-[#d4af37] font-black uppercase text-xs flex flex-col items-center gap-1.5 hover:border-[#d4af37] transition-all col-span-2 ${
@@ -2781,11 +2730,11 @@ export default function App() {
               </button>
             </div>
 
-            {/* Routes Management Section */}
+            {/* Routes List */}
             <div>
               <div className="flex items-center justify-between mb-3">
                 <h4 className="text-xs font-black text-[#d4af37] uppercase tracking-widest">Routes List</h4>
-                <span className="text-[10px]" style={{ opacity: 0.5, color: isDarkMode ? 'white' : 'black' }}>{data.routes.length} routes</span>
+                <span className="text-[10px] opacity-50">{data.routes.length} routes</span>
               </div>
 
               <div className="grid gap-1.5 mb-4">
@@ -2800,7 +2749,7 @@ export default function App() {
                   >
                     <div className="flex items-center gap-2">
                       <MapPin size={14} className="text-[#d4af37]" />
-                      <span className="text-xs font-black uppercase" style={{ color: isDarkMode ? 'white' : 'black' }}>{r.name}</span>
+                      <span className="text-xs font-black uppercase">{r.name}</span>
                     </div>
                     <button
                       onClick={() => confirmDelete(r.id, 'route', r.name)}
@@ -2827,7 +2776,7 @@ export default function App() {
             <div>
               <div className="flex items-center justify-between mb-3">
                 <h4 className="text-xs font-black text-[#d4af37] uppercase tracking-widest">Brands List</h4>
-                <span className="text-[10px]" style={{ opacity: 0.5, color: isDarkMode ? 'white' : 'black' }}>{data.brands.length} brands</span>
+                <span className="text-[10px] opacity-50">{data.brands.length} brands</span>
               </div>
 
               <div className="space-y-2">
@@ -2905,7 +2854,7 @@ export default function App() {
                             </div>
                             <div>
                               <div className="flex items-center gap-2">
-                                <span className="text-sm font-black uppercase" style={{ color: isDarkMode ? 'white' : 'black' }}>
+                                <span className="text-sm font-black uppercase">
                                   {b.name}
                                 </span>
                                 <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gradient-to-r from-[#d4af37]/20 to-[#b8860b]/20 text-[#d4af37] border border-[#d4af37]/30">
@@ -2930,7 +2879,6 @@ export default function App() {
                                         ? 'text-white/40 hover:text-white hover:bg-white/10'
                                         : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200'
                                     }`}
-                                    title="Move Up"
                                   >
                                     ↑
                                   </button>
@@ -2943,7 +2891,6 @@ export default function App() {
                                         ? 'text-white/40 hover:text-white hover:bg-white/10'
                                         : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200'
                                     }`}
-                                    title="Move Down"
                                   >
                                     ↓
                                   </button>
@@ -2989,7 +2936,7 @@ export default function App() {
             <div>
               <div className="flex items-center justify-between mb-3">
                 <h4 className="text-xs font-black text-[#d4af37] uppercase tracking-widest">Today's Expenses</h4>
-                <span className="text-[10px]" style={{ opacity: 0.5, color: isDarkMode ? 'white' : 'black' }}>Rs.{stats.expenses.toLocaleString()}</span>
+                <span className="text-[10px] opacity-50">Rs.{stats.expenses.toLocaleString()}</span>
               </div>
 
               <div className="space-y-1.5">
@@ -3011,9 +2958,9 @@ export default function App() {
                           {exp.type === 'food' && <Coffee size={12} className="text-amber-500" />}
                           {exp.type === 'transport' && <Navigation size={12} className="text-blue-500" />}
                           {exp.type === 'other' && <AlertCircle size={12} className="text-gray-500" />}
-                          <span className="text-xs font-black uppercase" style={{ color: isDarkMode ? 'white' : 'black' }}>{exp.type}</span>
+                          <span className="text-xs font-black uppercase">{exp.type}</span>
                         </div>
-                        {exp.note && <p className="text-[10px] mt-0.5" style={{ opacity: 0.6, color: isDarkMode ? 'white' : 'black' }}>{exp.note}</p>}
+                        {exp.note && <p className="text-[10px] mt-0.5 opacity-60">{exp.note}</p>}
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -3191,15 +3138,14 @@ export default function App() {
                   value={totalCalculation.subtotal}
                   onChange={(e) => setTotalCalculation({...totalCalculation, subtotal: parseFloat(e.target.value) || 0})}
                   placeholder="0.00"
-                  className={`w-full p-3 rounded-lg border text-white font-bold text-center outline-none focus:border-[#d4af37] transition-all text-sm ${
+                  className={`w-full p-3 rounded-lg border font-bold text-center outline-none focus:border-[#d4af37] transition-all text-sm ${
                     isDarkMode 
-                      ? "bg-black/40 border-white/5" 
+                      ? "bg-black/40 border-white/5 text-white" 
                       : "bg-gray-100 border-gray-300 text-gray-900"
                   }`}
                 />
               </div>
 
-              {/* Rs. / % Toggle */}
               <div className="flex gap-2">
                 <button
                   onClick={() => setTotalCalculation({...totalCalculation, usePercentage: false})}
@@ -3223,7 +3169,6 @@ export default function App() {
                 </button>
               </div>
 
-              {/* Discount Input */}
               {totalCalculation.usePercentage ? (
                 <div>
                   <label className="text-[10px] font-black uppercase opacity-40 mb-1 block">Discount (%)</label>
@@ -3232,9 +3177,9 @@ export default function App() {
                     value={totalCalculation.discountPercent}
                     onChange={(e) => setTotalCalculation({...totalCalculation, discountPercent: parseFloat(e.target.value) || 0})}
                     placeholder="0%"
-                    className={`w-full p-2 rounded-lg border text-white font-bold text-center outline-none focus:border-[#d4af37] transition-all text-sm ${
+                    className={`w-full p-2 rounded-lg border font-bold text-center outline-none focus:border-[#d4af37] transition-all text-sm ${
                       isDarkMode 
-                        ? "bg-black/40 border-white/5" 
+                        ? "bg-black/40 border-white/5 text-white" 
                         : "bg-gray-100 border-gray-300 text-gray-900"
                     }`}
                   />
@@ -3247,9 +3192,9 @@ export default function App() {
                     value={totalCalculation.discount}
                     onChange={(e) => setTotalCalculation({...totalCalculation, discount: parseFloat(e.target.value) || 0})}
                     placeholder="0.00"
-                    className={`w-full p-2 rounded-lg border text-white font-bold text-center outline-none focus:border-[#d4af37] transition-all text-sm ${
+                    className={`w-full p-2 rounded-lg border font-bold text-center outline-none focus:border-[#d4af37] transition-all text-sm ${
                       isDarkMode 
-                        ? "bg-black/40 border-white/5" 
+                        ? "bg-black/40 border-white/5 text-white" 
                         : "bg-gray-100 border-gray-300 text-gray-900"
                     }`}
                   />
@@ -3263,9 +3208,9 @@ export default function App() {
                   value={totalCalculation.tax}
                   onChange={(e) => setTotalCalculation({...totalCalculation, tax: parseFloat(e.target.value) || 0})}
                   placeholder="0.00"
-                  className={`w-full p-2 rounded-lg border text-white font-bold text-center outline-none focus:border-[#d4af37] transition-all text-sm ${
+                  className={`w-full p-2 rounded-lg border font-bold text-center outline-none focus:border-[#d4af37] transition-all text-sm ${
                     isDarkMode 
-                      ? "bg-black/40 border-white/5" 
+                      ? "bg-black/40 border-white/5 text-white" 
                       : "bg-gray-100 border-gray-300 text-gray-900"
                   }`}
                 />
@@ -3297,7 +3242,6 @@ export default function App() {
                 >
                   CALCULATE
                 </button>
-
                 <button
                   onClick={resetCalculator}
                   className={`w-full py-2 font-black rounded-lg uppercase text-[10px] tracking-widest border transition-all ${
@@ -3364,8 +3308,8 @@ export default function App() {
                   value={expenseAmount}
                   onChange={(e) => setExpenseAmount(e.target.value)}
                   placeholder="0.00"
-                  className={`w-full p-3 rounded-lg border text-white font-bold text-center outline-none focus:border-[#d4af37] transition-all text-base ${
-                    isDarkMode ? 'bg-black/40 border-white/5' : 'bg-gray-100 border-gray-300 text-gray-900'
+                  className={`w-full p-3 rounded-lg border font-bold text-center outline-none focus:border-[#d4af37] transition-all text-base ${
+                    isDarkMode ? 'bg-black/40 border-white/5 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'
                   }`}
                 />
               </div>
@@ -3376,8 +3320,8 @@ export default function App() {
                   value={expenseNote}
                   onChange={(e) => setExpenseNote(e.target.value)}
                   placeholder="Add expense details..."
-                  className={`w-full p-2 rounded-lg border text-white text-xs outline-none resize-none h-16 focus:border-[#d4af37] transition-all ${
-                    isDarkMode ? 'bg-black/40 border-white/5' : 'bg-gray-100 border-gray-300 text-gray-900'
+                  className={`w-full p-2 rounded-lg border text-xs outline-none resize-none h-16 focus:border-[#d4af37] transition-all ${
+                    isDarkMode ? 'bg-black/40 border-white/5 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'
                   }`}
                 />
               </div>
@@ -3418,8 +3362,8 @@ export default function App() {
                   value={repNote}
                   onChange={(e) => setRepNote(e.target.value)}
                   placeholder="Type your note here..."
-                  className={`w-full p-3 rounded-lg border text-white text-xs outline-none resize-none h-24 focus:border-[#d4af37] transition-all ${
-                    isDarkMode ? 'bg-black/40 border-white/5' : 'bg-gray-100 border-gray-300 text-gray-900'
+                  className={`w-full p-3 rounded-lg border text-xs outline-none resize-none h-24 focus:border-[#d4af37] transition-all ${
+                    isDarkMode ? 'bg-black/40 border-white/5 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'
                   }`}
                 />
               </div>
@@ -3551,7 +3495,7 @@ export default function App() {
                 className="p-2 bg-white/10 rounded-full text-white hover:bg-white/20 transition-all"
               >
                 <X size={20}/>
-            </button>
+              </button>
             </div>
 
             <div className="mb-4">
@@ -3743,7 +3687,7 @@ export default function App() {
         </div>
       )}
 
-      {/* SHOP PROFILE MODAL - FIXED */}
+      {/* SHOP PROFILE MODAL */}
       {showModal === 'shopProfile' && selectedShop && (
         <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-3 backdrop-blur-3xl overflow-y-auto">
           <div className="w-full max-w-xs p-5 rounded-2xl border border-[#d4af37]/30 bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] text-white">
@@ -3827,7 +3771,7 @@ export default function App() {
         </div>
       )}
 
-      {/* TARGET MODAL - ENHANCED */}
+      {/* TARGET MODAL */}
       {showModal === 'target' && (
         <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-3 backdrop-blur-3xl">
           <div className="w-full max-w-xs p-5 rounded-2xl border border-[#d4af37]/30 bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] text-white">
@@ -3855,7 +3799,6 @@ export default function App() {
                 />
               </div>
 
-              {/* Target Type Selection */}
               <div>
                 <label className="text-[10px] font-black uppercase opacity-40 mb-2 block">Target Type</label>
                 <div className="grid grid-cols-2 gap-2">
@@ -3924,8 +3867,8 @@ export default function App() {
         </div>
       )}
 
-      {/* REGISTER MODALS (Shop, Brand, Route) */}
-      {['route', 'shop', 'brand'].includes(showModal) && (
+      {/* ROUTE MODAL */}
+      {showModal === 'route' && (
         <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-3 backdrop-blur-3xl">
           <div className={`w-full max-w-xs p-4 rounded-2xl border relative shadow-2xl ${
             isDarkMode
@@ -3937,126 +3880,174 @@ export default function App() {
             </button>
 
             <div className="text-center mb-4">
-              {showModal === 'route' && <MapPin size={28} className="text-[#d4af37] mx-auto mb-2" />}
-              {showModal === 'shop' && <Store size={28} className="text-[#d4af37] mx-auto mb-2" />}
-              {showModal === 'brand' && <Package size={28} className="text-[#d4af37] mx-auto mb-2" />}
-
-              <h3 className="font-black text-[#d4af37] mb-1 uppercase text-base tracking-widest">
-                New {showModal.charAt(0).toUpperCase() + showModal.slice(1)}
-              </h3>
-              <p className="text-[10px] opacity-50">
-                {showModal === 'route' && 'Add new sales route'}
-                {showModal === 'shop' && 'Register new shop'}
-                {showModal === 'brand' && `Add new product brand (Next #${data.brands.length + 1})`}
-              </p>
+              <MapPin size={28} className="text-[#d4af37] mx-auto mb-2" />
+              <h3 className="font-black text-[#d4af37] mb-1 uppercase text-base tracking-widest">New Route</h3>
+              <p className="text-[10px] opacity-50">Add new sales route</p>
             </div>
 
-            <form onSubmit={
-              showModal === 'brand' ? addBrandWithSequence : 
-              async (e) => {
-                e.preventDefault();
-                const f = e.target;
-
-                if (!user) {
-                  showToast("Please login first!", "error");
-                  return;
-                }
-
-                const payload = { userId: user.uid, timestamp: Date.now() };
-
-                try {
-                  if(showModal==='route') {
-                    await addDoc(collection(db, 'routes'), {
-                      ...payload,
-                      name: f.name.value.toUpperCase()
-                    });
-                    showToast("✅ Route added successfully!", "success");
-                  }
-
-                  if(showModal==='shop') {
-                    await addDoc(collection(db, 'shops'), {
-                      ...payload,
-                      name: f.name.value.toUpperCase(),
-                      area: f.area.value
-                    });
-                    showToast("✅ Shop registered successfully!", "success");
-                  }
-
-                  setShowModal(null);
-                } catch (err) {
-                  showToast("Error: " + err.message, "error");
-                }
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              const f = e.target;
+              if (!user) {
+                showToast("Please login first!", "error");
+                return;
               }
-            } className="space-y-3">
-
+              try {
+                await addDoc(collection(db, 'routes'), {
+                  userId: user.uid,
+                  timestamp: Date.now(),
+                  name: f.name.value.toUpperCase()
+                });
+                showToast("✅ Route added successfully!", "success");
+                setShowModal(null);
+              } catch (err) {
+                showToast("Error: " + err.message, "error");
+              }
+            }} className="space-y-3">
               <input
                 name="name"
-                placeholder={
-                  showModal === 'brand' ? "BRAND NAME" :
-                  showModal === 'shop' ? "SHOP NAME" :
-                  "ROUTE NAME"
-                }
-                className={`w-full p-3 rounded-lg border text-white font-bold uppercase outline-none text-xs focus:border-[#d4af37] transition-all ${
-                  isDarkMode ? 'bg-black/40 border-white/5' : 'bg-gray-100 border-gray-300 text-gray-900'
+                placeholder="ROUTE NAME"
+                className={`w-full p-3 rounded-lg border font-bold uppercase outline-none text-xs focus:border-[#d4af37] transition-all ${
+                  isDarkMode ? 'bg-black/40 border-white/5 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'
                 }`}
                 required
               />
+              <button type="submit" className="w-full py-3 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg uppercase text-xs tracking-widest hover:opacity-90 transition-all">
+                SAVE ROUTE
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
-              {showModal==='shop' && (
-                <div className="relative">
-                  <select
-                    name="area"
-                    className={`w-full p-3 rounded-lg border text-white font-bold uppercase outline-none appearance-none text-xs focus:border-[#d4af37] transition-all ${
-                      isDarkMode ? 'bg-black/40 border-white/5' : 'bg-gray-100 border-gray-300 text-gray-900'
-                    }`}
-                    required
-                  >
-                    <option value="">SELECT ROUTE AREA</option>
-                    {data.routes.map(r => (
-                      <option key={r.id} value={r.name}>{r.name}</option>
-                    ))}
-                  </select>
-                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 opacity-30" size={16}/>
+      {/* SHOP MODAL */}
+      {showModal === 'shop' && (
+        <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-3 backdrop-blur-3xl">
+          <div className={`w-full max-w-xs p-4 rounded-2xl border relative shadow-2xl ${
+            isDarkMode
+              ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/30 text-white"
+              : "bg-gradient-to-br from-white to-gray-50 border-[#d4af37]/50 text-gray-900"
+          }`}>
+            <button onClick={() => setShowModal(null)} className="absolute top-2 right-2 text-white/20 hover:text-white/40 p-1">
+              <X size={20}/>
+            </button>
+
+            <div className="text-center mb-4">
+              <Store size={28} className="text-[#d4af37] mx-auto mb-2" />
+              <h3 className="font-black text-[#d4af37] mb-1 uppercase text-base tracking-widest">New Shop</h3>
+              <p className="text-[10px] opacity-50">Register new shop</p>
+            </div>
+
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              const f = e.target;
+              if (!user) {
+                showToast("Please login first!", "error");
+                return;
+              }
+              try {
+                await addDoc(collection(db, 'shops'), {
+                  userId: user.uid,
+                  timestamp: Date.now(),
+                  name: f.name.value.toUpperCase(),
+                  area: f.area.value
+                });
+                showToast("✅ Shop registered successfully!", "success");
+                setShowModal(null);
+              } catch (err) {
+                showToast("Error: " + err.message, "error");
+              }
+            }} className="space-y-3">
+              <input
+                name="name"
+                placeholder="SHOP NAME"
+                className={`w-full p-3 rounded-lg border font-bold uppercase outline-none text-xs focus:border-[#d4af37] transition-all ${
+                  isDarkMode ? 'bg-black/40 border-white/5 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'
+                }`}
+                required
+              />
+              <div className="relative">
+                <select
+                  name="area"
+                  className={`w-full p-3 rounded-lg border font-bold uppercase outline-none appearance-none text-xs focus:border-[#d4af37] transition-all ${
+                    isDarkMode ? 'bg-black/40 border-white/5 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'
+                  }`}
+                  required
+                >
+                  <option value="">SELECT ROUTE AREA</option>
+                  {data.routes.map(r => (
+                    <option key={r.id} value={r.name}>{r.name}</option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 opacity-30" size={16}/>
+              </div>
+              <button type="submit" className="w-full py-3 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg uppercase text-xs tracking-widest hover:opacity-90 transition-all">
+                SAVE SHOP
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* BRAND MODAL */}
+      {showModal === 'brand' && (
+        <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-3 backdrop-blur-3xl">
+          <div className={`w-full max-w-xs p-4 rounded-2xl border relative shadow-2xl ${
+            isDarkMode
+              ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/30 text-white"
+              : "bg-gradient-to-br from-white to-gray-50 border-[#d4af37]/50 text-gray-900"
+          }`}>
+            <button onClick={() => setShowModal(null)} className="absolute top-2 right-2 text-white/20 hover:text-white/40 p-1">
+              <X size={20}/>
+            </button>
+
+            <div className="text-center mb-4">
+              <Package size={28} className="text-[#d4af37] mx-auto mb-2" />
+              <h3 className="font-black text-[#d4af37] mb-1 uppercase text-base tracking-widest">New Brand</h3>
+              <p className="text-[10px] opacity-50">Add new product brand (Next #{data.brands.length + 1})</p>
+            </div>
+
+            <form onSubmit={addBrandWithSequence} className="space-y-3">
+              <div className={`p-2 rounded-lg border ${isDarkMode ? 'bg-[#d4af37]/10 border-[#d4af37]/30' : 'bg-[#d4af37]/5 border-[#d4af37]/20'} text-center`}>
+                <span className="text-[10px] font-black uppercase opacity-60">Brand Number</span>
+                <div className="text-2xl font-black text-[#d4af37]">{data.brands.length + 1}</div>
+              </div>
+
+              <input
+                name="name"
+                placeholder="BRAND NAME"
+                className={`w-full p-3 rounded-lg border font-bold uppercase outline-none text-xs focus:border-[#d4af37] transition-all ${
+                  isDarkMode ? 'bg-black/40 border-white/5 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'
+                }`}
+                required
+              />
+              <input
+                name="size"
+                placeholder="SIZE (e.g., 500ML, 1KG)"
+                className={`w-full p-3 rounded-lg border font-bold uppercase outline-none text-xs focus:border-[#d4af37] transition-all ${
+                  isDarkMode ? 'bg-black/40 border-white/5 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'
+                }`}
+                required
+              />
+              <input
+                name="price"
+                type="number"
+                step="0.01"
+                placeholder="UNIT PRICE (Rs.)"
+                className={`w-full p-3 rounded-lg border font-bold outline-none text-xs focus:border-[#d4af37] transition-all ${
+                  isDarkMode ? 'bg-black/40 border-white/5 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'
+                }`}
+                required
+              />
+              
+              {brandError && (
+                <div className="p-2 bg-red-500/20 border border-red-500/30 rounded-lg">
+                  <p className="text-red-500 text-xs font-bold text-center">{brandError}</p>
                 </div>
               )}
 
-              {showModal==='brand' && (
-                <>
-                  <div className={`p-2 rounded-lg border ${isDarkMode ? 'bg-[#d4af37]/10 border-[#d4af37]/30' : 'bg-[#d4af37]/5 border-[#d4af37]/20'} text-center`}>
-                    <span className="text-[10px] font-black uppercase opacity-60">Brand Number</span>
-                    <div className="text-2xl font-black text-[#d4af37]">{data.brands.length + 1}</div>
-                  </div>
-
-                  <input
-                    name="size"
-                    placeholder="SIZE (e.g., 500ML, 1KG)"
-                    className={`w-full p-3 rounded-lg border text-white font-bold uppercase outline-none text-xs focus:border-[#d4af37] transition-all ${
-                      isDarkMode ? 'bg-black/40 border-white/5' : 'bg-gray-100 border-gray-300 text-gray-900'
-                    }`}
-                    required
-                  />
-                  <input
-                    name="price"
-                    type="number"
-                    step="0.01"
-                    placeholder="UNIT PRICE (Rs.)"
-                    className={`w-full p-3 rounded-lg border text-white font-bold outline-none text-xs focus:border-[#d4af37] transition-all ${
-                      isDarkMode ? 'bg-black/40 border-white/5' : 'bg-gray-100 border-gray-300 text-gray-900'
-                    }`}
-                    required
-                  />
-                  
-                  {/* Brand Error Display */}
-                  {brandError && (
-                    <div className="p-2 bg-red-500/20 border border-red-500/30 rounded-lg">
-                      <p className="text-red-500 text-xs font-bold text-center">{brandError}</p>
-                    </div>
-                  )}
-                </>
-              )}
-
               <button type="submit" className="w-full py-3 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg uppercase text-xs tracking-widest hover:opacity-90 transition-all">
-                SAVE {showModal.toUpperCase()}
+                SAVE BRAND
               </button>
             </form>
           </div>
@@ -4085,42 +4076,6 @@ export default function App() {
 
         * {
           font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif !important;
-          font-weight: 500;
-        }
-
-        body {
-          font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-          -webkit-font-smoothing: antialiased;
-          -moz-osx-font-smoothing: grayscale;
-          font-size: 14px;
-        }
-
-        input, button, select, textarea {
-          font-family: inherit !important;
-          font-size: 14px;
-          font-weight: 600;
-        }
-
-        .font-black {
-          font-weight: 700 !important;
-        }
-
-        @media (max-width: 640px) {
-          body { font-size: 13px; }
-          input, button, select, textarea { font-size: 13px; }
-          .text-xs { font-size: 0.7rem !important; }
-          .text-sm { font-size: 0.75rem !important; }
-          h1, h2, h3, h4 { font-size: 0.9rem !important; }
-        }
-
-        @media (max-width: 400px) {
-          body { font-size: 12px; }
-          input, button, select, textarea { font-size: 12px; }
-          main { padding: 0.5rem !important; }
-          .p-3 { padding: 0.6rem !important; }
-          .p-4 { padding: 0.75rem !important; }
-          .p-5 { padding: 1rem !important; }
-          .rounded-2xl { border-radius: 1rem !important; }
         }
 
         button {
@@ -4130,14 +4085,6 @@ export default function App() {
 
         input, select, textarea {
           font-size: 16px !important;
-        }
-
-        @media (max-height: 600px) {
-          .fixed.inset-0 {
-            align-items: flex-start;
-            padding-top: 1rem;
-            overflow-y: auto;
-          }
         }
 
         ::-webkit-scrollbar {
@@ -4152,29 +4099,6 @@ export default function App() {
         ::-webkit-scrollbar-thumb {
           background: rgba(212, 175, 55, 0.5);
           border-radius: 10px;
-        }
-
-        .transition-all {
-          transition: all 0.2s ease;
-        }
-
-        /* Print styles */
-        @media print {
-          body * {
-            visibility: hidden;
-          }
-          .print-bill, .print-bill * {
-            visibility: visible;
-          }
-          .print-bill {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-            background: white;
-            color: black;
-            padding: 20px;
-          }
         }
       `}</style>
     </div>
