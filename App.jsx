@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { initializeApp } from 'firebase/app';
-import { 
-  getAuth, 
-  signInWithEmailAndPassword, 
-  createUserWithEmailAndPassword, 
-  onAuthStateChanged, 
+import {
+  getAuth,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  onAuthStateChanged,
   signOut,
-  sendPasswordResetEmail 
+  sendPasswordResetEmail
 } from 'firebase/auth';
 import { getFirestore, doc, collection, onSnapshot, addDoc, deleteDoc, query, where, enableIndexedDbPersistence, setDoc, updateDoc, disableNetwork, enableNetwork } from 'firebase/firestore';
 import {
@@ -80,7 +80,7 @@ export default function App() {
   const [selectedRouteFilter, setSelectedRouteFilter] = useState('ALL');
   const [manualItems, setManualItems] = useState([{ name: '', qty: 1, price: 0, subtotal: 0 }]);
   const [editingBrand, setEditingBrand] = useState(null);
-  
+
   // Calculator State - Fixed
   const [totalCalculation, setTotalCalculation] = useState({
     subtotal: 0,
@@ -90,7 +90,7 @@ export default function App() {
     grandTotal: 0,
     usePercentage: false
   });
-  
+
   const [expenseType, setExpenseType] = useState('fuel');
   const [expenseAmount, setExpenseAmount] = useState('');
   const [expenseNote, setExpenseNote] = useState('');
@@ -111,7 +111,7 @@ export default function App() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState({ show: false, id: null, type: '', name: '' });
   const [brandError, setBrandError] = useState('');
   const [loginError, setLoginError] = useState('');
-  
+
   // Target States - Enhanced
   const [targetAmount, setTargetAmount] = useState('');
   const [targetMonth, setTargetMonth] = useState(new Date().toISOString().slice(0, 7));
@@ -119,7 +119,7 @@ export default function App() {
   const [targetCase, setTargetCase] = useState('units'); // For case targets (6x75cl, etc.)
   const [targetBrand, setTargetBrand] = useState('');
   const [targetSpecific, setTargetSpecific] = useState('total'); // 'total' or 'brand'
-  
+
   // Shop Profile States - Enhanced
   const [shopProfileForm, setShopProfileForm] = useState({
     ownerName: '',
@@ -134,7 +134,7 @@ export default function App() {
     location: ''
   });
   const [editingProfile, setEditingProfile] = useState(null);
-  
+
   // Game State - Enhanced Mobile Game
   const [showGame, setShowGame] = useState(false);
   const [gameScore, setGameScore] = useState(0);
@@ -146,7 +146,7 @@ export default function App() {
   const [gameSound, setGameSound] = useState(true);
   const [gameCombo, setGameCombo] = useState(0);
   const [gameBestCombo, setGameBestCombo] = useState(0);
-  
+
   // View States
   const [viewingShopProfile, setViewingShopProfile] = useState(null);
   const [viewingShopOrders, setViewingShopOrders] = useState(null);
@@ -162,7 +162,7 @@ export default function App() {
         syncPendingOrders();
       }).catch(err => console.error("Error enabling network:", err));
     };
-    
+
     const handleOffline = () => {
       setIsOffline(true);
       disableNetwork(db).catch(err => console.error("Error disabling network:", err));
@@ -232,7 +232,7 @@ export default function App() {
               id: doc.id,
               ...doc.data()
             }));
-            
+
             items.sort((a, b) => {
               const timeA = a.timestamp || 0;
               const timeB = b.timestamp || 0;
@@ -247,7 +247,7 @@ export default function App() {
               ...prev,
               [collectionName]: items
             }));
-            
+
             localStorage.setItem(`${collectionName}_${user.uid}`, JSON.stringify(items));
           }, (error) => {
             console.error(`Error fetching ${collectionName}:`, error);
@@ -458,7 +458,7 @@ export default function App() {
       if (type === 'note') await deleteDoc(doc(db, 'notes', id));
       if (type === 'target') await deleteDoc(doc(db, 'targets', id));
       if (type === 'shopProfile') await deleteDoc(doc(db, 'shopProfiles', id));
-      
+
       showToast(`✅ ${type} deleted successfully!`, 'success');
       setShowDeleteConfirm({ show: false, id: null, type: '', name: '' });
     } catch (err) {
@@ -568,11 +568,11 @@ export default function App() {
     let discount = parseFloat(totalCalculation.discount) || 0;
     const discountPercent = parseFloat(totalCalculation.discountPercent) || 0;
     const tax = parseFloat(totalCalculation.tax) || 0;
-    
+
     if (totalCalculation.usePercentage && discountPercent > 0) {
       discount = (subtotal * discountPercent) / 100;
     }
-    
+
     const grandTotal = subtotal - discount + tax;
 
     setTotalCalculation(prev => ({
@@ -630,12 +630,12 @@ export default function App() {
   // ========== SHOP STATISTICS ==========
   const getShopStats = (shopId) => {
     if (!shopId) return { totalSales: 0, orderCount: 0, lastOrder: null, items: {} };
-    
+
     const shopOrders = data.orders.filter(o => o.shopId === shopId);
     const totalSales = shopOrders.reduce((sum, o) => sum + (o.total || 0), 0);
     const orderCount = shopOrders.length;
     const lastOrder = shopOrders.length > 0 ? shopOrders[0] : null;
-    
+
     const items = {};
     shopOrders.forEach(o => {
       if (o.items) {
@@ -645,7 +645,7 @@ export default function App() {
         });
       }
     });
-    
+
     return { totalSales, orderCount, lastOrder, items };
   };
 
@@ -661,7 +661,7 @@ export default function App() {
       showToast("Select a shop first!", "error");
       return;
     }
-    
+
     try {
       const profileData = {
         userId: user.uid,
@@ -679,9 +679,9 @@ export default function App() {
         location: shopProfileForm.location || '',
         timestamp: Date.now()
       };
-      
+
       const existingProfile = data.shopProfiles?.find(p => p.shopId === selectedShop.id);
-      
+
       if (existingProfile) {
         await updateDoc(doc(db, 'shopProfiles', existingProfile.id), profileData);
         showToast("✅ Shop profile updated!", "success");
@@ -689,7 +689,7 @@ export default function App() {
         await addDoc(collection(db, 'shopProfiles'), profileData);
         showToast("✅ Shop profile saved!", "success");
       }
-      
+
       setShowModal(null);
       setEditingProfile(null);
       setShopProfileForm({
@@ -806,7 +806,7 @@ export default function App() {
 
     const todayExpenses = data.expenses.filter(e => e.date === todayStr);
     const totalExpenses = todayExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
-    
+
     const monthlyExpenses = data.expenses.filter(e => {
       try {
         return e.date && e.date.startsWith(currentYear + '-' + String(currentMonth + 1).padStart(2, '0'));
@@ -816,7 +816,7 @@ export default function App() {
     }).reduce((sum, e) => sum + (e.amount || 0), 0);
 
     const todayNotes = data.notes.filter(n => n.date === todayStr);
-    
+
     const currentTarget = data.targets?.find(t => t.month === currentMonthStr) || { amount: 0, type: 'revenue', specific: 'total', case: 'units' };
     const monthlySales = monthlyOrders.reduce((sum, o) => sum + (o.total || 0), 0);
     const monthlyUnits = monthlyOrders.reduce((sum, o) => {
@@ -824,7 +824,7 @@ export default function App() {
       if (o.items) o.items.forEach(i => units += i.qty || 0);
       return sum + units;
     }, 0);
-    
+
     let targetValue = 0;
     if (currentTarget.specific === 'brand' && currentTarget.brand) {
       // Calculate target for specific brand
@@ -845,7 +845,7 @@ export default function App() {
     } else {
       targetValue = currentTarget.type === 'units' ? monthlyUnits : monthlySales;
     }
-    
+
     const targetAmount = currentTarget.amount || 0;
     const targetProgress = targetAmount > 0 ? (targetValue / targetAmount) * 100 : 0;
 
@@ -975,7 +975,7 @@ export default function App() {
     const shopName = order.shopName || "Unknown Shop";
     const date = order.timestamp ? new Date(order.timestamp).toLocaleString() : new Date().toLocaleString();
     const billNumber = order.id ? order.id.slice(-6) : Math.floor(Math.random() * 1000000);
-    
+
     let html = `<!DOCTYPE html>
       <html>
       <head>
@@ -1063,10 +1063,10 @@ export default function App() {
           showToast("Password must be at least 6 characters", "error");
           return;
         }
-        
+
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         showToast("🎉 Account created successfully!", "success");
-        
+
         try {
           await setDoc(doc(db, "settings", userCredential.user.uid), {
             name: email.split('@')[0].toUpperCase(),
@@ -1172,7 +1172,7 @@ export default function App() {
   // ========== SAVE BRAND EDIT ==========
   const saveBrandEdit = async (brandId, field, value) => {
     try {
-      await updateDoc(doc(db, 'brands', brandId), { 
+      await updateDoc(doc(db, 'brands', brandId), {
         [field]: field === 'price' ? parseFloat(value) : value.toUpperCase()
       });
       showToast("Brand updated successfully!", "success");
@@ -1186,9 +1186,9 @@ export default function App() {
     if (!name.trim()) return 'Brand name required';
     if (!size.trim()) return 'Size required';
     if (!price || price <= 0) return 'Valid price required';
-    
-    const exists = data.brands.find(b => 
-      b.name?.toUpperCase() === name.toUpperCase() && 
+
+    const exists = data.brands.find(b =>
+      b.name?.toUpperCase() === name.toUpperCase() &&
       b.size?.toUpperCase() === size.toUpperCase()
     );
     if (exists) return '❌ Brand already exists!';
@@ -1207,14 +1207,14 @@ export default function App() {
     const name = form.name.value.toUpperCase();
     const size = form.size.value.toUpperCase();
     const price = parseFloat(form.price.value);
-    
+
     const error = validateBrand(name, size, price);
     if (error) {
       setBrandError(error);
       showToast(error, "error");
       return;
     }
-    
+
     try {
       const currentCount = data.brands.length;
       const sequence = currentCount + 1;
@@ -1263,7 +1263,7 @@ export default function App() {
 
       const brand1 = currentBrands[index];
       const brand2 = currentBrands[newIndex];
-      
+
       await updateDoc(doc(db, 'brands', brand1.id), { sequence: brand2.sequence });
       await updateDoc(doc(db, 'brands', brand2.id), { sequence: brand1.sequence });
 
@@ -1277,7 +1277,7 @@ export default function App() {
   const saveMonthlyTarget = async (e) => {
     e.preventDefault();
     if (!user) return;
-    
+
     try {
       const targetData = {
         userId: user.uid,
@@ -1289,9 +1289,9 @@ export default function App() {
         case: targetCase,
         timestamp: Date.now()
       };
-      
+
       const existingTarget = data.targets?.find(t => t.month === targetMonth);
-      
+
       if (existingTarget) {
         await updateDoc(doc(db, 'targets', existingTarget.id), targetData);
         showToast(`✅ Target updated!`, "success");
@@ -1299,7 +1299,7 @@ export default function App() {
         await addDoc(collection(db, 'targets'), targetData);
         showToast(`✅ Target set!`, "success");
       }
-      
+
       setTargetAmount('');
       setTargetBrand('');
       setShowModal(null);
@@ -1315,7 +1315,7 @@ export default function App() {
     setGameTimeLeft(30);
     setGameLevel(1);
     setGameCombo(0);
-    
+
     const newTargets = [];
     for (let i = 0; i < 5 + gameLevel * 2; i++) {
       newTargets.push({
@@ -1356,20 +1356,20 @@ export default function App() {
 
   const handleTargetClick = (id, type) => {
     if (!gameActive) return;
-    
+
     let points = type === 'bonus' ? 20 * gameLevel : 10 * gameLevel;
     setGameScore(prev => prev + points);
     setGameCombo(prev => prev + 1);
-    
+
     if (gameSound) {
       // Play sound effect (using vibration for mobile)
       if (navigator.vibrate) {
         navigator.vibrate(50);
       }
     }
-    
+
     setGameTargets(prev => prev.filter(t => t.id !== id));
-    
+
     // Add new target
     const newTarget = {
       id: Date.now() + Math.random(),
@@ -1379,7 +1379,7 @@ export default function App() {
       type: Math.random() > 0.3 ? 'coin' : 'bonus'
     };
     setGameTargets(prev => [...prev, newTarget]);
-    
+
     // Level up every 100 points
     if (gameScore > 100 * gameLevel) {
       setGameLevel(prev => prev + 1);
@@ -1395,8 +1395,8 @@ export default function App() {
           <div className="absolute top-0 left-0 w-96 h-96 bg-[#d4af37] rounded-full filter blur-3xl animate-pulse"></div>
           <div className="absolute bottom-0 right-0 w-96 h-96 bg-[#b8860b] rounded-full filter blur-3xl animate-pulse delay-1000"></div>
         </div>
-        
-        <button 
+
+        <button
           onClick={() => {
             setShowGame(true);
             setIsSplash(false);
@@ -1408,7 +1408,7 @@ export default function App() {
             <Gift size={25} className="text-white absolute -top-2 -right-2 animate-bounce" />
           </div>
         </button>
-        
+
         <h1 className="mt-6 text-[#d4af37] text-4xl font-black tracking-widest italic uppercase relative z-10">
           MONARCH
         </h1>
@@ -1418,11 +1418,11 @@ export default function App() {
         <p className="mt-1 text-[#d4af37]/40 text-[10px] uppercase tracking-widest relative z-10">
           Tap the crown for a surprise!
         </p>
-        
+
         <div className="mt-8 w-56 h-1.5 bg-white/10 rounded-full overflow-hidden relative z-10">
           <div className="h-full bg-gradient-to-r from-[#d4af37] via-[#f5e7a3] to-[#b8860b] animate-progress"></div>
         </div>
-        
+
         <div className="absolute bottom-10 left-0 right-0 text-center text-white/20 text-[10px] uppercase tracking-widest">
           Monarch Pro v2.0
         </div>
@@ -1437,7 +1437,7 @@ export default function App() {
           <div className="absolute top-0 left-0 w-64 h-64 bg-[#d4af37]/5 rounded-full filter blur-3xl"></div>
           <div className="absolute bottom-0 right-0 w-64 h-64 bg-[#b8860b]/5 rounded-full filter blur-3xl"></div>
         </div>
-        
+
         <div className="relative z-10 w-full max-w-md">
           <div className="flex justify-between items-center mb-4">
             <div>
@@ -1456,7 +1456,7 @@ export default function App() {
               </button>
             </div>
           </div>
-          
+
           <div className="grid grid-cols-4 gap-2 mb-4">
             <div className="bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] p-2 rounded-xl text-center">
               <p className="text-[#d4af37] text-xs uppercase">Score</p>
@@ -1475,7 +1475,7 @@ export default function App() {
               <p className="text-white text-lg font-black">{gameTimeLeft}s</p>
             </div>
           </div>
-          
+
           <div className="bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] rounded-2xl border border-[#d4af37]/30 p-4 mb-4 relative h-[400px]">
             {!gameActive ? (
               <div className="h-full flex flex-col items-center justify-center">
@@ -1508,8 +1508,8 @@ export default function App() {
                     key={target.id}
                     onClick={() => handleTargetClick(target.id, target.type)}
                     className={`absolute w-14 h-14 rounded-full flex items-center justify-center animate-pulse shadow-lg transform hover:scale-110 transition-all ${
-                      target.type === 'bonus' 
-                        ? 'bg-gradient-to-r from-purple-500 to-pink-500' 
+                      target.type === 'bonus'
+                        ? 'bg-gradient-to-r from-purple-500 to-pink-500'
                         : 'bg-gradient-to-r from-[#d4af37] to-[#b8860b]'
                     }`}
                     style={{
@@ -1530,7 +1530,7 @@ export default function App() {
                 ))}
                 <div className="absolute bottom-0 left-0 right-0">
                   <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                    <div 
+                    <div
                       className="h-full bg-gradient-to-r from-[#d4af37] to-[#b8860b]"
                       style={{ width: `${(gameTimeLeft / 30) * 100}%` }}
                     ></div>
@@ -1539,7 +1539,7 @@ export default function App() {
               </div>
             )}
           </div>
-          
+
           <button
             onClick={() => {
               setShowGame(false);
@@ -1582,7 +1582,7 @@ export default function App() {
                   Check your email inbox and spam folder
                 </p>
               </div>
-              
+
               <button
                 onClick={() => {
                   setShowForgotPassword(false);
@@ -1639,7 +1639,7 @@ export default function App() {
           <div className="absolute top-0 left-0 w-96 h-96 bg-[#d4af37]/5 rounded-full filter blur-3xl animate-pulse"></div>
           <div className="absolute bottom-0 right-0 w-96 h-96 bg-[#b8860b]/5 rounded-full filter blur-3xl animate-pulse delay-1000"></div>
         </div>
-        
+
         <div className="w-full max-w-sm space-y-8 relative z-10">
           <div className="text-center">
             <div className="relative">
@@ -1673,15 +1673,15 @@ export default function App() {
               className="w-full bg-black/50 backdrop-blur-sm p-4 rounded-xl border border-white/10 text-white font-bold outline-none focus:border-[#d4af37] transition-all placeholder:text-white/30"
               required
             />
-            
+
             {loginError && (
               <div className="p-3 bg-red-500/20 border border-red-500/30 rounded-xl">
                 <p className="text-red-500 text-xs font-bold text-center">{loginError}</p>
               </div>
             )}
 
-            <button 
-              type="submit" 
+            <button
+              type="submit"
               className="w-full py-4 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-xl shadow-lg uppercase text-sm tracking-widest hover:opacity-90 transition-all transform hover:scale-[1.02]"
             >
               {isRegisterMode ? "Sign Up" : "Login"}
@@ -1698,7 +1698,7 @@ export default function App() {
               >
                 {isRegisterMode ? "← Sign In" : "Register"}
               </button>
-              
+
               {!isRegisterMode && (
                 <button
                   type="button"
@@ -1710,7 +1710,7 @@ export default function App() {
               )}
             </div>
           </form>
-          
+
           <div className="text-center text-white/20 text-[10px] uppercase tracking-widest pt-4">
             Tap the crown for a secret game!
           </div>
@@ -1721,11 +1721,11 @@ export default function App() {
 
   return (
     <div className={`min-h-screen pb-40 transition-all duration-500 ${
-      isDarkMode 
-        ? "bg-gradient-to-br from-[#0a0a0a] via-[#1a1a1a] to-[#0f0f0f] text-white" 
+      isDarkMode
+        ? "bg-gradient-to-br from-[#0a0a0a] via-[#1a1a1a] to-[#0f0f0f] text-white"
         : "bg-gradient-to-br from-amber-50 via-yellow-50 to-orange-50 text-gray-900"
     }`}>
-      
+
       {/* Toast Notification */}
       {toast.show && (
         <div className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-[1000] px-6 py-3 rounded-xl shadow-2xl backdrop-blur-xl border flex items-center gap-3 ${
@@ -1790,8 +1790,8 @@ export default function App() {
       {viewingShopOrders && (
         <div className="fixed inset-0 bg-black/95 z-[200] flex items-center justify-center p-3 backdrop-blur-3xl overflow-y-auto">
           <div className="w-full max-w-md p-5 rounded-2xl border border-[#d4af37]/30 bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] text-white max-h-[90vh] overflow-y-auto">
-            <button 
-              onClick={() => setViewingShopOrders(null)} 
+            <button
+              onClick={() => setViewingShopOrders(null)}
               className="absolute top-2 right-2 text-white/20 hover:text-white/40 p-1"
             >
               <X size={20}/>
@@ -1908,8 +1908,8 @@ export default function App() {
       {viewingShopProfile && (
         <div className="fixed inset-0 bg-black/95 z-[150] flex items-center justify-center p-3 backdrop-blur-3xl">
           <div className="w-full max-w-xs p-5 rounded-2xl border border-[#d4af37]/30 bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] text-white">
-            <button 
-              onClick={() => setViewingShopProfile(null)} 
+            <button
+              onClick={() => setViewingShopProfile(null)}
               className="absolute top-2 right-2 text-white/20 hover:text-white/40 p-1"
             >
               <X size={20}/>
@@ -2039,11 +2039,11 @@ export default function App() {
 
       {/* Header */}
       <header className={`p-4 flex justify-between items-center sticky top-0 z-50 backdrop-blur-xl border-b ${
-        isDarkMode 
-          ? "bg-black/90 border-[#d4af37]/20" 
+        isDarkMode
+          ? "bg-black/90 border-[#d4af37]/20"
           : "bg-white/95 border-[#d4af37]/30 shadow-sm"
       }`}>
-        <button 
+        <button
           onClick={() => setShowGame(true)}
           className="flex items-center gap-3 hover:opacity-80 transition-all"
         >
@@ -2067,7 +2067,7 @@ export default function App() {
             </p>
           </div>
         </button>
-        
+
         <div className="flex gap-2">
           {isOffline ? (
             <div className="p-2.5 bg-yellow-500/10 text-yellow-500 rounded-xl border border-yellow-500/20">
@@ -2081,8 +2081,8 @@ export default function App() {
           <button
             onClick={() => setIsDarkMode(!isDarkMode)}
             className={`p-2.5 rounded-xl border transition-all ${
-              isDarkMode 
-                ? "bg-white/5 text-[#d4af37] border-white/10 hover:bg-[#d4af37]/20" 
+              isDarkMode
+                ? "bg-white/5 text-[#d4af37] border-white/10 hover:bg-[#d4af37]/20"
                 : "bg-gradient-to-br from-amber-100 to-yellow-100 text-amber-700 border-amber-200 hover:bg-amber-200"
             }`}
           >
@@ -2091,8 +2091,8 @@ export default function App() {
           <button
             onClick={() => setShowModal('expense')}
             className={`p-2.5 rounded-xl border transition-all ${
-              isDarkMode 
-                ? "bg-white/5 text-[#d4af37] border-white/10 hover:bg-[#d4af37]/20" 
+              isDarkMode
+                ? "bg-white/5 text-[#d4af37] border-white/10 hover:bg-[#d4af37]/20"
                 : "bg-gradient-to-br from-amber-100 to-yellow-100 text-amber-700 border-amber-200"
             }`}
           >
@@ -2104,8 +2104,8 @@ export default function App() {
               resetCalculator();
             }}
             className={`p-2.5 rounded-xl border transition-all ${
-              isDarkMode 
-                ? "bg-white/5 text-[#d4af37] border-white/10 hover:bg-[#d4af37]/20" 
+              isDarkMode
+                ? "bg-white/5 text-[#d4af37] border-white/10 hover:bg-[#d4af37]/20"
                 : "bg-gradient-to-br from-amber-100 to-yellow-100 text-amber-700 border-amber-200"
             }`}
           >
@@ -2128,8 +2128,6 @@ export default function App() {
           <div className="space-y-4">
             {/* Today's Revenue & Expenses Card - FIXED */}
             <div className="bg-gradient-to-br from-[#d4af37] via-[#c19a2e] to-[#b8860b] p-5 rounded-2xl text-black shadow-2xl relative overflow-hidden">
-// නිවැරදි කළ යුතු ආකාරය (Fixed Code):
-<div className="absolute inset-0 bg-[url(\"data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23000000' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E\")] opacity-20"></div>              <Star className="absolute -right-4 -top-4 opacity-10" size={100} />
               <div className="relative z-10">
                 <div className="flex justify-between items-start mb-3">
                   <div>
@@ -2141,7 +2139,7 @@ export default function App() {
                     <p className="text-base font-black text-red-800">- Rs.{stats.expenses.toLocaleString()}</p>
                   </div>
                 </div>
-                
+
                 <div className="mt-4 flex items-center justify-between">
                   <div className="flex items-center gap-2 bg-black/10 px-3 py-1.5 rounded-full border border-black/10">
                     <Target size={12} />
@@ -2209,21 +2207,21 @@ export default function App() {
                     </h3>
                   </div>
                   <span className="text-xs font-black">
-                    {stats.targetType === 'revenue' ? 'Rs.' : ''}{stats.targetType === 'revenue' ? stats.monthlySales.toLocaleString() : stats.monthlyUnits} / 
+                    {stats.targetType === 'revenue' ? 'Rs.' : ''}{stats.targetType === 'revenue' ? stats.monthlySales.toLocaleString() : stats.monthlyUnits} /
                     {stats.targetType === 'revenue' ? 'Rs.' : ''}{stats.monthlyTarget.toLocaleString()}
                     {stats.targetCase === 'cases' ? ' cases' : ' units'}
                   </span>
                 </div>
-                
+
                 <div className="w-full h-4 bg-white/10 rounded-full overflow-hidden mb-2">
-                  <div 
+                  <div
                     className="h-full bg-gradient-to-r from-[#d4af37] to-[#b8860b] rounded-full transition-all duration-500 relative"
                     style={{ width: `${Math.min(stats.targetProgress, 100)}%` }}
                   >
                     <div className="absolute inset-0 bg-white/20 animate-pulse"></div>
                   </div>
                 </div>
-                
+
                 <div className="flex justify-between items-center">
                   <span className="text-xs font-black">
                     {stats.targetProgress.toFixed(1)}% Complete
@@ -2239,7 +2237,7 @@ export default function App() {
                     </span>
                   )}
                 </div>
-                
+
                 <button
                   onClick={() => setShowModal('target')}
                   className="mt-3 w-full py-2 bg-white/10 rounded-lg text-xs font-black uppercase hover:bg-white/20 transition-all"
@@ -2566,7 +2564,7 @@ export default function App() {
                 const shopStats = getShopStats(s.id);
                 const shopProfile = getShopProfile(s.id);
                 const showMenu = showShopProfileMenu === s.id;
-                
+
                 return (
                   <div
                     key={s.id}
@@ -2609,7 +2607,7 @@ export default function App() {
                           )}
                         </div>
                       </div>
-                      
+
                       {/* Action Buttons - Compact and Themed */}
                       <div className="flex flex-col gap-1.5">
                         <button
@@ -2622,7 +2620,7 @@ export default function App() {
                         >
                           <Trash2 size={14}/>
                         </button>
-                        
+
                         <div className="relative">
                           <button
                             onClick={() => setShowShopProfileMenu(showMenu ? null : s.id)}
@@ -2634,7 +2632,7 @@ export default function App() {
                           >
                             <Briefcase size={14}/>
                           </button>
-                          
+
                           {/* Profile Menu Popup */}
                           {showMenu && (
                             <div className="absolute right-0 bottom-full mb-2 w-48 bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] rounded-xl border border-[#d4af37]/30 shadow-2xl z-50 overflow-hidden">
@@ -2697,7 +2695,7 @@ export default function App() {
                         </div>
                       </div>
                     </div>
-                    
+
                     {shopStats.lastOrder && (
                       <div className="mt-3 pt-2 border-t border-white/10 text-[9px] opacity-60">
                         Last order: {new Date(shopStats.lastOrder.timestamp).toLocaleDateString()} - Rs.{shopStats.lastOrder.total.toLocaleString()}
@@ -3142,7 +3140,7 @@ export default function App() {
                               </div>
                             </div>
                           </div>
-                          
+
                           <div className="flex items-center gap-1">
                             {!isOffline && (
                               <>
@@ -3385,7 +3383,7 @@ export default function App() {
       {showCalculator && (
         <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-3 backdrop-blur-3xl">
           <div className={`w-full max-w-xs p-4 rounded-2xl border relative shadow-2xl ${
-            isDarkMode 
+            isDarkMode
               ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/30 text-white"
               : "bg-gradient-to-br from-white to-gray-50 border-[#d4af37]/50 text-gray-900"
           }`}>
@@ -3415,8 +3413,8 @@ export default function App() {
                   onFocus={handleInputFocus}
                   placeholder="0"
                   className={`w-full p-3 rounded-lg border font-bold text-center outline-none focus:border-[#d4af37] transition-all text-sm ${
-                    isDarkMode 
-                      ? "bg-black/40 border-white/5 text-white" 
+                    isDarkMode
+                      ? "bg-black/40 border-white/5 text-white"
                       : "bg-gray-100 border-gray-300 text-gray-900"
                   }`}
                 />
@@ -3455,8 +3453,8 @@ export default function App() {
                     onFocus={handleInputFocus}
                     placeholder="0"
                     className={`w-full p-2 rounded-lg border font-bold text-center outline-none focus:border-[#d4af37] transition-all text-sm ${
-                      isDarkMode 
-                        ? "bg-black/40 border-white/5 text-white" 
+                      isDarkMode
+                        ? "bg-black/40 border-white/5 text-white"
                         : "bg-gray-100 border-gray-300 text-gray-900"
                     }`}
                   />
@@ -3471,8 +3469,8 @@ export default function App() {
                     onFocus={handleInputFocus}
                     placeholder="0"
                     className={`w-full p-2 rounded-lg border font-bold text-center outline-none focus:border-[#d4af37] transition-all text-sm ${
-                      isDarkMode 
-                        ? "bg-black/40 border-white/5 text-white" 
+                      isDarkMode
+                        ? "bg-black/40 border-white/5 text-white"
                         : "bg-gray-100 border-gray-300 text-gray-900"
                     }`}
                   />
@@ -3488,8 +3486,8 @@ export default function App() {
                   onFocus={handleInputFocus}
                   placeholder="0"
                   className={`w-full p-2 rounded-lg border font-bold text-center outline-none focus:border-[#d4af37] transition-all text-sm ${
-                    isDarkMode 
-                      ? "bg-black/40 border-white/5 text-white" 
+                    isDarkMode
+                      ? "bg-black/40 border-white/5 text-white"
                       : "bg-gray-100 border-gray-300 text-gray-900"
                   }`}
                 />
@@ -3505,8 +3503,8 @@ export default function App() {
                 </div>
                 <p className="text-lg font-black text-[#d4af37] text-center">
                   Rs.{(
-                    (totalCalculation.subtotal || 0) - 
-                    (totalCalculation.usePercentage 
+                    (totalCalculation.subtotal || 0) -
+                    (totalCalculation.usePercentage
                       ? ((totalCalculation.subtotal || 0) * (totalCalculation.discountPercent || 0) / 100)
                       : (totalCalculation.discount || 0)
                     ) + (totalCalculation.tax || 0)
@@ -3974,7 +3972,7 @@ export default function App() {
       {showModal === 'shopProfile' && selectedShop && (
         <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-3 backdrop-blur-3xl overflow-y-auto">
           <div className="w-full max-w-xs p-5 rounded-2xl border border-[#d4af37]/30 bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] text-white">
-            <button 
+            <button
               onClick={() => {
                 setShowModal(null);
                 setEditingProfile(null);
@@ -3990,7 +3988,7 @@ export default function App() {
                   shopType: 'retail',
                   location: ''
                 });
-              }} 
+              }}
               className="absolute top-2 right-2 text-white/20 hover:text-white/40 p-1"
             >
               <X size={20}/>
@@ -4041,7 +4039,7 @@ export default function App() {
                 onChange={(e) => setShopProfileForm({...shopProfileForm, gst: e.target.value})}
                 className="w-full p-3 rounded-lg border border-white/10 bg-black/40 text-white font-bold uppercase outline-none text-xs focus:border-[#d4af37] transition-all"
               />
-              
+
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <p className="text-[9px] font-black uppercase opacity-40 mb-1">Shop Type</p>
@@ -4440,7 +4438,7 @@ export default function App() {
                 }`}
                 required
               />
-              
+
               {brandError && (
                 <div className="p-2 bg-red-500/20 border border-red-500/30 rounded-lg">
                   <p className="text-red-500 text-xs font-bold text-center">{brandError}</p>
@@ -4461,7 +4459,7 @@ export default function App() {
           0% { width: 0%; }
           100% { width: 100%; }
         }
-        
+
         @keyframes progress-slow {
           0% { width: 100%; }
           100% { width: 0%; }
@@ -4470,7 +4468,7 @@ export default function App() {
         .animate-progress {
           animation: progress 1.5s ease-in-out;
         }
-        
+
         .animate-progress-slow {
           animation: progress-slow 30s linear forwards;
         }
