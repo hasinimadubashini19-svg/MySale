@@ -19,7 +19,8 @@ import {
   Wifi, WifiOff, Award, Briefcase, Activity, Gamepad2, Phone,
   TrendingUp as TrendingIcon, ShoppingCart, Truck, Gift, Zap, Info,
   Receipt, Wallet, BadgePercent, Box, Circle, Square, Triangle,
-  RotateCcw, Volume2, VolumeX, Trophy, Timer, Users, Shield
+  RotateCcw, Volume2, VolumeX, Trophy, Timer, Users, Shield, Heart,
+  Sparkles, Flame, Star as StarIcon, Menu, MoreVertical, Home
 } from 'lucide-react';
 
 // --- FIREBASE CONFIG ---
@@ -81,7 +82,7 @@ export default function App() {
   const [manualItems, setManualItems] = useState([{ name: '', qty: 1, price: 0, subtotal: 0 }]);
   const [editingBrand, setEditingBrand] = useState(null);
 
-  // Calculator State - Fixed
+  // Calculator State
   const [totalCalculation, setTotalCalculation] = useState({
     subtotal: 0,
     discount: 0,
@@ -111,16 +112,20 @@ export default function App() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState({ show: false, id: null, type: '', name: '' });
   const [brandError, setBrandError] = useState('');
   const [loginError, setLoginError] = useState('');
+  const [isFabOpen, setIsFabOpen] = useState(false);
+  const [showShopMenu, setShowShopMenu] = useState(null);
 
   // Target States - Enhanced
   const [targetAmount, setTargetAmount] = useState('');
   const [targetMonth, setTargetMonth] = useState(new Date().toISOString().slice(0, 7));
   const [targetType, setTargetType] = useState('revenue');
-  const [targetCase, setTargetCase] = useState('units'); // For case targets (6x75cl, etc.)
+  const [targetCase, setTargetCase] = useState('units');
   const [targetBrand, setTargetBrand] = useState('');
-  const [targetSpecific, setTargetSpecific] = useState('total'); // 'total' or 'brand'
+  const [targetSpecific, setTargetSpecific] = useState('total');
+  const [showTargetModal, setShowTargetModal] = useState(false);
+  const [editingTarget, setEditingTarget] = useState(null);
 
-  // Shop Profile States - Enhanced
+  // Shop Profile States
   const [shopProfileForm, setShopProfileForm] = useState({
     ownerName: '',
     phone: '',
@@ -135,23 +140,15 @@ export default function App() {
   });
   const [editingProfile, setEditingProfile] = useState(null);
 
-  // Game State - Enhanced Mobile Game
+  // Game State - Simplified
   const [showGame, setShowGame] = useState(false);
   const [gameScore, setGameScore] = useState(0);
   const [gameHighScore, setGameHighScore] = useState(0);
-  const [gameTargets, setGameTargets] = useState([]);
-  const [gameActive, setGameActive] = useState(false);
-  const [gameTimeLeft, setGameTimeLeft] = useState(30);
-  const [gameLevel, setGameLevel] = useState(1);
-  const [gameSound, setGameSound] = useState(true);
-  const [gameCombo, setGameCombo] = useState(0);
-  const [gameBestCombo, setGameBestCombo] = useState(0);
 
   // View States
   const [viewingShopProfile, setViewingShopProfile] = useState(null);
   const [viewingShopOrders, setViewingShopOrders] = useState(null);
   const [viewingOrderDetails, setViewingOrderDetails] = useState(null);
-  const [showShopProfileMenu, setShowShopProfileMenu] = useState(null); // For profile menu popup
 
   // ========== NETWORK STATUS LISTENER ==========
   useEffect(() => {
@@ -204,8 +201,6 @@ export default function App() {
     try {
       const saved = localStorage.getItem('monarchGameHighScore');
       if (saved) setGameHighScore(parseInt(saved));
-      const savedCombo = localStorage.getItem('monarchGameBestCombo');
-      if (savedCombo) setGameBestCombo(parseInt(savedCombo));
     } catch (err) {
       console.error("Error loading game data:", err);
     }
@@ -562,7 +557,7 @@ export default function App() {
     }
   };
 
-  // ========== CALCULATOR - FIXED ==========
+  // ========== CALCULATOR ==========
   const calculateTotal = () => {
     const subtotal = parseFloat(totalCalculation.subtotal) || 0;
     let discount = parseFloat(totalCalculation.discount) || 0;
@@ -584,7 +579,6 @@ export default function App() {
     showToast(`💰 Grand Total: Rs.${grandTotal.toLocaleString()}`, "info");
   };
 
-  // Fixed: Clear placeholder when typing
   const handleInputFocus = (e) => {
     if (e.target.value === '0') {
       e.target.value = '';
@@ -654,7 +648,7 @@ export default function App() {
     return data.shopProfiles?.find(p => p.shopId === shopId);
   };
 
-  // ========== SAVE SHOP PROFILE - ENHANCED ==========
+  // ========== SAVE SHOP PROFILE ==========
   const saveShopProfile = async (e) => {
     e.preventDefault();
     if (!user || !selectedShop) {
@@ -740,6 +734,59 @@ export default function App() {
     setViewingShopOrders({ shop, orders: shopOrders, stats });
   };
 
+  // ========== SAVE TARGET ==========
+  const saveTarget = async (e) => {
+    e.preventDefault();
+    if (!user) {
+      showToast("Please login first!", "error");
+      return;
+    }
+
+    if (!targetAmount || parseFloat(targetAmount) <= 0) {
+      showToast("Please enter a valid target amount", "error");
+      return;
+    }
+
+    try {
+      const targetData = {
+        userId: user.uid,
+        month: targetMonth,
+        amount: parseFloat(targetAmount),
+        type: targetType,
+        specific: targetSpecific,
+        brand: targetSpecific === 'brand' ? targetBrand : '',
+        case: targetCase,
+        timestamp: Date.now()
+      };
+
+      if (editingTarget) {
+        await updateDoc(doc(db, 'targets', editingTarget.id), targetData);
+        showToast("✅ Target updated!", "success");
+      } else {
+        await addDoc(collection(db, 'targets'), targetData);
+        showToast("✅ Target set!", "success");
+      }
+
+      setShowTargetModal(false);
+      setEditingTarget(null);
+      setTargetAmount('');
+      setTargetBrand('');
+    } catch (err) {
+      showToast("Error: " + err.message, "error");
+    }
+  };
+
+  const editTarget = (target) => {
+    setEditingTarget(target);
+    setTargetMonth(target.month);
+    setTargetAmount(target.amount.toString());
+    setTargetType(target.type || 'revenue');
+    setTargetSpecific(target.specific || 'total');
+    setTargetBrand(target.brand || '');
+    setTargetCase(target.case || 'units');
+    setShowTargetModal(true);
+  };
+
   // ========== STATISTICS ==========
   const stats = useMemo(() => {
     const todayStr = new Date().toLocaleDateString();
@@ -817,37 +864,49 @@ export default function App() {
 
     const todayNotes = data.notes.filter(n => n.date === todayStr);
 
-    const currentTarget = data.targets?.find(t => t.month === currentMonthStr) || { amount: 0, type: 'revenue', specific: 'total', case: 'units' };
+    const monthTargets = data.targets?.filter(t => t.month === currentMonthStr) || [];
+    
+    const targetProgress = monthTargets.map(target => {
+      let achieved = 0;
+      
+      if (target.specific === 'brand' && target.brand) {
+        achieved = monthlyOrders.reduce((sum, o) => {
+          if (o.items) {
+            o.items.forEach(i => {
+              if (i.name.includes(target.brand)) {
+                if (target.type === 'revenue') {
+                  sum += i.subtotal || 0;
+                } else {
+                  sum += i.qty || 0;
+                }
+              }
+            });
+          }
+          return sum;
+        }, 0);
+      } else {
+        achieved = target.type === 'units' ? 
+          monthlyOrders.reduce((sum, o) => {
+            let units = 0;
+            if (o.items) o.items.forEach(i => units += i.qty || 0);
+            return sum + units;
+          }, 0) : 
+          monthlyOrders.reduce((sum, o) => sum + (o.total || 0), 0);
+      }
+
+      return {
+        ...target,
+        achieved,
+        progress: target.amount > 0 ? (achieved / target.amount) * 100 : 0
+      };
+    });
+
     const monthlySales = monthlyOrders.reduce((sum, o) => sum + (o.total || 0), 0);
     const monthlyUnits = monthlyOrders.reduce((sum, o) => {
       let units = 0;
       if (o.items) o.items.forEach(i => units += i.qty || 0);
       return sum + units;
     }, 0);
-
-    let targetValue = 0;
-    if (currentTarget.specific === 'brand' && currentTarget.brand) {
-      // Calculate target for specific brand
-      targetValue = monthlyOrders.reduce((sum, o) => {
-        if (o.items) {
-          o.items.forEach(i => {
-            if (i.name.includes(currentTarget.brand)) {
-              if (currentTarget.type === 'revenue') {
-                sum += i.subtotal || 0;
-              } else {
-                sum += i.qty || 0;
-              }
-            }
-          });
-        }
-        return sum;
-      }, 0);
-    } else {
-      targetValue = currentTarget.type === 'units' ? monthlyUnits : monthlySales;
-    }
-
-    const targetAmount = currentTarget.amount || 0;
-    const targetProgress = targetAmount > 0 ? (targetValue / targetAmount) * 100 : 0;
 
     return {
       daily: getStats(dailyOrders),
@@ -858,13 +917,8 @@ export default function App() {
       todayExpenses: todayExpenses,
       monthlySales: monthlySales,
       monthlyUnits: monthlyUnits,
-      monthlyTarget: targetAmount,
-      targetType: currentTarget.type || 'revenue',
-      targetProgress: targetProgress,
-      targetRemaining: Math.max(0, targetAmount - targetValue),
-      targetSpecific: currentTarget.specific || 'total',
-      targetBrand: currentTarget.brand || '',
-      targetCase: currentTarget.case || 'units'
+      targets: targetProgress,
+      targetCount: monthTargets.length
     };
   }, [data.orders, data.expenses, data.notes, data.targets]);
 
@@ -1273,117 +1327,16 @@ export default function App() {
     }
   };
 
-  // ========== SAVE MONTHLY TARGET - ENHANCED ==========
-  const saveMonthlyTarget = async (e) => {
-    e.preventDefault();
-    if (!user) return;
-
-    try {
-      const targetData = {
-        userId: user.uid,
-        month: targetMonth,
-        amount: parseFloat(targetAmount),
-        type: targetType,
-        specific: targetSpecific,
-        brand: targetSpecific === 'brand' ? targetBrand : '',
-        case: targetCase,
-        timestamp: Date.now()
-      };
-
-      const existingTarget = data.targets?.find(t => t.month === targetMonth);
-
-      if (existingTarget) {
-        await updateDoc(doc(db, 'targets', existingTarget.id), targetData);
-        showToast(`✅ Target updated!`, "success");
-      } else {
-        await addDoc(collection(db, 'targets'), targetData);
-        showToast(`✅ Target set!`, "success");
-      }
-
-      setTargetAmount('');
-      setTargetBrand('');
-      setShowModal(null);
-    } catch (err) {
-      showToast("Error: " + err.message, "error");
+  // ========== SIMPLIFIED GAME ==========
+  const handleTap = () => {
+    const newScore = gameScore + 1;
+    setGameScore(newScore);
+    if (navigator.vibrate) {
+      navigator.vibrate(30);
     }
-  };
-
-  // ========== GAME FUNCTIONS - ENHANCED MOBILE GAME ==========
-  const startGame = () => {
-    setGameActive(true);
-    setGameScore(0);
-    setGameTimeLeft(30);
-    setGameLevel(1);
-    setGameCombo(0);
-
-    const newTargets = [];
-    for (let i = 0; i < 5 + gameLevel * 2; i++) {
-      newTargets.push({
-        id: i,
-        x: Math.random() * 80 + 10,
-        y: Math.random() * 80 + 10,
-        value: 10 * gameLevel,
-        type: Math.random() > 0.3 ? 'coin' : 'bonus'
-      });
-    }
-    setGameTargets(newTargets);
-  };
-
-  useEffect(() => {
-    let timer;
-    if (gameActive && gameTimeLeft > 0) {
-      timer = setTimeout(() => {
-        setGameTimeLeft(prev => prev - 1);
-      }, 1000);
-    } else if (gameTimeLeft === 0) {
-      endGame();
-    }
-    return () => clearTimeout(timer);
-  }, [gameActive, gameTimeLeft]);
-
-  const endGame = () => {
-    setGameActive(false);
-    if (gameScore > gameHighScore) {
-      setGameHighScore(gameScore);
-      localStorage.setItem('monarchGameHighScore', gameScore);
-    }
-    if (gameCombo > gameBestCombo) {
-      setGameBestCombo(gameCombo);
-      localStorage.setItem('monarchGameBestCombo', gameCombo);
-    }
-    showToast(`🎮 Game Over! Score: ${gameScore}`, "info");
-  };
-
-  const handleTargetClick = (id, type) => {
-    if (!gameActive) return;
-
-    let points = type === 'bonus' ? 20 * gameLevel : 10 * gameLevel;
-    setGameScore(prev => prev + points);
-    setGameCombo(prev => prev + 1);
-
-    if (gameSound) {
-      // Play sound effect (using vibration for mobile)
-      if (navigator.vibrate) {
-        navigator.vibrate(50);
-      }
-    }
-
-    setGameTargets(prev => prev.filter(t => t.id !== id));
-
-    // Add new target
-    const newTarget = {
-      id: Date.now() + Math.random(),
-      x: Math.random() * 80 + 10,
-      y: Math.random() * 80 + 10,
-      value: 10 * gameLevel,
-      type: Math.random() > 0.3 ? 'coin' : 'bonus'
-    };
-    setGameTargets(prev => [...prev, newTarget]);
-
-    // Level up every 100 points
-    if (gameScore > 100 * gameLevel) {
-      setGameLevel(prev => prev + 1);
-      showToast(`🎯 Level ${gameLevel + 1}!`, "success");
+    if (newScore > gameHighScore) {
+      setGameHighScore(newScore);
+      localStorage.setItem('monarchGameHighScore', newScore);
     }
   };
 
@@ -1404,27 +1357,20 @@ export default function App() {
           className="relative z-10 transform hover:scale-110 transition-all duration-300"
         >
           <div className="relative">
-            <Crown size={80} className="text-[#d4af37] animate-pulse" />
-            <Gift size={25} className="text-white absolute -top-2 -right-2 animate-bounce" />
+            <Crown size={70} className="text-[#d4af37] animate-pulse" />
+            <Heart size={25} className="text-[#d4af37] absolute -top-2 -right-2 animate-bounce" fill="#d4af37" />
           </div>
         </button>
 
         <h1 className="mt-6 text-[#d4af37] text-4xl font-black tracking-widest italic uppercase relative z-10">
           MONARCH
         </h1>
-        <p className="mt-2 text-white/50 text-sm uppercase tracking-widest relative z-10">
-          Sales & Target Manager
-        </p>
-        <p className="mt-1 text-[#d4af37]/40 text-[10px] uppercase tracking-widest relative z-10">
-          Tap the crown for a surprise!
+        <p className="mt-2 text-white/70 text-sm font-light tracking-wider relative z-10">
+          for my soul
         </p>
 
         <div className="mt-8 w-56 h-1.5 bg-white/10 rounded-full overflow-hidden relative z-10">
           <div className="h-full bg-gradient-to-r from-[#d4af37] via-[#f5e7a3] to-[#b8860b] animate-progress"></div>
-        </div>
-
-        <div className="absolute bottom-10 left-0 right-0 text-center text-white/20 text-[10px] uppercase tracking-widest">
-          Monarch Pro v2.0
         </div>
       </div>
     );
@@ -1432,125 +1378,32 @@ export default function App() {
 
   if (showGame) {
     return (
-      <div className="h-screen bg-gradient-to-br from-black via-[#1a1a1a] to-[#2d2d2d] flex flex-col items-center justify-center p-4 relative overflow-hidden">
-        <div className="absolute inset-0">
-          <div className="absolute top-0 left-0 w-64 h-64 bg-[#d4af37]/5 rounded-full filter blur-3xl"></div>
-          <div className="absolute bottom-0 right-0 w-64 h-64 bg-[#b8860b]/5 rounded-full filter blur-3xl"></div>
+      <div className="h-screen bg-gradient-to-br from-black via-[#1a1a1a] to-[#2d2d2d] flex flex-col items-center justify-center p-4">
+        <div className="text-center mb-8">
+          <Trophy size={50} className="text-[#d4af37] mx-auto mb-4" />
+          <h2 className="text-[#d4af37] text-2xl font-black mb-2">TAP GAME</h2>
+          <p className="text-white/60 text-sm">Score: {gameScore}</p>
+          <p className="text-white/40 text-xs">Best: {gameHighScore}</p>
         </div>
 
-        <div className="relative z-10 w-full max-w-md">
-          <div className="flex justify-between items-center mb-4">
-            <div>
-              <h2 className="text-[#d4af37] text-2xl font-black uppercase flex items-center gap-2">
-                <Gamepad2 size={28} />
-                MONARCH HUNT
-              </h2>
-              <p className="text-white/40 text-xs uppercase mt-1">Tap gold coins to score!</p>
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setGameSound(!gameSound)}
-                className="p-2 bg-white/10 rounded-lg"
-              >
-                {gameSound ? <Volume2 size={18} className="text-[#d4af37]"/> : <VolumeX size={18} className="text-white/40"/>}
-              </button>
-            </div>
-          </div>
+        <button
+          onClick={handleTap}
+          className="w-48 h-48 rounded-full bg-gradient-to-br from-[#d4af37] to-[#b8860b] text-black font-black text-2xl shadow-2xl hover:scale-105 transition-transform active:scale-95 mb-8"
+        >
+          TAP
+        </button>
 
-          <div className="grid grid-cols-4 gap-2 mb-4">
-            <div className="bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] p-2 rounded-xl text-center">
-              <p className="text-[#d4af37] text-xs uppercase">Score</p>
-              <p className="text-white text-lg font-black">{gameScore}</p>
-            </div>
-            <div className="bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] p-2 rounded-xl text-center">
-              <p className="text-[#d4af37] text-xs uppercase">Level</p>
-              <p className="text-white text-lg font-black">{gameLevel}</p>
-            </div>
-            <div className="bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] p-2 rounded-xl text-center">
-              <p className="text-[#d4af37] text-xs uppercase">Combo</p>
-              <p className="text-white text-lg font-black">{gameCombo}</p>
-            </div>
-            <div className="bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] p-2 rounded-xl text-center">
-              <p className="text-[#d4af37] text-xs uppercase">Time</p>
-              <p className="text-white text-lg font-black">{gameTimeLeft}s</p>
-            </div>
-          </div>
-
-          <div className="bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] rounded-2xl border border-[#d4af37]/30 p-4 mb-4 relative h-[400px]">
-            {!gameActive ? (
-              <div className="h-full flex flex-col items-center justify-center">
-                <Trophy size={60} className="text-[#d4af37] mb-4 opacity-50" />
-                <p className="text-white/60 text-center mb-2 text-sm">
-                  Tap the coins as fast as you can!<br/>
-                  <span className="text-[#d4af37]">30 seconds challenge</span>
-                </p>
-                <div className="flex gap-4 mb-4">
-                  <div className="text-center">
-                    <p className="text-white/40 text-xs">Best Score</p>
-                    <p className="text-[#d4af37] text-xl font-black">{gameHighScore}</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-white/40 text-xs">Best Combo</p>
-                    <p className="text-[#d4af37] text-xl font-black">{gameBestCombo}</p>
-                  </div>
-                </div>
-                <button
-                  onClick={startGame}
-                  className="px-8 py-4 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-xl uppercase text-sm tracking-widest hover:opacity-90 transition-all"
-                >
-                  START GAME
-                </button>
-              </div>
-            ) : (
-              <div className="relative h-full">
-                {gameTargets.map(target => (
-                  <button
-                    key={target.id}
-                    onClick={() => handleTargetClick(target.id, target.type)}
-                    className={`absolute w-14 h-14 rounded-full flex items-center justify-center animate-pulse shadow-lg transform hover:scale-110 transition-all ${
-                      target.type === 'bonus'
-                        ? 'bg-gradient-to-r from-purple-500 to-pink-500'
-                        : 'bg-gradient-to-r from-[#d4af37] to-[#b8860b]'
-                    }`}
-                    style={{
-                      left: `${target.x}%`,
-                      top: `${target.y}%`,
-                      transform: 'translate(-50%, -50%)'
-                    }}
-                  >
-                    {target.type === 'bonus' ? (
-                      <Gift size={20} className="text-white" />
-                    ) : (
-                      <DollarSign size={20} className="text-black" />
-                    )}
-                    <span className="absolute -top-5 text-[10px] text-white font-black">
-                      +{target.value}
-                    </span>
-                  </button>
-                ))}
-                <div className="absolute bottom-0 left-0 right-0">
-                  <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-[#d4af37] to-[#b8860b]"
-                      style={{ width: `${(gameTimeLeft / 30) * 100}%` }}
-                    ></div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <button
-            onClick={() => {
-              setShowGame(false);
-              setIsSplash(true);
-              setTimeout(() => setIsSplash(false), 1500);
-            }}
-            className="w-full py-3 bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] text-white/60 font-black rounded-xl uppercase text-xs border border-white/5 hover:border-white/10 transition-all"
-          >
-            ← BACK TO APP
-          </button>
-        </div>
+        <button
+          onClick={() => {
+            setShowGame(false);
+            setGameScore(0);
+            setIsSplash(true);
+            setTimeout(() => setIsSplash(false), 1500);
+          }}
+          className="px-6 py-3 bg-white/10 text-white/80 rounded-xl text-sm font-black border border-white/5"
+        >
+          BACK TO APP
+        </button>
       </div>
     );
   }
@@ -1566,9 +1419,6 @@ export default function App() {
             <h2 className="text-white font-black text-xl tracking-widest uppercase">
               Reset Password
             </h2>
-            <p className="text-white/60 text-sm">
-              Enter your email to receive a password reset link
-            </p>
           </div>
 
           {resetSuccess ? (
@@ -1578,11 +1428,7 @@ export default function App() {
                 <p className="text-green-500 text-sm font-bold">
                   Password reset link sent successfully!
                 </p>
-                <p className="text-white/50 text-xs mt-2">
-                  Check your email inbox and spam folder
-                </p>
               </div>
-
               <button
                 onClick={() => {
                   setShowForgotPassword(false);
@@ -1603,7 +1449,6 @@ export default function App() {
                 placeholder="YOUR EMAIL ADDRESS"
                 className="w-full bg-black/50 backdrop-blur-sm p-4 rounded-xl border border-white/10 text-white font-bold outline-none focus:border-[#d4af37] transition-all"
               />
-
               <button
                 onClick={handleForgotPassword}
                 disabled={isSendingReset}
@@ -1615,7 +1460,6 @@ export default function App() {
               >
                 {isSendingReset ? 'SENDING...' : 'SEND RESET LINK'}
               </button>
-
               <button
                 onClick={() => {
                   setShowForgotPassword(false);
@@ -1647,7 +1491,7 @@ export default function App() {
                 <Crown size={50} className="text-[#d4af37]" />
               </div>
               <div className="absolute -top-2 -right-2 animate-bounce">
-                <Gift size={20} className="text-[#d4af37]" />
+                <Heart size={20} className="text-[#d4af37]" fill="#d4af37" />
               </div>
             </div>
             <h2 className="text-white font-black text-2xl tracking-widest uppercase">
@@ -1710,17 +1554,13 @@ export default function App() {
               )}
             </div>
           </form>
-
-          <div className="text-center text-white/20 text-[10px] uppercase tracking-widest pt-4">
-            Tap the crown for a secret game!
-          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className={`min-h-screen pb-40 transition-all duration-500 ${
+    <div className={`min-h-screen pb-24 text-sm ${
       isDarkMode
         ? "bg-gradient-to-br from-[#0a0a0a] via-[#1a1a1a] to-[#0f0f0f] text-white"
         : "bg-gradient-to-br from-amber-50 via-yellow-50 to-orange-50 text-gray-900"
@@ -1728,56 +1568,49 @@ export default function App() {
 
       {/* Toast Notification */}
       {toast.show && (
-        <div className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-[1000] px-6 py-3 rounded-xl shadow-2xl backdrop-blur-xl border flex items-center gap-3 ${
-          toast.type === 'success' ? 'bg-gradient-to-r from-green-500/20 to-emerald-600/20 text-green-500 border-green-500/30' :
-          toast.type === 'error' ? 'bg-gradient-to-r from-red-500/20 to-rose-600/20 text-red-500 border-red-500/30' :
-          'bg-gradient-to-r from-blue-500/20 to-cyan-600/20 text-blue-500 border-blue-500/30'
+        <div className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-[1000] px-4 py-2 rounded-xl shadow-2xl backdrop-blur-xl border flex items-center gap-2 text-xs ${
+          toast.type === 'success' ? 'bg-green-500/20 text-green-500 border-green-500/30' :
+          toast.type === 'error' ? 'bg-red-500/20 text-red-500 border-red-500/30' :
+          'bg-blue-500/20 text-blue-500 border-blue-500/30'
         }`}>
-          {toast.type === 'success' && <CheckCircle2 size={20} />}
-          {toast.type === 'error' && <AlertCircle size={20} />}
-          <span className="font-bold text-sm">{toast.message}</span>
+          {toast.type === 'success' && <CheckCircle2 size={16} />}
+          {toast.type === 'error' && <AlertCircle size={16} />}
+          <span className="font-bold">{toast.message}</span>
         </div>
       )}
 
       {/* Offline Indicator */}
       {isOffline && (
-        <div className="fixed top-16 left-1/2 transform -translate-x-1/2 z-[90] px-4 py-2 bg-yellow-500/20 text-yellow-500 rounded-full border border-yellow-500/30 backdrop-blur-xl text-xs font-bold flex items-center gap-2">
-          <WifiOff size={14} />
+        <div className="fixed top-14 left-1/2 transform -translate-x-1/2 z-[90] px-3 py-1 bg-yellow-500/20 text-yellow-500 rounded-full border border-yellow-500/30 text-[10px] font-bold flex items-center gap-1">
+          <WifiOff size={12} />
           OFFLINE MODE
         </div>
       )}
 
       {/* Delete Confirm Modal */}
       {showDeleteConfirm.show && (
-        <div className="fixed inset-0 bg-black/95 z-[1000] flex items-center justify-center p-4 backdrop-blur-3xl">
-          <div className="bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] w-full max-w-sm p-5 rounded-2xl border border-red-500/30 shadow-2xl">
+        <div className="fixed inset-0 bg-black/95 z-[1000] flex items-center justify-center p-4">
+          <div className="bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] w-full max-w-sm p-5 rounded-2xl border border-red-500/30">
             <div className="text-center mb-4">
-              <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-3 border border-red-500/30">
-                <Trash2 size={30} className="text-red-500" />
-              </div>
-              <h3 className="text-white font-black text-lg uppercase tracking-widest">Confirm Delete</h3>
+              <Trash2 size={40} className="text-red-500 mx-auto mb-3" />
+              <h3 className="text-white font-black text-lg uppercase">Confirm Delete</h3>
               <p className="text-white/60 text-sm mt-2">
                 {showDeleteConfirm.type === 'brand' && `Delete "${showDeleteConfirm.name}"?`}
                 {showDeleteConfirm.type === 'shop' && `Delete shop "${showDeleteConfirm.name}"?`}
-                {showDeleteConfirm.type === 'route' && `Delete route "${showDeleteConfirm.name}"?`}
-                {showDeleteConfirm.type === 'order' && 'Delete this bill?'}
-                {showDeleteConfirm.type === 'expense' && 'Delete this expense?'}
-                {showDeleteConfirm.type === 'note' && 'Delete this note?'}
                 {showDeleteConfirm.type === 'target' && 'Delete this target?'}
-                {showDeleteConfirm.type === 'shopProfile' && 'Delete this shop profile?'}
               </p>
               <p className="text-red-500 text-xs font-bold mt-3">This action cannot be undone!</p>
             </div>
             <div className="flex gap-3">
               <button
                 onClick={handleDelete}
-                className="flex-1 py-3 bg-gradient-to-r from-red-600 to-red-500 text-white font-black rounded-xl uppercase text-xs tracking-widest hover:opacity-90 transition-all"
+                className="flex-1 py-3 bg-gradient-to-r from-red-600 to-red-500 text-white font-black rounded-xl uppercase text-xs"
               >
                 DELETE
               </button>
               <button
                 onClick={() => setShowDeleteConfirm({ show: false, id: null, type: '', name: '' })}
-                className="flex-1 py-3 bg-gradient-to-br from-[#333] to-[#444] text-white/80 font-black rounded-xl uppercase text-xs tracking-widest border border-white/10 hover:border-white/30 transition-all"
+                className="flex-1 py-3 bg-gradient-to-br from-[#333] to-[#444] text-white/80 font-black rounded-xl uppercase text-xs"
               >
                 CANCEL
               </button>
@@ -1798,59 +1631,32 @@ export default function App() {
             </button>
 
             <div className="text-center mb-4">
-              <div className="w-16 h-16 bg-gradient-to-br from-[#d4af37]/20 to-[#b8860b]/20 rounded-full flex items-center justify-center mx-auto mb-2 border border-[#d4af37]/30">
-                <Store size={30} className="text-[#d4af37]" />
-              </div>
-              <h3 className="font-black text-[#d4af37] mb-1 uppercase text-base tracking-widest">Shop Orders</h3>
+              <h3 className="font-black text-[#d4af37] mb-1 uppercase text-base">Shop Orders</h3>
               <p className="text-sm text-white/80 font-bold">{viewingShopOrders.shop.name}</p>
-              <p className="text-xs text-white/60 mt-1">{viewingShopOrders.shop.area}</p>
             </div>
 
-            {/* Shop Statistics */}
             <div className="grid grid-cols-2 gap-3 mb-4">
-              <div className="bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] p-3 rounded-xl border border-white/5">
-                <p className="text-[10px] font-black uppercase opacity-60">Total Sales</p>
+              <div className="bg-white/5 p-3 rounded-xl">
+                <p className="text-[10px] opacity-60">Total Sales</p>
                 <p className="text-lg font-black text-[#d4af37]">Rs.{viewingShopOrders.stats.totalSales.toLocaleString()}</p>
               </div>
-              <div className="bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] p-3 rounded-xl border border-white/5">
-                <p className="text-[10px] font-black uppercase opacity-60">Total Orders</p>
+              <div className="bg-white/5 p-3 rounded-xl">
+                <p className="text-[10px] opacity-60">Total Orders</p>
                 <p className="text-lg font-black text-[#d4af37]">{viewingShopOrders.stats.orderCount}</p>
               </div>
             </div>
 
-            {/* Top Items */}
-            {Object.keys(viewingShopOrders.stats.items).length > 0 && (
-              <div className="mb-4">
-                <p className="text-xs font-black uppercase text-[#d4af37] mb-2">Top Items</p>
-                <div className="space-y-2">
-                  {Object.entries(viewingShopOrders.stats.items)
-                    .sort((a, b) => b[1] - a[1])
-                    .slice(0, 5)
-                    .map(([item, qty], idx) => (
-                      <div key={idx} className="bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] p-2 rounded-lg border border-white/5 flex justify-between">
-                        <span className="text-xs">{item}</span>
-                        <span className="text-xs font-black text-[#d4af37]">{qty} units</span>
-                      </div>
-                    ))}
-                </div>
-              </div>
-            )}
-
-            {/* Orders List */}
-            <div>
+            <div className="mb-4">
               <p className="text-xs font-black uppercase text-[#d4af37] mb-2">Order History</p>
               {viewingShopOrders.orders.length > 0 ? (
                 <div className="space-y-2">
                   {viewingShopOrders.orders.slice(0, 10).map((order, idx) => (
-                    <div key={idx} className="bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] p-3 rounded-lg border border-white/5">
+                    <div key={idx} className="bg-white/5 p-3 rounded-lg">
                       <div className="flex justify-between items-start mb-1">
                         <span className="text-[10px] opacity-60">
                           {new Date(order.timestamp).toLocaleDateString()}
                         </span>
                         <span className="text-xs font-black text-[#d4af37]">Rs.{order.total.toLocaleString()}</span>
-                      </div>
-                      <div className="text-[9px] opacity-50">
-                        {order.items?.length || 0} items
                       </div>
                       <div className="flex gap-1 mt-2">
                         <button
@@ -1876,9 +1682,7 @@ export default function App() {
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-4">
-                  <p className="text-xs opacity-30 italic">No orders found</p>
-                </div>
+                <p className="text-center text-xs opacity-30 italic">No orders found</p>
               )}
             </div>
 
@@ -1889,13 +1693,13 @@ export default function App() {
                   setViewingShopOrders(null);
                   setShowModal('invoice');
                 }}
-                className="flex-1 py-2.5 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg uppercase text-xs tracking-widest hover:opacity-90 transition-all"
+                className="flex-1 py-2.5 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg uppercase text-xs"
               >
                 NEW ORDER
               </button>
               <button
                 onClick={() => setViewingShopOrders(null)}
-                className="flex-1 py-2.5 bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] text-white/80 font-black rounded-lg uppercase text-xs border border-white/5 hover:border-white/10 transition-all"
+                className="flex-1 py-2.5 bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] text-white/80 font-black rounded-lg uppercase text-xs"
               >
                 CLOSE
               </button>
@@ -1904,7 +1708,7 @@ export default function App() {
         </div>
       )}
 
-      {/* Shop Profile View Modal - ENHANCED */}
+      {/* Shop Profile View Modal */}
       {viewingShopProfile && (
         <div className="fixed inset-0 bg-black/95 z-[150] flex items-center justify-center p-3 backdrop-blur-3xl">
           <div className="w-full max-w-xs p-5 rounded-2xl border border-[#d4af37]/30 bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] text-white">
@@ -1916,819 +1720,416 @@ export default function App() {
             </button>
 
             <div className="text-center mb-4">
-              <div className="w-16 h-16 bg-gradient-to-br from-[#d4af37]/20 to-[#b8860b]/20 rounded-full flex items-center justify-center mx-auto mb-2 border border-[#d4af37]/30">
-                <Briefcase size={30} className="text-[#d4af37]" />
-              </div>
-              <h3 className="font-black text-[#d4af37] mb-1 uppercase text-base tracking-widest">Shop Profile</h3>
+              <h3 className="font-black text-[#d4af37] mb-1 uppercase text-base">Shop Profile</h3>
               <p className="text-xs text-white/80 font-bold">{viewingShopProfile.shop.name}</p>
             </div>
 
             {viewingShopProfile.profile ? (
               <div className="space-y-3">
-                <div className="bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] p-3 rounded-xl border border-white/5">
-                  <div className="flex items-center gap-2 mb-2">
-                    <User size={14} className="text-[#d4af37]" />
-                    <span className="text-xs font-black uppercase">Owner</span>
-                  </div>
-                  <p className="text-sm font-bold text-white/90">{viewingShopProfile.profile.ownerName || 'Not set'}</p>
+                <div className="bg-white/5 p-3 rounded-xl">
+                  <p className="text-[10px] opacity-60 mb-1">Owner</p>
+                  <p className="text-sm font-bold">{viewingShopProfile.profile.ownerName || 'Not set'}</p>
                 </div>
-
-                <div className="bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] p-3 rounded-xl border border-white/5">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Phone size={14} className="text-[#d4af37]" />
-                    <span className="text-xs font-black uppercase">Phone</span>
-                  </div>
-                  <p className="text-sm font-bold text-white/90">{viewingShopProfile.profile.phone || 'Not set'}</p>
+                <div className="bg-white/5 p-3 rounded-xl">
+                  <p className="text-[10px] opacity-60 mb-1">Phone</p>
+                  <p className="text-sm font-bold">{viewingShopProfile.profile.phone || 'Not set'}</p>
                 </div>
-
-                <div className="bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] p-3 rounded-xl border border-white/5">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Mail size={14} className="text-[#d4af37]" />
-                    <span className="text-xs font-black uppercase">Email</span>
-                  </div>
-                  <p className="text-sm font-bold text-white/90">{viewingShopProfile.profile.email || 'Not set'}</p>
-                </div>
-
-                <div className="bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] p-3 rounded-xl border border-white/5">
-                  <div className="flex items-center gap-2 mb-2">
-                    <MapPin size={14} className="text-[#d4af37]" />
-                    <span className="text-xs font-black uppercase">Address</span>
-                  </div>
-                  <p className="text-sm font-bold text-white/90">{viewingShopProfile.profile.address || 'Not set'}</p>
-                </div>
-
-                {viewingShopProfile.profile.gst && (
-                  <div className="bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] p-3 rounded-xl border border-white/5">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Receipt size={14} className="text-[#d4af37]" />
-                      <span className="text-xs font-black uppercase">GST</span>
-                    </div>
-                    <p className="text-sm font-bold text-white/90">{viewingShopProfile.profile.gst}</p>
-                  </div>
-                )}
-
-                {viewingShopProfile.profile.shopType && (
-                  <div className="bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] p-3 rounded-xl border border-white/5">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Store size={14} className="text-[#d4af37]" />
-                      <span className="text-xs font-black uppercase">Shop Type</span>
-                    </div>
-                    <p className="text-sm font-bold text-white/90 capitalize">{viewingShopProfile.profile.shopType}</p>
-                  </div>
-                )}
-
-                {viewingShopProfile.profile.creditLimit && (
-                  <div className="bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] p-3 rounded-xl border border-white/5">
-                    <div className="flex items-center gap-2 mb-2">
-                      <CreditCard size={14} className="text-[#d4af37]" />
-                      <span className="text-xs font-black uppercase">Credit Limit</span>
-                    </div>
-                    <p className="text-sm font-bold text-white/90">Rs.{viewingShopProfile.profile.creditLimit}</p>
-                  </div>
-                )}
-
-                {viewingShopProfile.profile.notes && (
-                  <div className="bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] p-3 rounded-xl border border-white/5">
-                    <div className="flex items-center gap-2 mb-2">
-                      <FileText size={14} className="text-[#d4af37]" />
-                      <span className="text-xs font-black uppercase">Notes</span>
-                    </div>
-                    <p className="text-sm font-bold text-white/90">{viewingShopProfile.profile.notes}</p>
-                  </div>
-                )}
-
-                <div className="flex gap-2 mt-4">
-                  <button
-                    onClick={() => {
-                      editShopProfile(viewingShopProfile.profile);
-                      setViewingShopProfile(null);
-                    }}
-                    className="flex-1 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-black rounded-lg uppercase text-xs tracking-widest hover:opacity-90 transition-all flex items-center justify-center gap-1"
-                  >
-                    <Edit2 size={14} /> EDIT
-                  </button>
-                  <button
-                    onClick={() => {
-                      confirmDelete(viewingShopProfile.profile.id, 'shopProfile', viewingShopProfile.shop.name);
-                      setViewingShopProfile(null);
-                    }}
-                    className="flex-1 py-2.5 bg-gradient-to-r from-red-500 to-red-600 text-white font-black rounded-lg uppercase text-xs tracking-widest hover:opacity-90 transition-all flex items-center justify-center gap-1"
-                  >
-                    <Trash2 size={14} /> DELETE
-                  </button>
+                <div className="bg-white/5 p-3 rounded-xl">
+                  <p className="text-[10px] opacity-60 mb-1">Address</p>
+                  <p className="text-sm font-bold">{viewingShopProfile.profile.address || 'Not set'}</p>
                 </div>
               </div>
             ) : (
-              <div className="text-center py-6">
-                <p className="text-white/60 text-sm mb-4">No profile found for this shop</p>
-                <button
-                  onClick={() => {
-                    setSelectedShop(viewingShopProfile.shop);
-                    setViewingShopProfile(null);
-                    setShowModal('shopProfile');
-                  }}
-                  className="w-full py-3 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg uppercase text-xs tracking-widest hover:opacity-90 transition-all"
-                >
-                  CREATE PROFILE
-                </button>
-              </div>
+              <p className="text-center text-white/60 text-sm py-4">No profile found</p>
             )}
           </div>
         </div>
       )}
 
-      {/* Header */}
-      <header className={`p-4 flex justify-between items-center sticky top-0 z-50 backdrop-blur-xl border-b ${
-        isDarkMode
-          ? "bg-black/90 border-[#d4af37]/20"
-          : "bg-white/95 border-[#d4af37]/30 shadow-sm"
+      {/* Header - Compact */}
+      <header className={`p-3 flex justify-between items-center sticky top-0 z-50 backdrop-blur-xl border-b ${
+        isDarkMode ? "bg-black/90 border-[#d4af37]/20" : "bg-white/95 border-[#d4af37]/30"
       }`}>
-        <button
-          onClick={() => setShowGame(true)}
-          className="flex items-center gap-3 hover:opacity-80 transition-all"
-        >
+        <button onClick={() => setShowGame(true)} className="flex items-center gap-2">
           <div className="relative">
-            <div className={`p-2.5 bg-gradient-to-br from-[#d4af37] to-[#b8860b] rounded-xl text-black shadow-lg ${
-              !isDarkMode && 'shadow-[#d4af37]/30'
-            }`}>
-              <Crown size={20} />
+            <div className="p-1.5 bg-gradient-to-br from-[#d4af37] to-[#b8860b] rounded-lg text-black">
+              <Crown size={16} />
             </div>
-            <div className="absolute -top-1 -right-1 w-3 h-3 bg-[#d4af37] rounded-full animate-ping"></div>
-            <div className="absolute -top-1 -right-1 w-3 h-3 bg-[#d4af37] rounded-full"></div>
+            <Heart size={8} className="text-[#d4af37] absolute -top-1 -right-1" fill="#d4af37" />
           </div>
           <div>
-            <h1 className="font-black text-lg tracking-tight leading-none uppercase text-[#d4af37]">
+            <h1 className="font-black text-xs tracking-tight uppercase text-[#d4af37]">
               {data.settings.company || "MONARCH"}
             </h1>
-            <p className={`text-[10px] font-bold uppercase tracking-widest ${
-              isDarkMode ? 'text-white/60' : 'text-gray-600'
-            }`}>
-              {data.settings.name || "Sales Representative"}
+            <p className={`text-[8px] font-bold uppercase ${isDarkMode ? 'text-white/60' : 'text-gray-600'}`}>
+              {data.settings.name || "Rep"}
             </p>
           </div>
         </button>
 
-        <div className="flex gap-2">
+        <div className="flex gap-1">
           {isOffline ? (
-            <div className="p-2.5 bg-yellow-500/10 text-yellow-500 rounded-xl border border-yellow-500/20">
-              <WifiOff size={18} />
+            <div className="p-1.5 bg-yellow-500/10 text-yellow-500 rounded-lg">
+              <WifiOff size={14} />
             </div>
           ) : (
-            <div className="p-2.5 bg-green-500/10 text-green-500 rounded-xl border border-green-500/20">
-              <Wifi size={18} />
+            <div className="p-1.5 bg-green-500/10 text-green-500 rounded-lg">
+              <Wifi size={14} />
             </div>
           )}
           <button
             onClick={() => setIsDarkMode(!isDarkMode)}
-            className={`p-2.5 rounded-xl border transition-all ${
-              isDarkMode
-                ? "bg-white/5 text-[#d4af37] border-white/10 hover:bg-[#d4af37]/20"
-                : "bg-gradient-to-br from-amber-100 to-yellow-100 text-amber-700 border-amber-200 hover:bg-amber-200"
+            className={`p-1.5 rounded-lg border ${
+              isDarkMode ? "bg-white/5 text-[#d4af37] border-white/10" : "bg-gray-100 text-amber-700 border-gray-200"
             }`}
           >
-            {isDarkMode ? <Sun size={18}/> : <Moon size={18}/>}
-          </button>
-          <button
-            onClick={() => setShowModal('expense')}
-            className={`p-2.5 rounded-xl border transition-all ${
-              isDarkMode
-                ? "bg-white/5 text-[#d4af37] border-white/10 hover:bg-[#d4af37]/20"
-                : "bg-gradient-to-br from-amber-100 to-yellow-100 text-amber-700 border-amber-200"
-            }`}
-          >
-            <CreditCard size={18}/>
-          </button>
-          <button
-            onClick={() => {
-              setShowCalculator(true);
-              resetCalculator();
-            }}
-            className={`p-2.5 rounded-xl border transition-all ${
-              isDarkMode
-                ? "bg-white/5 text-[#d4af37] border-white/10 hover:bg-[#d4af37]/20"
-                : "bg-gradient-to-br from-amber-100 to-yellow-100 text-amber-700 border-amber-200"
-            }`}
-          >
-            <Calculator size={18}/>
+            {isDarkMode ? <Sun size={14}/> : <Moon size={14}/>}
           </button>
           <button
             onClick={() => signOut(auth)}
-            className="p-2.5 bg-red-500/10 text-red-500 rounded-xl border border-red-500/20 hover:bg-red-500/20 transition-all"
+            className="p-1.5 bg-red-500/10 text-red-500 rounded-lg border border-red-500/20"
           >
-            <LogOut size={18}/>
+            <LogOut size={14}/>
           </button>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="p-3 max-w-lg mx-auto space-y-4">
+      <main className="p-3 max-w-lg mx-auto space-y-3">
 
-        {/* DASHBOARD TAB - FIXED */}
+        {/* DASHBOARD TAB */}
         {activeTab === 'dashboard' && (
-          <div className="space-y-4">
-            {/* Today's Revenue & Expenses Card - FIXED */}
-            <div className="bg-gradient-to-br from-[#d4af37] via-[#c19a2e] to-[#b8860b] p-5 rounded-2xl text-black shadow-2xl relative overflow-hidden">
-              <div className="relative z-10">
-                <div className="flex justify-between items-start mb-3">
-                  <div>
-                    <p className="text-xs font-black uppercase opacity-80 mb-1 tracking-widest">Today's Revenue</p>
-                    <h2 className="text-3xl font-black italic tracking-tighter">Rs.{stats.daily.totalSales.toLocaleString()}</h2>
-                  </div>
-                  <div className="bg-black/20 p-2 rounded-xl text-right">
-                    <p className="text-[10px] font-black uppercase">Expenses</p>
-                    <p className="text-base font-black text-red-800">- Rs.{stats.expenses.toLocaleString()}</p>
-                  </div>
+          <div className="space-y-3">
+            {/* Today's Revenue Card */}
+            <div className="bg-gradient-to-br from-[#d4af37] via-[#c19a2e] to-[#b8860b] p-4 rounded-xl text-black">
+              <div className="flex justify-between items-start mb-2">
+                <div>
+                  <p className="text-[9px] font-black uppercase opacity-80">Today's Revenue</p>
+                  <h2 className="text-xl font-black">Rs.{stats.daily.totalSales.toLocaleString()}</h2>
                 </div>
-
-                <div className="mt-4 flex items-center justify-between">
-                  <div className="flex items-center gap-2 bg-black/10 px-3 py-1.5 rounded-full border border-black/10">
-                    <Target size={12} />
-                    <span className="text-xs font-black uppercase italic">Net: Rs.{(stats.daily.totalSales - stats.expenses).toLocaleString()}</span>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xs font-black uppercase opacity-80">Top Brand</p>
-                    <p className="text-sm font-black">{stats.daily.topBrand}</p>
-                  </div>
+                <div className="bg-black/20 p-1.5 rounded-lg text-right">
+                  <p className="text-[8px] font-black uppercase">Expenses</p>
+                  <p className="text-sm font-black text-red-800">- Rs.{stats.expenses.toLocaleString()}</p>
+                </div>
+              </div>
+              <div className="flex justify-between items-center">
+                <div className="bg-black/10 px-2 py-1 rounded-full text-[9px] font-black">
+                  Net: Rs.{(stats.daily.totalSales - stats.expenses).toLocaleString()}
+                </div>
+                <div className="text-right">
+                  <p className="text-[8px] font-black uppercase opacity-80">Top Brand</p>
+                  <p className="text-xs font-black">{stats.daily.topBrand}</p>
                 </div>
               </div>
             </div>
 
-            {/* Today's Expenses Summary - NEW */}
-            <div className={`p-4 rounded-2xl border shadow-xl ${
-              isDarkMode
-                ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/10"
-                : "bg-white border-gray-200 shadow-lg"
+            {/* Today's Expenses */}
+            <div className={`p-3 rounded-xl border ${
+              isDarkMode ? "bg-[#0f0f0f] border-white/10" : "bg-white border-gray-200"
             }`}>
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <Wallet size={18} className="text-[#d4af37]" />
-                  <h3 className="text-sm font-black text-[#d4af37] uppercase tracking-widest">Today's Expenses</h3>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-1">
+                  <Wallet size={14} className="text-[#d4af37]" />
+                  <h3 className="text-xs font-black text-[#d4af37] uppercase">Today's Expenses</h3>
                 </div>
                 <span className="text-xs font-black text-red-500">Rs.{stats.expenses.toLocaleString()}</span>
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-1">
                 {stats.todayExpenses.length > 0 ? (
                   stats.todayExpenses.slice(0, 3).map((exp, idx) => (
-                    <div key={idx} className="flex justify-between items-center text-xs">
-                      <div className="flex items-center gap-2">
-                        {exp.type === 'fuel' && <Fuel size={12} className="text-red-500" />}
-                        {exp.type === 'food' && <Coffee size={12} className="text-amber-500" />}
-                        {exp.type === 'transport' && <Navigation size={12} className="text-blue-500" />}
+                    <div key={idx} className="flex justify-between items-center text-[10px]">
+                      <div className="flex items-center gap-1">
+                        {exp.type === 'fuel' && <Fuel size={10} className="text-red-500" />}
+                        {exp.type === 'food' && <Coffee size={10} className="text-amber-500" />}
+                        {exp.type === 'transport' && <Navigation size={10} className="text-blue-500" />}
                         <span className="capitalize">{exp.type}</span>
                       </div>
                       <span className="font-bold">Rs.{exp.amount.toLocaleString()}</span>
                     </div>
                   ))
                 ) : (
-                  <p className="text-xs opacity-50 italic text-center py-2">No expenses today</p>
+                  <p className="text-[10px] opacity-50 italic text-center py-1">No expenses today</p>
                 )}
-                <button
-                  onClick={() => setShowModal('expense')}
-                  className="mt-2 w-full py-2 bg-white/10 rounded-lg text-xs font-black uppercase hover:bg-white/20 transition-all"
-                >
-                  + ADD EXPENSE
-                </button>
               </div>
             </div>
 
-            {/* Target Progress Card - ENHANCED */}
-            {stats.monthlyTarget > 0 && (
-              <div className={`p-5 rounded-2xl border shadow-xl ${
-                isDarkMode
-                  ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/30"
-                  : "bg-white border-[#d4af37]/30 shadow-lg"
+            {/* Multiple Targets */}
+            {stats.targets.length > 0 && (
+              <div className={`p-3 rounded-xl border ${
+                isDarkMode ? "bg-[#0f0f0f] border-[#d4af37]/30" : "bg-white border-[#d4af37]/30"
               }`}>
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <Award size={20} className="text-[#d4af37]" />
-                    <h3 className="text-sm font-black text-[#d4af37] uppercase tracking-widest">
-                      {stats.targetSpecific === 'brand' ? `Target: ${stats.targetBrand}` : 'Monthly Target'}
-                    </h3>
-                  </div>
-                  <span className="text-xs font-black">
-                    {stats.targetType === 'revenue' ? 'Rs.' : ''}{stats.targetType === 'revenue' ? stats.monthlySales.toLocaleString() : stats.monthlyUnits} /
-                    {stats.targetType === 'revenue' ? 'Rs.' : ''}{stats.monthlyTarget.toLocaleString()}
-                    {stats.targetCase === 'cases' ? ' cases' : ' units'}
-                  </span>
-                </div>
-
-                <div className="w-full h-4 bg-white/10 rounded-full overflow-hidden mb-2">
-                  <div
-                    className="h-full bg-gradient-to-r from-[#d4af37] to-[#b8860b] rounded-full transition-all duration-500 relative"
-                    style={{ width: `${Math.min(stats.targetProgress, 100)}%` }}
-                  >
-                    <div className="absolute inset-0 bg-white/20 animate-pulse"></div>
-                  </div>
-                </div>
-
-                <div className="flex justify-between items-center">
-                  <span className="text-xs font-black">
-                    {stats.targetProgress.toFixed(1)}% Complete
-                  </span>
-                  {stats.targetRemaining > 0 ? (
-                    <span className="text-xs font-black text-red-500 flex items-center gap-1">
-                      <Zap size={14} />
-                      {stats.targetType === 'revenue' ? 'Rs.' : ''}{stats.targetRemaining.toLocaleString()} to go
-                    </span>
-                  ) : (
-                    <span className="text-xs font-black text-green-500 flex items-center gap-1">
-                      <CheckCircle2 size={14} /> Target Achieved! 🎉
-                    </span>
-                  )}
-                </div>
-
-                <button
-                  onClick={() => setShowModal('target')}
-                  className="mt-3 w-full py-2 bg-white/10 rounded-lg text-xs font-black uppercase hover:bg-white/20 transition-all"
-                >
-                  Set / Update Target
-                </button>
-              </div>
-            )}
-
-            {/* Quick Actions */}
-            <div className="grid grid-cols-4 gap-2">
-              <button
-                onClick={() => setShowModal('expense')}
-                className={`p-3 rounded-xl border flex flex-col items-center gap-1.5 hover:scale-[1.02] transition-all ${
-                  isDarkMode
-                    ? "bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5 text-white"
-                    : "bg-white border-gray-200 text-gray-800 shadow-sm"
-                }`}
-              >
-                <Fuel size={18} className="text-[#d4af37]" />
-                <span className="text-[9px] font-black uppercase">Expense</span>
-              </button>
-              <button
-                onClick={getLocation}
-                className={`p-3 rounded-xl border flex flex-col items-center gap-1.5 hover:scale-[1.02] transition-all ${
-                  isDarkMode
-                    ? "bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5 text-white"
-                    : "bg-white border-gray-200 text-gray-800 shadow-sm"
-                }`}
-              >
-                <Navigation size={18} className="text-[#d4af37]" />
-                <span className="text-[9px] font-black uppercase">Location</span>
-              </button>
-              <button
-                onClick={() => setShowModal('note')}
-                className={`p-3 rounded-xl border flex flex-col items-center gap-1.5 hover:scale-[1.02] transition-all ${
-                  isDarkMode
-                    ? "bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5 text-white"
-                    : "bg-white border-gray-200 text-gray-800 shadow-sm"
-                }`}
-              >
-                <FileText size={18} className="text-[#d4af37]" />
-                <span className="text-[9px] font-black uppercase">Note</span>
-              </button>
-              <button
-                onClick={() => {
-                  setShowCalculator(true);
-                  resetCalculator();
-                }}
-                className={`p-3 rounded-xl border flex flex-col items-center gap-1.5 hover:scale-[1.02] transition-all ${
-                  isDarkMode
-                    ? "bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5 text-white"
-                    : "bg-white border-gray-200 text-gray-800 shadow-sm"
-                }`}
-              >
-                <Calculator size={18} className="text-[#d4af37]" />
-                <span className="text-[9px] font-black uppercase">Calc</span>
-              </button>
-            </div>
-
-            {/* Monthly Performance */}
-            <div className={`p-5 rounded-2xl border shadow-xl ${
-              isDarkMode
-                ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/10"
-                : "bg-white border-gray-200 shadow-lg"
-            }`}>
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <BarChart3 size={18} className="text-[#d4af37]" />
-                  <h3 className="text-sm font-black text-[#d4af37] uppercase tracking-widest">Monthly Performance</h3>
-                </div>
-                <span className="text-xs font-black">
-                  Rs.{stats.monthlySales.toLocaleString()}
-                </span>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 mb-4">
-                <div className={`p-3 rounded-xl border ${
-                  isDarkMode
-                    ? "bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5"
-                    : "bg-gray-50 border-gray-100"
-                }`}>
-                  <p className="text-[9px] font-black uppercase mb-1 opacity-60">Total Units</p>
-                  <p className="text-lg font-black text-[#d4af37]">{stats.monthly.totalUnits || 0}</p>
-                </div>
-                <div className={`p-3 rounded-xl border ${
-                  isDarkMode
-                    ? "bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5"
-                    : "bg-gray-50 border-gray-100"
-                }`}>
-                  <p className="text-[9px] font-black uppercase mb-1 opacity-60">Expenses</p>
-                  <p className="text-lg font-black text-red-500">Rs.{stats.monthlyExpenses.toLocaleString()}</p>
-                </div>
-              </div>
-
-              {/* Monthly Top Brands */}
-              <div className="mb-5">
                 <div className="flex items-center justify-between mb-2">
-                  <p className="text-[9px] font-black uppercase opacity-60">Monthly Top Brands</p>
+                  <div className="flex items-center gap-1">
+                    <Target size={14} className="text-[#d4af37]" />
+                    <h3 className="text-xs font-black text-[#d4af37] uppercase">Targets ({stats.targets.length})</h3>
+                  </div>
                   <button
-                    onClick={() => setShowAllMonthlyBrands(!showAllMonthlyBrands)}
-                    className="text-[#d4af37] text-[9px] font-black uppercase"
+                    onClick={() => setShowTargetModal(true)}
+                    className="text-[#d4af37] text-[9px] font-black"
                   >
-                    {showAllMonthlyBrands ? 'Show Less' : 'Show All'}
+                    + ADD
                   </button>
                 </div>
 
-                {/* Top Brand */}
-                <div className={`p-3 rounded-xl border mb-2 ${
-                  isDarkMode
-                    ? "bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5"
-                    : "bg-gray-50 border-gray-100"
-                }`}>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <Target size={14} className="text-[#d4af37]" />
-                        <p className="text-sm font-black uppercase">
-                          {stats.monthly.topBrand || 'N/A'}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-1">
-                          <Package2 size={11} className="opacity-60" />
-                          <span className="text-xs opacity-70">
-                            {stats.monthly.topBrandUnits} units
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <DollarSign size={11} className="opacity-60" />
-                          <span className="text-xs opacity-70">
-                            Rs.{stats.monthly.topBrandRevenue?.toLocaleString() || 0}
-                          </span>
+                <div className="space-y-2 max-h-32 overflow-y-auto">
+                  {stats.targets.map((target, idx) => (
+                    <div key={idx} className="bg-white/5 p-2 rounded-lg">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-[9px] font-bold">
+                          {target.specific === 'brand' ? target.brand : 'Total'} 
+                          ({target.type === 'revenue' ? 'Rs' : 'Units'})
+                        </span>
+                        <div className="flex gap-1">
+                          <button
+                            onClick={() => editTarget(target)}
+                            className="text-blue-500 hover:text-blue-400 p-0.5"
+                          >
+                            <Edit2 size={10} />
+                          </button>
+                          <button
+                            onClick={() => confirmDelete(target.id, 'target', target.brand || 'Target')}
+                            className="text-red-500 hover:text-red-400 p-0.5"
+                          >
+                            <Trash2 size={10} />
+                          </button>
                         </div>
                       </div>
+                      <div className="flex justify-between items-center text-[9px] mb-1">
+                        <span>Progress:</span>
+                        <span className="font-bold">{target.achieved.toLocaleString()} / {target.amount.toLocaleString()}</span>
+                      </div>
+                      <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-gradient-to-r from-[#d4af37] to-[#b8860b]"
+                          style={{ width: `${Math.min(target.progress, 100)}%` }}
+                        ></div>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-xs opacity-50 mb-1">Revenue Share</p>
-                      <p className="text-base font-black text-[#d4af37]">
-                        {stats.monthly.totalSales > 0 ?
-                          ((stats.monthly.topBrandRevenue / stats.monthly.totalSales) * 100).toFixed(1) : 0}%
-                      </p>
-                    </div>
-                  </div>
+                  ))}
                 </div>
+              </div>
+            )}
 
-                {/* All Brands */}
-                {showAllMonthlyBrands && stats.monthly.allBrands.length > 0 && (
-                  <div className="space-y-2 mt-3">
-                    <p className="text-[9px] font-black uppercase opacity-60">All Brands Performance</p>
-                    {stats.monthly.allBrands.slice(0, 5).map((brand, index) => (
-                      <div key={index} className={`p-2.5 rounded-xl border flex justify-between items-center ${
-                        isDarkMode
-                          ? "bg-black/40 border-white/5"
-                          : "bg-gray-50/50 border-gray-100"
-                      }`}>
-                        <div className="flex items-center gap-2">
-                          <div className={`w-5 h-5 rounded-md flex items-center justify-center ${
-                            isDarkMode ? "bg-white/10" : "bg-gray-200"
-                          }`}>
-                            <span className="text-xs font-black">{index + 1}</span>
-                          </div>
-                          <div>
-                            <p className="text-xs font-bold">
-                              {brand.name}
-                            </p>
-                            <div className="flex items-center gap-2 mt-0.5">
-                              <span className="text-[10px] opacity-50">{brand.units} units</span>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-xs font-black text-[#d4af37]">Rs.{brand.revenue.toLocaleString()}</p>
-                          <p className="text-[10px] opacity-50 mt-0.5">
-                            {stats.monthly.totalSales > 0 ?
-                              ((brand.revenue / stats.monthly.totalSales) * 100).toFixed(1) : 0}%
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {stats.monthly.allBrands.length === 0 && (
-                  <div className="text-center py-4">
-                    <Package2 size={30} className="mx-auto opacity-20 mb-2" />
-                    <p className="text-xs opacity-30 italic">No monthly sales data available</p>
-                  </div>
-                )}
+            {/* Monthly Performance */}
+            <div className={`p-3 rounded-xl border ${
+              isDarkMode ? "bg-[#0f0f0f] border-white/10" : "bg-white border-gray-200"
+            }`}>
+              <div className="flex items-center gap-1 mb-2">
+                <BarChart3 size={14} className="text-[#d4af37]" />
+                <h3 className="text-xs font-black text-[#d4af37] uppercase">Monthly Performance</h3>
               </div>
 
-              <div className="space-y-1.5">
-                <div className="flex justify-between items-center">
-                  <p className="text-[9px] font-black uppercase opacity-60">Avg Price per Unit</p>
-                  <p className="text-xs font-black">Rs.{stats.monthly.avgPrice.toFixed(2)}</p>
+              <div className="grid grid-cols-2 gap-2 mb-2">
+                <div className="bg-white/5 p-2 rounded-lg">
+                  <p className="text-[8px] opacity-60">Sales</p>
+                  <p className="text-sm font-black text-[#d4af37]">Rs.{stats.monthlySales.toLocaleString()}</p>
                 </div>
-                <div className="flex justify-between items-center">
-                  <p className="text-[9px] font-black uppercase opacity-60">Today's Notes</p>
-                  <p className="text-xs font-black text-[#d4af37]">{stats.notes}</p>
+                <div className="bg-white/5 p-2 rounded-lg">
+                  <p className="text-[8px] opacity-60">Units</p>
+                  <p className="text-sm font-black text-[#d4af37]">{stats.monthly.totalUnits}</p>
                 </div>
+              </div>
+
+              <div className="space-y-1">
+                <p className="text-[8px] font-black uppercase opacity-60">Top Brands</p>
+                {stats.monthly.summary.slice(0, 3).map((brand, idx) => (
+                  <div key={idx} className="flex justify-between items-center text-[9px]">
+                    <span>{brand.name}</span>
+                    <span className="font-bold text-[#d4af37]">Rs.{brand.revenue.toLocaleString()}</span>
+                  </div>
+                ))}
               </div>
             </div>
 
             {/* Today's Sales */}
-            <div className={`p-5 rounded-2xl border shadow-xl ${
-              isDarkMode
-                ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/10"
-                : "bg-white border-gray-200 shadow-lg"
+            <div className={`p-3 rounded-xl border ${
+              isDarkMode ? "bg-[#0f0f0f] border-white/10" : "bg-white border-gray-200"
             }`}>
-              <div className="flex items-center justify-between mb-5">
-                <div>
-                  <h3 className="text-sm font-black text-[#d4af37] uppercase tracking-widest">Today's Sales</h3>
-                  <p className="text-[9px] opacity-50 mt-1">Itemized Breakdown</p>
-                </div>
-                <TrendingUp size={16} className="text-[#d4af37] opacity-60" />
-              </div>
-
-              <div className="space-y-2">
-                {stats.daily.summary.slice(0, 4).map((item, index) => (
-                  <div key={index} className={`p-3 rounded-xl border flex justify-between items-center transition-all ${
-                    isDarkMode
-                      ? "bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5 hover:border-[#d4af37]/30"
-                      : "bg-gray-50 border-gray-100 hover:border-[#d4af37]"
-                  }`}>
-                    <div className="flex-1">
-                      <p className="text-xs font-black uppercase tracking-tight mb-1">{item.name}</p>
-                      <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-1">
-                          <Hash size={9} className="opacity-50" />
-                          <span className="text-[9px] opacity-70">{item.units} UNITS</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-black text-base tabular-nums text-[#d4af37]">Rs.{item.revenue.toLocaleString()}</p>
-                      <p className="text-[8px] opacity-50">Revenue</p>
-                    </div>
+              <h3 className="text-xs font-black text-[#d4af37] uppercase mb-2">Today's Sales</h3>
+              {stats.daily.summary.length > 0 ? (
+                stats.daily.summary.slice(0, 4).map((item, idx) => (
+                  <div key={idx} className="flex justify-between items-center text-[10px] py-1 border-b border-white/5 last:border-0">
+                    <span>{item.name} x{item.units}</span>
+                    <span className="font-bold text-[#d4af37]">Rs.{item.revenue.toLocaleString()}</span>
                   </div>
-                ))}
-                {stats.daily.summary.length === 0 && (
-                  <div className="text-center py-6">
-                    <Package2 size={30} className="mx-auto opacity-20 mb-2" />
-                    <p className="text-xs opacity-30 italic">No sales recorded today</p>
-                  </div>
-                )}
-              </div>
+                ))
+              ) : (
+                <p className="text-[10px] opacity-50 italic text-center py-2">No sales today</p>
+              )}
             </div>
           </div>
         )}
 
-        {/* SHOPS TAB - WITH ENHANCED PROFILE MENU */}
+        {/* SHOPS TAB - WITH GOLD BILL BUTTON */}
         {activeTab === 'shops' && (
           <div className="space-y-3">
-            <div className="space-y-2">
-              <div className={`p-3 rounded-2xl border flex items-center gap-2 ${
-                isDarkMode
-                  ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/10"
-                  : "bg-white border-gray-200 shadow-sm"
-              }`}>
-                <Search size={16} className="opacity-30"/>
-                <input
-                  value={shopSearch}
-                  onChange={(e) => setShopSearch(e.target.value)}
-                  placeholder="SEARCH SHOP BY NAME OR AREA..."
-                  className="bg-transparent text-xs font-black uppercase outline-none w-full placeholder:opacity-30"
-                  style={{ color: isDarkMode ? 'white' : 'black' }}
-                />
-              </div>
+            {/* Search */}
+            <div className={`p-2 rounded-xl border flex items-center gap-2 ${
+              isDarkMode ? "bg-[#0f0f0f] border-white/10" : "bg-white border-gray-200"
+            }`}>
+              <Search size={14} className="opacity-30"/>
+              <input
+                value={shopSearch}
+                onChange={(e) => setShopSearch(e.target.value)}
+                placeholder="SEARCH SHOPS..."
+                className="bg-transparent text-[10px] font-bold uppercase outline-none w-full"
+              />
+            </div>
 
-              <div className="flex gap-1.5 overflow-x-auto pb-1">
+            {/* Route Filter */}
+            <div className="flex gap-1 overflow-x-auto pb-1">
+              <button
+                onClick={() => setSelectedRouteFilter('ALL')}
+                className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase whitespace-nowrap border flex-shrink-0 ${
+                  selectedRouteFilter === 'ALL'
+                    ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black border-[#d4af37]'
+                    : isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white/60' : 'bg-gray-100 border-gray-200 text-gray-600'
+                }`}>
+                ALL
+              </button>
+              {data.routes.map((r) => (
                 <button
-                  onClick={() => setSelectedRouteFilter('ALL')}
-                  className={`px-4 py-2 rounded-full text-[10px] font-black uppercase transition-all whitespace-nowrap border flex-shrink-0 ${
-                    selectedRouteFilter === 'ALL'
+                  key={r.id}
+                  onClick={() => setSelectedRouteFilter(r.name)}
+                  className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase whitespace-nowrap border flex-shrink-0 ${
+                    selectedRouteFilter === r.name
                       ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black border-[#d4af37]'
-                      : isDarkMode
-                        ? 'bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/10 text-white/60'
-                        : 'bg-gray-100 border-gray-200 text-gray-600'
+                      : isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white/60' : 'bg-gray-100 border-gray-200 text-gray-600'
                   }`}>
-                  ALL
+                  {r.name}
                 </button>
-                {data.routes.map((r) => (
-                  <button
-                    key={r.id}
-                    onClick={() => setSelectedRouteFilter(r.name)}
-                    className={`px-4 py-2 rounded-full text-[10px] font-black uppercase transition-all whitespace-nowrap border flex-shrink-0 ${
-                      selectedRouteFilter === r.name
-                        ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black border-[#d4af37]'
-                      : isDarkMode
-                        ? 'bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/10 text-white/60'
-                        : 'bg-gray-100 border-gray-200 text-gray-600'
-                    }`}>
-                    {r.name}
-                  </button>
-                ))}
-              </div>
+              ))}
             </div>
 
-            <div className="flex gap-2">
-              <button
-                onClick={() => setShowModal('shop')}
-                className={`flex-1 py-4 rounded-2xl border-2 border-dashed text-[#d4af37] font-black uppercase text-xs flex items-center justify-center gap-1.5 hover:border-[#d4af37] transition-all ${
-                  isDarkMode
-                    ? 'bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-[#d4af37]/40'
-                    : 'bg-gray-50 border-[#d4af37]/60'
-                }`}
-              >
-                <Plus size={16}/> New Shop
-              </button>
-              <button
-                onClick={() => { setSelectedShop(null); setShowModal('manual'); }}
-                className={`flex-1 py-4 rounded-2xl border-2 border-dashed text-green-500 font-black uppercase text-xs flex items-center justify-center gap-1.5 hover:border-green-500 transition-all ${
-                  isDarkMode
-                    ? 'bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-green-500/40'
-                    : 'bg-gray-50 border-green-500/60'
-                }`}
-              >
-                <ShoppingBag size={16}/> Manual
-              </button>
-            </div>
-
-            <div className="grid gap-2">
+            {/* Shop List */}
+            <div className="space-y-2">
               {filteredShops.map(s => {
                 const shopStats = getShopStats(s.id);
                 const shopProfile = getShopProfile(s.id);
-                const showMenu = showShopProfileMenu === s.id;
 
                 return (
                   <div
                     key={s.id}
-                    className={`p-4 rounded-2xl border transition-all ${
-                      isDarkMode
-                        ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/5 hover:border-[#d4af37]/30"
-                        : "bg-white border-gray-200 shadow-sm hover:border-[#d4af37] hover:shadow-md"
+                    className={`p-3 rounded-xl border ${
+                      isDarkMode ? "bg-[#0f0f0f] border-white/5" : "bg-white border-gray-200"
                     }`}
                   >
-                    <div className="flex justify-between items-start">
-                      <div className="flex items-center gap-3">
-                        <div className="p-3 bg-gradient-to-br from-[#d4af37]/10 to-[#b8860b]/5 rounded-xl text-[#d4af37] border border-[#d4af37]/20">
-                          <Store size={18}/>
-                        </div>
-                        <div className="flex-1">
-                          <h4 className="text-sm font-black uppercase leading-tight">
-                            {s.name}
-                          </h4>
-                          <div className="flex items-center gap-1.5 mt-1">
-                            <MapPin size={11} className="opacity-40" />
-                            <p className="text-[10px] font-bold uppercase tracking-tighter opacity-60">
-                              {s.area}
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-3 mt-2">
-                            <div className="text-[10px]">
-                              <span className="opacity-60">Total:</span>
-                              <span className="ml-1 font-black text-[#d4af37]">Rs.{shopStats.totalSales.toLocaleString()}</span>
-                            </div>
-                            <div className="text-[10px]">
-                              <span className="opacity-60">Orders:</span>
-                              <span className="ml-1 font-black">{shopStats.orderCount}</span>
-                            </div>
-                          </div>
-                          {shopProfile && (
-                            <div className="flex items-center gap-1 mt-1">
-                              <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
-                              <span className="text-[8px] opacity-60">Profile: {shopProfile.ownerName || 'Added'}</span>
-                            </div>
-                          )}
-                        </div>
+                    <div className="flex justify-between items-start mb-2">
+                      <div>
+                        <h4 className="text-xs font-black uppercase">{s.name}</h4>
+                        <p className="text-[9px] opacity-60 mt-0.5">{s.area}</p>
                       </div>
-
-                      {/* Action Buttons - Compact and Themed */}
-                      <div className="flex flex-col gap-1.5">
+                      <div className="relative">
                         <button
-                          onClick={() => confirmDelete(s.id, 'shop', s.name)}
-                          className={`p-2 rounded-lg transition-all ${
-                            isDarkMode
-                              ? 'text-red-500/30 hover:text-red-500 hover:bg-red-500/10'
-                              : 'text-red-400 hover:text-red-600 hover:bg-red-50'
-                          }`}
+                          onClick={() => setShowShopMenu(showShopMenu === s.id ? null : s.id)}
+                          className="p-1.5 hover:bg-white/10 rounded-lg"
                         >
-                          <Trash2 size={14}/>
+                          <MoreVertical size={14} />
                         </button>
-
-                        <div className="relative">
-                          <button
-                            onClick={() => setShowShopProfileMenu(showMenu ? null : s.id)}
-                            className={`p-2 rounded-lg transition-all ${
-                              isDarkMode
-                                ? 'text-[#d4af37]/60 hover:text-[#d4af37] hover:bg-[#d4af37]/10'
-                                : 'text-amber-600 hover:text-amber-700 hover:bg-amber-50'
-                            }`}
-                          >
-                            <Briefcase size={14}/>
-                          </button>
-
-                          {/* Profile Menu Popup */}
-                          {showMenu && (
-                            <div className="absolute right-0 bottom-full mb-2 w-48 bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] rounded-xl border border-[#d4af37]/30 shadow-2xl z-50 overflow-hidden">
-                              <div className="p-1">
+                        
+                        {showShopMenu === s.id && (
+                          <div className="absolute right-0 top-full mt-1 w-32 bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] rounded-lg border border-[#d4af37]/30 shadow-xl z-50">
+                            <div className="p-1">
+                              <button
+                                onClick={() => {
+                                  setShowShopMenu(null);
+                                  viewShopOrders(s);
+                                }}
+                                className="w-full px-3 py-1.5 text-left text-[9px] font-black uppercase hover:bg-white/10 rounded flex items-center gap-1"
+                              >
+                                <History size={10} className="text-blue-500"/> Orders
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setShowShopMenu(null);
+                                  viewShopProfile(s);
+                                }}
+                                className="w-full px-3 py-1.5 text-left text-[9px] font-black uppercase hover:bg-white/10 rounded flex items-center gap-1"
+                              >
+                                <Eye size={10} className="text-green-500"/> Profile
+                              </button>
+                              {shopProfile ? (
                                 <button
                                   onClick={() => {
-                                    setShowShopProfileMenu(null);
+                                    setShowShopMenu(null);
+                                    editShopProfile(shopProfile);
+                                  }}
+                                  className="w-full px-3 py-1.5 text-left text-[9px] font-black uppercase hover:bg-white/10 rounded flex items-center gap-1"
+                                >
+                                  <Edit2 size={10} className="text-blue-500"/> Edit
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => {
+                                    setShowShopMenu(null);
                                     setSelectedShop(s);
-                                    setShowModal('invoice');
+                                    setShowModal('shopProfile');
                                   }}
-                                  className="w-full px-4 py-2 text-left text-xs font-black uppercase hover:bg-white/10 rounded-lg flex items-center gap-2"
+                                  className="w-full px-3 py-1.5 text-left text-[9px] font-black uppercase hover:bg-white/10 rounded flex items-center gap-1"
                                 >
-                                  <Receipt size={12} className="text-[#d4af37]"/> New Bill
+                                  <Plus size={10} className="text-[#d4af37]"/> Add Profile
                                 </button>
-                                <button
-                                  onClick={() => {
-                                    setShowShopProfileMenu(null);
-                                    viewShopOrders(s);
-                                  }}
-                                  className="w-full px-4 py-2 text-left text-xs font-black uppercase hover:bg-white/10 rounded-lg flex items-center gap-2"
-                                >
-                                  <History size={12} className="text-blue-500"/> View Orders
-                                </button>
-                                {shopProfile ? (
-                                  <>
-                                    <button
-                                      onClick={() => {
-                                        setShowShopProfileMenu(null);
-                                        viewShopProfile(s);
-                                      }}
-                                      className="w-full px-4 py-2 text-left text-xs font-black uppercase hover:bg-white/10 rounded-lg flex items-center gap-2"
-                                    >
-                                      <Eye size={12} className="text-green-500"/> View Profile
-                                    </button>
-                                    <button
-                                      onClick={() => {
-                                        setShowShopProfileMenu(null);
-                                        editShopProfile(shopProfile);
-                                      }}
-                                      className="w-full px-4 py-2 text-left text-xs font-black uppercase hover:bg-white/10 rounded-lg flex items-center gap-2"
-                                    >
-                                      <Edit2 size={12} className="text-blue-500"/> Edit Profile
-                                    </button>
-                                  </>
-                                ) : (
-                                  <button
-                                    onClick={() => {
-                                      setShowShopProfileMenu(null);
-                                      setSelectedShop(s);
-                                      setShowModal('shopProfile');
-                                    }}
-                                    className="w-full px-4 py-2 text-left text-xs font-black uppercase hover:bg-white/10 rounded-lg flex items-center gap-2"
-                                  >
-                                    <Plus size={12} className="text-[#d4af37]"/> Add Profile
-                                  </button>
-                                )}
-                              </div>
+                              )}
+                              <button
+                                onClick={() => {
+                                  setShowShopMenu(null);
+                                  confirmDelete(s.id, 'shop', s.name);
+                                }}
+                                className="w-full px-3 py-1.5 text-left text-[9px] font-black uppercase hover:bg-white/10 rounded flex items-center gap-1 text-red-500"
+                              >
+                                <Trash2 size={10}/> Delete
+                              </button>
                             </div>
-                          )}
-                        </div>
+                          </div>
+                        )}
                       </div>
                     </div>
 
-                    {shopStats.lastOrder && (
-                      <div className="mt-3 pt-2 border-t border-white/10 text-[9px] opacity-60">
-                        Last order: {new Date(shopStats.lastOrder.timestamp).toLocaleDateString()} - Rs.{shopStats.lastOrder.total.toLocaleString()}
-                      </div>
-                    )}
+                    <div className="flex items-center gap-3 text-[9px] mb-2">
+                      <span>Total: <span className="font-bold text-[#d4af37]">Rs.{shopStats.totalSales.toLocaleString()}</span></span>
+                      <span>Orders: <span className="font-bold">{shopStats.orderCount}</span></span>
+                    </div>
+
+                    {/* GOLD BILL BUTTON */}
+                    <button
+                      onClick={() => {
+                        setSelectedShop(s);
+                        setShowModal('invoice');
+                      }}
+                      className="w-full py-1.5 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg text-[9px] uppercase flex items-center justify-center gap-1"
+                    >
+                      <Receipt size={12} /> CREATE BILL
+                    </button>
                   </div>
                 );
               })}
-              {filteredShops.length === 0 && (
-                <div className="text-center py-6">
-                  <Store size={30} className="mx-auto opacity-20 mb-2" />
-                  <p className="text-xs opacity-30 italic">No shops found</p>
-                </div>
-              )}
             </div>
+
+            {/* Add Shop Button */}
+            <button
+              onClick={() => setShowModal('shop')}
+              className={`w-full py-3 rounded-xl border-2 border-dashed text-[#d4af37] font-black uppercase text-xs flex items-center justify-center gap-1 ${
+                isDarkMode ? 'border-[#d4af37]/40' : 'border-[#d4af37]/60'
+              }`}
+            >
+              <Plus size={16}/> ADD SHOP
+            </button>
           </div>
         )}
 
         {/* HISTORY TAB */}
         {activeTab === 'history' && (
           <div className="space-y-3">
-            <div className={`p-4 rounded-2xl border flex items-center gap-3 ${
-              isDarkMode
-                ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/10"
-                : "bg-white border-gray-200 shadow-sm"
+            <div className={`p-2 rounded-xl border flex items-center gap-2 ${
+              isDarkMode ? "bg-[#0f0f0f] border-white/10" : "bg-white border-gray-200"
             }`}>
-              <Calendar size={18} className="text-[#d4af37]"/>
+              <Calendar size={14} className="text-[#d4af37]"/>
               <input
                 type="date"
-                className="bg-transparent text-xs font-black uppercase outline-none w-full"
+                className="bg-transparent text-[10px] font-bold uppercase outline-none w-full"
                 onChange={(e) => setSearchDate(e.target.value)}
                 value={searchDate}
-                style={{ color: isDarkMode ? 'white' : 'black' }}
               />
             </div>
 
@@ -2742,536 +2143,211 @@ export default function App() {
                 }
               })
               .map((o) => (
-              <div
-                key={o.id}
-                className={`p-5 rounded-2xl border ${
-                  isDarkMode
-                    ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/5 shadow-xl"
-                    : "bg-white border-gray-200 shadow-lg"
-                }`}
-              >
-                <div className="flex justify-between items-start mb-4">
+              <div key={o.id} className={`p-3 rounded-xl border ${
+                isDarkMode ? "bg-[#0f0f0f] border-white/5" : "bg-white border-gray-200"
+              }`}>
+                <div className="flex justify-between items-start mb-2">
                   <div>
-                    <h4 className="text-xs font-black uppercase text-[#d4af37] mb-1">{o.shopName}</h4>
-                    <div className="flex items-center gap-2">
-                      <p className="text-[10px] opacity-60 font-black uppercase">{o.companyName}</p>
-                      {o.isManual && (
-                        <span className="text-[8px] bg-gradient-to-r from-green-500/20 to-green-600/20 text-green-500 px-2 py-0.5 rounded-full border border-green-500/30">
-                          MANUAL
-                        </span>
-                      )}
-                    </div>
+                    <h4 className="text-xs font-black uppercase text-[#d4af37]">{o.shopName}</h4>
+                    <p className="text-[8px] opacity-60">{o.companyName}</p>
                   </div>
-                  <div className="flex gap-1.5">
-                    <button
-                      onClick={() => printBill(o)}
-                      className={`p-2 rounded-lg transition-all ${
-                        isDarkMode
-                          ? 'text-blue-500 hover:bg-blue-500/10'
-                          : 'text-blue-600 hover:bg-blue-100'
-                      }`}
-                    >
-                      <Printer size={16}/>
+                  <div className="flex gap-1">
+                    <button onClick={() => printBill(o)} className="p-1 text-blue-500 hover:bg-blue-500/10 rounded">
+                      <Printer size={12}/>
                     </button>
-                    <button
-                      onClick={() => shareBillWithLocation(o)}
-                      className={`p-2 rounded-lg transition-all ${
-                        isDarkMode
-                          ? 'text-[#d4af37] hover:bg-[#d4af37]/10'
-                          : 'text-[#d4af37] hover:bg-[#d4af37]/20'
-                      }`}
-                    >
-                      <Navigation size={16}/>
+                    <button onClick={() => shareToWhatsApp(o)} className="p-1 text-[#d4af37] hover:bg-[#d4af37]/10 rounded">
+                      <Share2 size={12}/>
                     </button>
-                    <button
-                      onClick={() => shareToWhatsApp(o)}
-                      className={`p-2 rounded-lg transition-all ${
-                        isDarkMode
-                          ? 'text-[#d4af37] hover:bg-[#d4af37]/10'
-                          : 'text-[#d4af37] hover:bg-[#d4af37]/20'
-                      }`}
-                    >
-                      <Share2 size={16}/>
-                    </button>
-                    <button
-                      onClick={() => confirmDelete(o.id, 'order', '')}
-                      className={`p-2 rounded-lg transition-all ${
-                        isDarkMode
-                          ? 'text-red-500/30 hover:text-red-500 hover:bg-red-500/10'
-                          : 'text-red-400 hover:text-red-600 hover:bg-red-50'
-                      }`}
-                    >
-                      <Trash2 size={16}/>
+                    <button onClick={() => confirmDelete(o.id, 'order', '')} className="p-1 text-red-500 hover:bg-red-500/10 rounded">
+                      <Trash2 size={12}/>
                     </button>
                   </div>
                 </div>
 
-                <div className="space-y-2 border-y py-3 my-3" style={{ borderColor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.1)' }}>
-                  {o.items && o.items.map((i, k) => (
-                    <div key={k} className="flex justify-between items-center text-xs uppercase font-bold">
-                      <div className="flex items-center gap-2">
-                        <span className="opacity-60">{i.name}</span>
-                        <span className="text-[9px] opacity-40">x{i.qty} @ Rs.{i.price}</span>
-                      </div>
-                      <span className="text-[#d4af37] font-black">Rs.{i.subtotal.toLocaleString()}</span>
+                <div className="space-y-1 text-[9px] mb-2">
+                  {o.items?.map((i, k) => (
+                    <div key={k} className="flex justify-between">
+                      <span>{i.name} x{i.qty}</span>
+                      <span className="font-bold">Rs.{i.subtotal.toLocaleString()}</span>
                     </div>
                   ))}
                 </div>
 
-                <div className="flex justify-between items-center font-black pt-2">
-                  <span className="text-xs uppercase opacity-40">Total Amount</span>
-                  <span className="text-xl text-[#d4af37]">Rs.{o.total.toLocaleString()}</span>
+                <div className="flex justify-between items-center border-t border-white/10 pt-2">
+                  <span className="text-[9px] opacity-60">Total</span>
+                  <span className="text-sm font-black text-[#d4af37]">Rs.{o.total.toLocaleString()}</span>
                 </div>
               </div>
             ))}
-            {data.orders.filter(o => {
-              try {
-                const orderDate = new Date(o.timestamp).toISOString().split('T')[0];
-                return orderDate === searchDate;
-              } catch {
-                return false;
-              }
-            }).length === 0 && (
-              <div className="text-center py-6">
-                <History size={30} className="mx-auto opacity-20 mb-2" />
-                <p className="text-xs opacity-30 italic">No orders found for this date</p>
-              </div>
-            )}
           </div>
         )}
 
         {/* NOTES TAB */}
         {activeTab === 'notes' && (
           <div className="space-y-3">
-            <div className={`p-4 rounded-2xl border flex items-center gap-3 ${
-              isDarkMode
-                ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/10"
-                : "bg-white border-gray-200 shadow-sm"
+            <div className={`p-2 rounded-xl border flex items-center gap-2 ${
+              isDarkMode ? "bg-[#0f0f0f] border-white/10" : "bg-white border-gray-200"
             }`}>
-              <Calendar size={18} className="text-[#d4af37]"/>
+              <Calendar size={14} className="text-[#d4af37]"/>
               <input
                 type="date"
-                className="bg-transparent text-xs font-black uppercase outline-none w-full"
+                className="bg-transparent text-[10px] font-bold uppercase outline-none w-full"
                 onChange={(e) => setNoteSearchDate(e.target.value)}
                 value={noteSearchDate}
-                style={{ color: isDarkMode ? 'white' : 'black' }}
               />
               <button
                 onClick={() => setShowModal('note')}
-                className="bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black px-3 py-2 rounded-xl text-xs font-black uppercase shadow-lg hover:opacity-90 transition-all"
+                className="bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black px-2 py-1 rounded-lg text-[9px] font-black"
               >
-                Add Note
+                ADD
               </button>
             </div>
 
-            <div className="space-y-3">
-              {filteredNotes.map((note) => (
-                <div
-                  key={note.id}
-                  className={`p-5 rounded-2xl border ${
-                    isDarkMode
-                      ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/5 shadow-xl"
-                      : "bg-white border-gray-200 shadow-lg"
-                  }`}
-                >
-                  <div className="flex justify-between items-start mb-3">
-                    <div className="flex items-center gap-2">
-                      <div className="p-2 bg-gradient-to-br from-blue-500/10 to-blue-600/10 rounded-lg text-blue-500 border border-blue-500/20">
-                        <BookOpen size={16}/>
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-1.5">
-                          <Clock size={11} className="opacity-50"/>
-                          <span className="text-[10px] opacity-60">
-                            {new Date(note.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                          </span>
-                        </div>
-                        <p className="text-[10px] opacity-40 mt-0.5">{note.date}</p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => confirmDelete(note.id, 'note', '')}
-                      className={`p-1.5 rounded-lg transition-all ${
-                        isDarkMode
-                          ? 'text-red-500/30 hover:text-red-500 hover:bg-red-500/10'
-                          : 'text-red-400 hover:text-red-600 hover:bg-red-50'
-                      }`}
-                    >
-                      <Trash2 size={14}/>
-                    </button>
+            {filteredNotes.map((note) => (
+              <div key={note.id} className={`p-3 rounded-xl border ${
+                isDarkMode ? "bg-[#0f0f0f] border-white/5" : "bg-white border-gray-200"
+              }`}>
+                <div className="flex justify-between items-start mb-2">
+                  <div className="flex items-center gap-1">
+                    <Clock size={10} className="opacity-50"/>
+                    <span className="text-[8px] opacity-60">
+                      {new Date(note.timestamp).toLocaleTimeString()}
+                    </span>
                   </div>
-
-                  <div className="mt-3">
-                    <p className="text-xs leading-relaxed opacity-90">
-                      {note.text}
-                    </p>
-                  </div>
-                </div>
-              ))}
-
-              {filteredNotes.length === 0 && (
-                <div className="text-center py-8">
-                  <BookOpen size={40} className="mx-auto opacity-20 mb-3" />
-                  <p className="text-xs opacity-30 italic">No notes found for this date</p>
                   <button
-                    onClick={() => setShowModal('note')}
-                    className="mt-3 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black px-4 py-2.5 rounded-xl text-xs font-black uppercase shadow-lg hover:opacity-90 transition-all"
+                    onClick={() => confirmDelete(note.id, 'note', '')}
+                    className="p-1 text-red-500 hover:bg-red-500/10 rounded"
                   >
-                    Add Your First Note
+                    <Trash2 size={10}/>
                   </button>
                 </div>
-              )}
-            </div>
+                <p className="text-[10px]">{note.text}</p>
+              </div>
+            ))}
           </div>
         )}
 
-        {/* SETTINGS TAB - ENHANCED TARGET */}
+        {/* SETTINGS TAB */}
         {activeTab === 'settings' && (
-          <div className="space-y-4 pb-16">
-            {/* Profile Settings */}
-            <form
-              onSubmit={handleSaveProfile}
-              className={`p-5 rounded-2xl border space-y-4 ${
-                isDarkMode
-                  ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/10 shadow-xl"
-                  : "bg-white border-gray-200 shadow-lg"
-              }`}
-            >
-              <div>
-                <h3 className="text-xs font-black text-[#d4af37] uppercase tracking-widest mb-1">Profile Settings</h3>
-                <p className="text-[10px] opacity-50">Update your personal information</p>
-              </div>
-
+          <div className="space-y-3">
+            {/* Profile Form */}
+            <form onSubmit={handleSaveProfile} className={`p-3 rounded-xl border space-y-2 ${
+              isDarkMode ? "bg-[#0f0f0f] border-white/10" : "bg-white border-gray-200"
+            }`}>
+              <h3 className="text-xs font-black text-[#d4af37] uppercase">Profile</h3>
               <input
                 name="repName"
                 defaultValue={data.settings.name}
-                placeholder="YOUR FULL NAME"
-                className={`w-full p-3 rounded-xl border text-xs font-black uppercase outline-none focus:border-[#d4af37] transition-all ${
-                  isDarkMode
-                    ? 'bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5 text-white'
-                    : 'bg-gray-50 border-gray-200 text-gray-900'
+                placeholder="YOUR NAME"
+                className={`w-full p-2 rounded-lg border text-[10px] font-bold uppercase outline-none ${
+                  isDarkMode ? 'bg-[#1a1a1a] border-white/5 text-white' : 'bg-gray-50 border-gray-200'
                 }`}
               />
-
               <input
                 name="companyName"
                 defaultValue={data.settings.company}
-                placeholder="COMPANY NAME"
-                className={`w-full p-3 rounded-xl border text-xs font-black uppercase outline-none focus:border-[#d4af37] transition-all ${
-                  isDarkMode
-                    ? 'bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5 text-white'
-                    : 'bg-gray-50 border-gray-200 text-gray-900'
+                placeholder="COMPANY"
+                className={`w-full p-2 rounded-lg border text-[10px] font-bold uppercase outline-none ${
+                  isDarkMode ? 'bg-[#1a1a1a] border-white/5 text-white' : 'bg-gray-50 border-gray-200'
                 }`}
               />
-
-              <button type="submit" className="w-full py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-black rounded-xl text-xs uppercase flex items-center justify-center gap-1.5 hover:opacity-90 transition-all">
-                <Save size={16}/> SAVE PROFILE
+              <button type="submit" className="w-full py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-black rounded-lg text-[10px] flex items-center justify-center gap-1">
+                <Save size={12}/> SAVE
               </button>
             </form>
 
-            {/* Quick Add Buttons */}
-            <div className="grid grid-cols-2 gap-3">
+            {/* Quick Add */}
+            <div className="grid grid-cols-2 gap-2">
               <button
                 onClick={() => setShowModal('route')}
-                className={`py-4 rounded-xl border text-[#d4af37] font-black uppercase text-xs flex flex-col items-center gap-1.5 hover:border-[#d4af37] transition-all ${
-                  isDarkMode
-                    ? 'bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5'
-                    : 'bg-gray-50 border-gray-200'
+                className={`py-2 rounded-xl border text-[#d4af37] font-black text-[9px] flex flex-col items-center ${
+                  isDarkMode ? 'bg-[#1a1a1a] border-white/5' : 'bg-gray-50 border-gray-200'
                 }`}
               >
-                <MapPin size={20}/> ADD ROUTE
+                <MapPin size={16}/> ROUTE
               </button>
               <button
                 onClick={() => setShowModal('brand')}
-                className={`py-4 rounded-xl border text-[#d4af37] font-black uppercase text-xs flex flex-col items-center gap-1.5 hover:border-[#d4af37] transition-all ${
-                  isDarkMode
-                    ? 'bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5'
-                    : 'bg-gray-50 border-gray-200'
+                className={`py-2 rounded-xl border text-[#d4af37] font-black text-[9px] flex flex-col items-center ${
+                  isDarkMode ? 'bg-[#1a1a1a] border-white/5' : 'bg-gray-50 border-gray-200'
                 }`}
               >
-                <Package size={20}/> ADD BRAND
-              </button>
-              <button
-                onClick={() => setShowModal('target')}
-                className={`py-4 rounded-xl border text-[#d4af37] font-black uppercase text-xs flex flex-col items-center gap-1.5 hover:border-[#d4af37] transition-all col-span-2 ${
-                  isDarkMode
-                    ? 'bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5'
-                    : 'bg-gray-50 border-gray-200'
-                }`}
-              >
-                <Target size={20}/> SET MONTHLY TARGET
+                <Package size={16}/> BRAND
               </button>
             </div>
 
             {/* Routes List */}
             <div>
-              <div className="flex items-center justify-between mb-3">
-                <h4 className="text-xs font-black text-[#d4af37] uppercase tracking-widest">Routes List</h4>
-                <span className="text-[10px] opacity-50">{data.routes.length} routes</span>
-              </div>
-
-              <div className="grid gap-1.5 mb-4">
-                {data.routes.map(r => (
-                  <div
-                    key={r.id}
-                    className={`p-3 rounded-xl border flex justify-between items-center transition-all ${
-                      isDarkMode
-                        ? 'bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5 hover:border-[#d4af37]/30'
-                        : 'bg-gray-50 border-gray-100 hover:border-[#d4af37]'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <MapPin size={14} className="text-[#d4af37]" />
-                      <span className="text-xs font-black uppercase">{r.name}</span>
-                    </div>
-                    <button
-                      onClick={() => confirmDelete(r.id, 'route', r.name)}
-                      className={`p-1.5 rounded-lg transition-all ${
-                        isDarkMode
-                          ? 'text-red-500/40 hover:text-red-500 hover:bg-red-500/10'
-                          : 'text-red-500 hover:text-red-600 hover:bg-red-50'
-                      }`}
-                    >
-                      <Trash2 size={14}/>
-                    </button>
-                  </div>
-                ))}
-                {data.routes.length === 0 && (
-                  <div className="text-center py-4">
-                    <MapPin size={25} className="mx-auto opacity-20 mb-1.5" />
-                    <p className="text-xs opacity-30 italic">No routes added yet</p>
-                  </div>
-                )}
-              </div>
+              <h4 className="text-xs font-black text-[#d4af37] uppercase mb-2">Routes</h4>
+              {data.routes.map(r => (
+                <div key={r.id} className={`p-2 rounded-lg border mb-1 flex justify-between items-center ${
+                  isDarkMode ? 'bg-[#1a1a1a] border-white/5' : 'bg-gray-50 border-gray-200'
+                }`}>
+                  <span className="text-[10px] font-bold">{r.name}</span>
+                  <button onClick={() => confirmDelete(r.id, 'route', r.name)} className="text-red-500 p-1">
+                    <Trash2 size={12}/>
+                  </button>
+                </div>
+              ))}
             </div>
 
             {/* Brands List */}
             <div>
-              <div className="flex items-center justify-between mb-3">
-                <h4 className="text-xs font-black text-[#d4af37] uppercase tracking-widest">Brands List</h4>
-                <span className="text-[10px] opacity-50">{data.brands.length} brands</span>
-              </div>
-
-              <div className="space-y-2">
-                {data.brands.map((b, index) => (
-                  <div
-                    key={b.id}
-                    className={`p-3 rounded-xl border transition-all ${
-                      isDarkMode
-                        ? 'bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5 hover:border-[#d4af37]/30'
-                        : 'bg-gray-50 border-gray-100 hover:border-[#d4af37]'
-                    }`}
-                  >
-                    {editingBrand === b.id ? (
-                      <div className="flex-1 space-y-2">
-                        <div className="flex gap-2">
-                          <input
-                            defaultValue={b.name}
-                            className={`p-2 rounded-lg flex-1 text-xs border outline-none ${
-                              isDarkMode
-                                ? 'bg-black/50 border-white/10 text-white'
-                                : 'bg-white border-gray-300 text-gray-900'
-                            }`}
-                            onBlur={(e) => saveBrandEdit(b.id, 'name', e.target.value)}
-                            autoFocus
-                          />
-                          <input
-                            defaultValue={b.size}
-                            className={`p-2 rounded-lg w-20 text-xs border outline-none ${
-                              isDarkMode
-                                ? 'bg-black/50 border-white/10 text-white'
-                                : 'bg-white border-gray-300 text-gray-900'
-                            }`}
-                            onBlur={(e) => saveBrandEdit(b.id, 'size', e.target.value)}
-                          />
-                          <input
-                            defaultValue={b.price}
-                            type="number"
-                            className={`p-2 rounded-lg w-24 text-xs border outline-none ${
-                              isDarkMode
-                                ? 'bg-black/50 border-white/10 text-white'
-                                : 'bg-white border-gray-300 text-gray-900'
-                            }`}
-                            onBlur={(e) => saveBrandEdit(b.id, 'price', e.target.value)}
-                          />
-                        </div>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => setEditingBrand(null)}
-                            className={`flex-1 py-1.5 text-xs font-black rounded-lg border transition-all ${
-                              isDarkMode
-                                ? 'bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] text-white/60 border-white/5 hover:border-white/10'
-                                : 'bg-gray-100 text-gray-600 border-gray-200 hover:border-gray-300'
-                            }`}
-                          >
-                            Cancel
-                          </button>
-                          <button
-                            onClick={() => setEditingBrand(null)}
-                            className="flex-1 py-1.5 bg-gradient-to-r from-green-600 to-emerald-600 text-white text-xs font-black rounded-lg hover:opacity-90 transition-all"
-                          >
-                            Save
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-sm ${
-                              isDarkMode
-                                ? 'bg-[#d4af37]/20 text-[#d4af37] border border-[#d4af37]/30'
-                                : 'bg-[#d4af37]/10 text-[#d4af37] border border-[#d4af37]/20'
-                            }`}>
-                              {b.sequence || index + 1}
-                            </div>
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm font-black uppercase">
-                                  {b.name}
-                                </span>
-                                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gradient-to-r from-[#d4af37]/20 to-[#b8860b]/20 text-[#d4af37] border border-[#d4af37]/30">
-                                  {b.size}
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-2 mt-1">
-                                <span className="text-[10px] opacity-50">Price:</span>
-                                <span className="text-xs font-black text-[#d4af37]">Rs.{b.price}</span>
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-1">
-                            {!isOffline && (
-                              <>
-                                {index > 0 && (
-                                  <button
-                                    onClick={() => reorderBrands(b.id, 'up')}
-                                    className={`p-1.5 rounded-lg transition-all ${
-                                      isDarkMode
-                                        ? 'text-white/40 hover:text-white hover:bg-white/10'
-                                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200'
-                                    }`}
-                                  >
-                                    ↑
-                                  </button>
-                                )}
-                                {index < data.brands.length - 1 && (
-                                  <button
-                                    onClick={() => reorderBrands(b.id, 'down')}
-                                    className={`p-1.5 rounded-lg transition-all ${
-                                      isDarkMode
-                                        ? 'text-white/40 hover:text-white hover:bg-white/10'
-                                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200'
-                                    }`}
-                                  >
-                                    ↓
-                                  </button>
-                                )}
-                              </>
-                            )}
-                            <button
-                              onClick={() => setEditingBrand(b.id)}
-                              className={`p-1.5 rounded-lg transition-all ${
-                                isDarkMode
-                                  ? 'text-blue-500/40 hover:text-blue-500 hover:bg-blue-500/10'
-                                  : 'text-blue-500 hover:text-blue-600 hover:bg-blue-50'
-                              }`}
-                            >
-                              <Edit2 size={14}/>
-                            </button>
-                            <button
-                              onClick={() => confirmDelete(b.id, 'brand', `${b.name} (${b.size})`)}
-                              className={`p-1.5 rounded-lg transition-all ${
-                                isDarkMode
-                                  ? 'text-red-500/40 hover:text-red-500 hover:bg-red-500/10'
-                                  : 'text-red-500 hover:text-red-600 hover:bg-red-50'
-                              }`}
-                            >
-                              <Trash2 size={14}/>
-                            </button>
-                          </div>
-                        </div>
-                      </>
-                    )}
+              <h4 className="text-xs font-black text-[#d4af37] uppercase mb-2">Brands</h4>
+              {data.brands.map((b, idx) => (
+                <div key={b.id} className={`p-2 rounded-lg border mb-1 ${
+                  isDarkMode ? 'bg-[#1a1a1a] border-white/5' : 'bg-gray-50 border-gray-200'
+                }`}>
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <span className="text-[10px] font-bold">{b.name} ({b.size})</span>
+                      <span className="text-[9px] ml-2 opacity-60">Rs.{b.price}</span>
+                    </div>
+                    <div className="flex gap-1">
+                      <button onClick={() => setEditingBrand(b.id)} className="text-blue-500 p-1">
+                        <Edit2 size={10}/>
+                      </button>
+                      <button onClick={() => confirmDelete(b.id, 'brand', b.name)} className="text-red-500 p-1">
+                        <Trash2 size={10}/>
+                      </button>
+                    </div>
                   </div>
-                ))}
-                {data.brands.length === 0 && (
-                  <div className="text-center py-4">
-                    <Package size={25} className="mx-auto opacity-20 mb-1.5" />
-                    <p className="text-xs opacity-30 italic">No brands added yet</p>
-                  </div>
-                )}
-              </div>
+                </div>
+              ))}
             </div>
 
             {/* Today's Expenses */}
             <div>
-              <div className="flex items-center justify-between mb-3">
-                <h4 className="text-xs font-black text-[#d4af37] uppercase tracking-widest">Today's Expenses</h4>
-                <span className="text-[10px] opacity-50">Rs.{stats.expenses.toLocaleString()}</span>
-              </div>
-
-              <div className="space-y-1.5">
-                {data.expenses
-                  .filter(e => e.date === new Date().toISOString().split('T')[0])
-                  .map(exp => (
-                  <div
-                    key={exp.id}
-                    className={`p-3 rounded-xl border flex justify-between items-center hover:border-red-500/30 transition-all ${
-                      isDarkMode
-                        ? 'bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] border-white/5'
-                        : 'bg-gray-50 border-gray-100'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div>
-                        <div className="flex items-center gap-1.5 mb-0.5">
-                          {exp.type === 'fuel' && <Fuel size={12} className="text-red-500" />}
-                          {exp.type === 'food' && <Coffee size={12} className="text-amber-500" />}
-                          {exp.type === 'transport' && <Navigation size={12} className="text-blue-500" />}
-                          {exp.type === 'other' && <AlertCircle size={12} className="text-gray-500" />}
-                          <span className="text-xs font-black uppercase">{exp.type}</span>
-                        </div>
-                        {exp.note && <p className="text-[10px] mt-0.5 opacity-60">{exp.note}</p>}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-base font-black text-red-500">Rs.{exp.amount.toLocaleString()}</span>
-                      <button
-                        onClick={() => confirmDelete(exp.id, 'expense', '')}
-                        className={`p-1 rounded-lg transition-all ${
-                          isDarkMode
-                            ? 'text-red-500/30 hover:text-red-500 hover:bg-red-500/10'
-                            : 'text-red-400 hover:text-red-600 hover:bg-red-50'
-                        }`}
-                      >
-                        <Trash2 size={12}/>
-                      </button>
-                    </div>
+              <h4 className="text-xs font-black text-[#d4af37] uppercase mb-2">Today's Expenses</h4>
+              {data.expenses.filter(e => e.date === new Date().toISOString().split('T')[0]).map(exp => (
+                <div key={exp.id} className={`p-2 rounded-lg border mb-1 flex justify-between items-center ${
+                  isDarkMode ? 'bg-[#1a1a1a] border-white/5' : 'bg-gray-50 border-gray-200'
+                }`}>
+                  <div className="flex items-center gap-1">
+                    {exp.type === 'fuel' && <Fuel size={10} className="text-red-500" />}
+                    {exp.type === 'food' && <Coffee size={10} className="text-amber-500" />}
+                    <span className="text-[9px]">{exp.type}</span>
+                    {exp.note && <span className="text-[8px] opacity-60">- {exp.note}</span>}
                   </div>
-                ))}
-
-                {data.expenses.filter(e => e.date === new Date().toISOString().split('T')[0]).length === 0 && (
-                  <div className="text-center py-4">
-                    <CreditCard size={30} className="mx-auto opacity-20 mb-1.5" />
-                    <p className="text-xs opacity-30 italic">No expenses recorded today</p>
+                  <div className="flex items-center gap-1">
+                    <span className="text-[10px] font-bold text-red-500">Rs.{exp.amount}</span>
+                    <button onClick={() => confirmDelete(exp.id, 'expense', '')} className="text-red-500 p-1">
+                      <Trash2 size={10}/>
+                    </button>
                   </div>
-                )}
-              </div>
+                </div>
+              ))}
             </div>
           </div>
         )}
       </main>
 
-      {/* Bottom Navigation */}
-      <nav className={`fixed bottom-4 inset-x-4 h-16 rounded-2xl border flex items-center justify-around z-50 shadow-2xl ${
-        isDarkMode
-          ? "bg-gradient-to-br from-black/95 to-gray-900/95 border-white/10 backdrop-blur-xl"
-          : "bg-white/95 border-gray-200 backdrop-blur-xl shadow-lg"
+      {/* Bottom Navigation - Compact */}
+      <nav className={`fixed bottom-2 inset-x-2 h-12 rounded-xl border flex items-center justify-around ${
+        isDarkMode ? "bg-black/95 border-white/10" : "bg-white/95 border-gray-200"
       }`}>
         {[
-          {id: 'dashboard', icon: LayoutDashboard, label: 'Home'},
+          {id: 'dashboard', icon: Home, label: 'Home'},
           {id: 'shops', icon: Store, label: 'Shops'},
           {id: 'history', icon: History, label: 'History'},
           {id: 'notes', icon: BookOpen, label: 'Notes'},
@@ -3280,380 +2356,239 @@ export default function App() {
           <button
             key={t.id}
             onClick={() => setActiveTab(t.id)}
-            className={`p-2 transition-all relative flex flex-col items-center ${
-              activeTab === t.id
-                ? 'text-[#d4af37]'
-                : isDarkMode
-                  ? 'opacity-40 hover:opacity-70 text-white/60'
-                  : 'opacity-40 hover:opacity-70 text-gray-600'
+            className={`p-1 flex flex-col items-center ${
+              activeTab === t.id ? 'text-[#d4af37]' : isDarkMode ? 'text-white/40' : 'text-gray-400'
             }`}
           >
-            <div className={`p-1.5 rounded-lg ${
-              activeTab === t.id
-                ? isDarkMode
-                  ? 'bg-[#d4af37]/10'
-                  : 'bg-[#d4af37]/20'
-                : ''
-            }`}>
-              <t.icon size={20} />
-            </div>
-            <span className="text-[8px] font-black uppercase mt-1">{t.label}</span>
-            {activeTab === t.id && (
-              <div className="absolute -bottom-1 w-6 h-0.5 bg-gradient-to-r from-[#d4af37] to-[#b8860b] rounded-full"></div>
-            )}
+            <t.icon size={16} />
+            <span className="text-[7px] font-black uppercase mt-0.5">{t.label}</span>
           </button>
         ))}
       </nav>
 
-      {/* PRINT PREVIEW MODAL */}
-      {showPrintPreview && printOrder && (
-        <div className="fixed inset-0 bg-black/95 z-[200] flex items-center justify-center p-3 backdrop-blur-3xl">
-          <div className="bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] w-full max-w-sm p-4 rounded-2xl border border-[#d4af37]/30 shadow-2xl">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-black text-[#d4af37] uppercase">Print Bill</h3>
-              <button
-                onClick={() => setShowPrintPreview(false)}
-                className="p-2 bg-white/10 rounded-full text-white hover:bg-white/20 transition-all"
-              >
-                <X size={20}/>
-              </button>
-            </div>
-
-            <div className="bg-white p-4 rounded-xl mb-4 text-black" style={{ fontFamily: "'Courier New', monospace" }}>
-              <div className="text-center border-b-2 border-[#d4af37] pb-3 mb-3">
-                <div className="text-xl font-bold text-[#d4af37]">{printOrder.companyName || "MONARCH"}</div>
-                <div className="text-lg font-bold mt-1">{printOrder.shopName}</div>
-                <div className="text-xs mt-1">{new Date(printOrder.timestamp).toLocaleString()}</div>
-                <div className="text-xs">Bill #: {printOrder.id ? printOrder.id.slice(-6) : Math.floor(Math.random() * 1000000)}</div>
-              </div>
-
-              <table className="w-full text-xs mb-3">
-                <thead>
-                  <tr className="border-b border-gray-300">
-                    <th className="text-left py-1">Item</th>
-                    <th className="text-center py-1">Qty</th>
-                    <th className="text-right py-1">Price</th>
-                    <th className="text-right py-1">Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {printOrder.items && printOrder.items.map((item, idx) => (
-                    <tr key={idx}>
-                      <td className="py-1">{item.name}</td>
-                      <td className="text-center py-1">{item.qty}</td>
-                      <td className="text-right py-1">Rs.{item.price}</td>
-                      <td className="text-right py-1">Rs.{item.subtotal}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-
-              <div className="border-t-2 border-[#d4af37] pt-3 text-right">
-                <span className="text-lg font-bold">Total: Rs.{printOrder.total.toLocaleString()}</span>
-              </div>
-
-              <div className="text-center text-xs mt-4 text-gray-600">
-                Thank you for your business!<br/>
-                Generated by Monarch Pro
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <button
-                onClick={() => {
-                  handlePrint(printOrder);
-                  setShowPrintPreview(false);
-                }}
-                className="w-full py-3 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg uppercase text-xs flex items-center justify-center gap-2 hover:opacity-90 transition-all"
-              >
-                <Printer size={16} /> PRINT BILL
-              </button>
-              <button
-                onClick={() => setShowPrintPreview(false)}
-                className="w-full py-2.5 bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] text-white/60 font-black rounded-lg uppercase text-xs border border-white/5 hover:border-white/10 transition-all"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* CALCULATOR MODAL - FIXED */}
-      {showCalculator && (
-        <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-3 backdrop-blur-3xl">
-          <div className={`w-full max-w-xs p-4 rounded-2xl border relative shadow-2xl ${
-            isDarkMode
-              ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/30 text-white"
-              : "bg-gradient-to-br from-white to-gray-50 border-[#d4af37]/50 text-gray-900"
-          }`}>
+      {/* FAB Menu */}
+      <div className="fixed bottom-16 right-3 z-50">
+        {isFabOpen && (
+          <div className="absolute bottom-14 right-0 space-y-2">
             <button
               onClick={() => {
-                setShowCalculator(false);
+                setIsFabOpen(false);
+                setShowModal('expense');
+              }}
+              className="w-10 h-10 bg-gradient-to-r from-[#d4af37] to-[#b8860b] rounded-full text-black flex items-center justify-center shadow-lg"
+            >
+              <Wallet size={16} />
+            </button>
+            <button
+              onClick={() => {
+                setIsFabOpen(false);
+                getLocation();
+              }}
+              className="w-10 h-10 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full text-white flex items-center justify-center shadow-lg"
+            >
+              <Navigation size={16} />
+            </button>
+            <button
+              onClick={() => {
+                setIsFabOpen(false);
+                setShowModal('note');
+              }}
+              className="w-10 h-10 bg-gradient-to-r from-green-500 to-green-600 rounded-full text-white flex items-center justify-center shadow-lg"
+            >
+              <FileText size={16} />
+            </button>
+            <button
+              onClick={() => {
+                setIsFabOpen(false);
+                setShowCalculator(true);
                 resetCalculator();
               }}
-              className="absolute top-2 right-2 text-white/20 hover:text-white/40 transition-all p-1"
+              className="w-10 h-10 bg-gradient-to-r from-purple-500 to-purple-600 rounded-full text-white flex items-center justify-center shadow-lg"
             >
-              <X size={20}/>
+              <Calculator size={16} />
             </button>
+          </div>
+        )}
+        <button
+          onClick={() => setIsFabOpen(!isFabOpen)}
+          className="w-12 h-12 bg-gradient-to-r from-[#d4af37] to-[#b8860b] rounded-full text-black flex items-center justify-center shadow-2xl"
+        >
+          {isFabOpen ? <X size={20} /> : <Plus size={20} />}
+        </button>
+      </div>
 
-            <div className="text-center mb-4">
-              <Calculator size={30} className="text-[#d4af37] mx-auto mb-2" />
-              <h3 className="font-black text-[#d4af37] mb-1 uppercase text-base tracking-widest">CALCULATOR</h3>
-              <p className="text-[10px] opacity-50">Discount (Rs. or %)</p>
+      {/* TARGET MODAL */}
+      {showTargetModal && (
+        <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-3">
+          <div className="w-full max-w-xs p-4 rounded-xl border border-[#d4af37]/30 bg-[#0f0f0f]">
+            <div className="flex justify-between items-center mb-3">
+              <h3 className="font-black text-[#d4af37] text-sm">{editingTarget ? 'EDIT TARGET' : 'NEW TARGET'}</h3>
+              <button onClick={() => { setShowTargetModal(false); setEditingTarget(null); }} className="text-white/40">
+                <X size={16}/>
+              </button>
             </div>
-
-            <div className="space-y-3">
-              <div>
-                <label className="text-[10px] font-black uppercase opacity-40 mb-1 block">Subtotal (Rs.)</label>
-                <input
-                  type="number"
-                  value={totalCalculation.subtotal || ''}
-                  onChange={(e) => setTotalCalculation({...totalCalculation, subtotal: parseFloat(e.target.value) || 0})}
-                  onFocus={handleInputFocus}
-                  placeholder="0"
-                  className={`w-full p-3 rounded-lg border font-bold text-center outline-none focus:border-[#d4af37] transition-all text-sm ${
-                    isDarkMode
-                      ? "bg-black/40 border-white/5 text-white"
-                      : "bg-gray-100 border-gray-300 text-gray-900"
-                  }`}
-                />
-              </div>
-
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setTotalCalculation({...totalCalculation, usePercentage: false})}
-                  className={`flex-1 py-2 rounded-lg text-xs font-black uppercase transition-all ${
-                    !totalCalculation.usePercentage
-                      ? 'bg-[#d4af37] text-black'
-                      : 'bg-white/10 text-white/60'
-                  }`}
+            <form onSubmit={saveTarget} className="space-y-2">
+              <input 
+                type="month" 
+                value={targetMonth} 
+                onChange={(e) => setTargetMonth(e.target.value)} 
+                className="w-full p-2 rounded-lg border text-xs bg-black/40 border-white/10 text-white" 
+                required 
+              />
+              
+              <div className="grid grid-cols-2 gap-1">
+                <button 
+                  type="button" 
+                  onClick={() => setTargetType('revenue')} 
+                  className={`p-1 rounded-lg border text-[9px] font-bold ${targetType === 'revenue' ? 'bg-[#d4af37] text-black' : 'border-white/10'}`}
                 >
-                  Rs.
+                  REVENUE
                 </button>
-                <button
-                  onClick={() => setTotalCalculation({...totalCalculation, usePercentage: true})}
-                  className={`flex-1 py-2 rounded-lg text-xs font-black uppercase transition-all ${
-                    totalCalculation.usePercentage
-                      ? 'bg-[#d4af37] text-black'
-                      : 'bg-white/10 text-white/60'
-                  }`}
+                <button 
+                  type="button" 
+                  onClick={() => setTargetType('units')} 
+                  className={`p-1 rounded-lg border text-[9px] font-bold ${targetType === 'units' ? 'bg-[#d4af37] text-black' : 'border-white/10'}`}
                 >
-                  %
+                  UNITS
                 </button>
               </div>
 
-              {totalCalculation.usePercentage ? (
-                <div>
-                  <label className="text-[10px] font-black uppercase opacity-40 mb-1 block">Discount (%)</label>
-                  <input
-                    type="number"
-                    value={totalCalculation.discountPercent || ''}
-                    onChange={(e) => setTotalCalculation({...totalCalculation, discountPercent: parseFloat(e.target.value) || 0})}
-                    onFocus={handleInputFocus}
-                    placeholder="0"
-                    className={`w-full p-2 rounded-lg border font-bold text-center outline-none focus:border-[#d4af37] transition-all text-sm ${
-                      isDarkMode
-                        ? "bg-black/40 border-white/5 text-white"
-                        : "bg-gray-100 border-gray-300 text-gray-900"
-                    }`}
-                  />
-                </div>
-              ) : (
-                <div>
-                  <label className="text-[10px] font-black uppercase opacity-40 mb-1 block">Discount (Rs.)</label>
-                  <input
-                    type="number"
-                    value={totalCalculation.discount || ''}
-                    onChange={(e) => setTotalCalculation({...totalCalculation, discount: parseFloat(e.target.value) || 0})}
-                    onFocus={handleInputFocus}
-                    placeholder="0"
-                    className={`w-full p-2 rounded-lg border font-bold text-center outline-none focus:border-[#d4af37] transition-all text-sm ${
-                      isDarkMode
-                        ? "bg-black/40 border-white/5 text-white"
-                        : "bg-gray-100 border-gray-300 text-gray-900"
-                    }`}
-                  />
-                </div>
+              <div className="grid grid-cols-2 gap-1">
+                <button 
+                  type="button" 
+                  onClick={() => setTargetSpecific('total')} 
+                  className={`p-1 rounded-lg border text-[8px] font-bold ${targetSpecific === 'total' ? 'bg-[#d4af37] text-black' : 'border-white/10'}`}
+                >
+                  TOTAL
+                </button>
+                <button 
+                  type="button" 
+                  onClick={() => setTargetSpecific('brand')} 
+                  className={`p-1 rounded-lg border text-[8px] font-bold ${targetSpecific === 'brand' ? 'bg-[#d4af37] text-black' : 'border-white/10'}`}
+                >
+                  BRAND
+                </button>
+              </div>
+
+              {targetSpecific === 'brand' && (
+                <select 
+                  value={targetBrand} 
+                  onChange={(e) => setTargetBrand(e.target.value)} 
+                  className="w-full p-2 rounded-lg border text-xs bg-black/40 border-white/10 text-white" 
+                  required
+                >
+                  <option value="">SELECT BRAND</option>
+                  {data.brands.map(b => (
+                    <option key={b.id} value={b.name}>{b.name}</option>
+                  ))}
+                </select>
               )}
 
-              <div>
-                <label className="text-[10px] font-black uppercase opacity-40 mb-1 block">Tax (Rs.)</label>
-                <input
-                  type="number"
-                  value={totalCalculation.tax || ''}
-                  onChange={(e) => setTotalCalculation({...totalCalculation, tax: parseFloat(e.target.value) || 0})}
-                  onFocus={handleInputFocus}
-                  placeholder="0"
-                  className={`w-full p-2 rounded-lg border font-bold text-center outline-none focus:border-[#d4af37] transition-all text-sm ${
-                    isDarkMode
-                      ? "bg-black/40 border-white/5 text-white"
-                      : "bg-gray-100 border-gray-300 text-gray-900"
-                  }`}
-                />
-              </div>
-
-              <div className={`p-3 rounded-lg border ${
-                isDarkMode
-                  ? "bg-gradient-to-br from-black/60 to-black/40 border-[#d4af37]/30"
-                  : "bg-gradient-to-br from-gray-100 to-gray-50 border-[#d4af37]/30"
-              }`}>
-                <div className="flex justify-between items-center mb-1">
-                  <p className="text-[10px] font-black uppercase opacity-60">Grand Total</p>
-                </div>
-                <p className="text-lg font-black text-[#d4af37] text-center">
-                  Rs.{(
-                    (totalCalculation.subtotal || 0) -
-                    (totalCalculation.usePercentage
-                      ? ((totalCalculation.subtotal || 0) * (totalCalculation.discountPercent || 0) / 100)
-                      : (totalCalculation.discount || 0)
-                    ) + (totalCalculation.tax || 0)
-                  ).toLocaleString()}
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <button
-                  onClick={calculateTotal}
-                  className="w-full py-3 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg uppercase text-xs tracking-widest hover:opacity-90 transition-all"
-                >
-                  CALCULATE
-                </button>
-                <button
-                  onClick={resetCalculator}
-                  className={`w-full py-2 font-black rounded-lg uppercase text-[10px] tracking-widest border transition-all ${
-                    isDarkMode
-                      ? "bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] text-white/60 border-white/5 hover:border-white/10"
-                      : "bg-gradient-to-br from-gray-100 to-gray-200 text-gray-600 border-gray-300 hover:border-gray-400"
-                  }`}
-                >
-                  RESET
-                </button>
-              </div>
-            </div>
+              <input 
+                type="number" 
+                value={targetAmount} 
+                onChange={(e) => setTargetAmount(e.target.value)} 
+                placeholder="AMOUNT" 
+                className="w-full p-2 rounded-lg border text-xs bg-black/40 border-white/10 text-white" 
+                required 
+              />
+              
+              <button 
+                type="submit" 
+                className="w-full py-2 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg text-xs"
+              >
+                {editingTarget ? 'UPDATE' : 'SAVE'}
+              </button>
+            </form>
           </div>
         </div>
       )}
 
-      {/* EXPENSE MODAL */}
-      {showModal === 'expense' && (
-        <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-3 backdrop-blur-3xl">
-          <div className={`w-full max-w-xs p-4 rounded-2xl border relative shadow-2xl ${
-            isDarkMode
-              ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/30 text-white"
-              : "bg-gradient-to-br from-white to-gray-50 border-[#d4af37]/50 text-gray-900"
-          }`}>
-            <button onClick={() => setShowModal(null)} className="absolute top-2 right-2 text-white/20 hover:text-white/40 p-1">
-              <X size={20}/>
-            </button>
-
-            <div className="text-center mb-4">
-              <CreditCard size={30} className="text-[#d4af37] mx-auto mb-2" />
-              <h3 className="font-black text-[#d4af37] mb-1 uppercase text-base tracking-widest">ADD EXPENSE</h3>
-              <p className="text-[10px] opacity-50">Record your expenses</p>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <p className="text-[10px] font-black uppercase opacity-40 mb-2">Expense Type</p>
-                <div className="grid grid-cols-4 gap-1.5">
-                  {[
-                    {type: 'fuel', icon: Fuel, label: 'Fuel', color: 'text-red-400'},
-                    {type: 'food', icon: Coffee, label: 'Food', color: 'text-amber-400'},
-                    {type: 'transport', icon: Navigation, label: 'Travel', color: 'text-blue-400'},
-                    {type: 'other', icon: AlertCircle, label: 'Other', color: 'text-gray-400'}
-                  ].map(item => (
-                    <button
-                      key={item.type}
-                      type="button"
-                      onClick={() => setExpenseType(item.type)}
-                      className={`p-2 rounded-lg border flex flex-col items-center gap-0.5 transition-all ${expenseType === item.type ? 'border-[#d4af37]' : 'border-white/5 hover:border-white/20'} ${
-                        isDarkMode ? 'bg-black/40' : 'bg-gray-100'
-                      }`}
-                    >
-                      <item.icon size={16} className={expenseType === item.type ? 'text-[#d4af37]' : item.color} />
-                      <span className="text-[9px] font-black uppercase">{item.label}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <p className="text-[10px] font-black uppercase opacity-40 mb-1">Amount (Rs.)</p>
-                <input
-                  type="number"
-                  value={expenseAmount}
-                  onChange={(e) => setExpenseAmount(e.target.value)}
-                  onFocus={handleInputFocus}
-                  placeholder="0"
-                  className={`w-full p-3 rounded-lg border font-bold text-center outline-none focus:border-[#d4af37] transition-all text-base ${
-                    isDarkMode ? 'bg-black/40 border-white/5 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'
-                  }`}
-                />
-              </div>
-
-              <div>
-                <p className="text-[10px] font-black uppercase opacity-40 mb-1">Note (Optional)</p>
-                <textarea
-                  value={expenseNote}
-                  onChange={(e) => setExpenseNote(e.target.value)}
-                  placeholder="Add expense details..."
-                  className={`w-full p-2 rounded-lg border text-xs outline-none resize-none h-16 focus:border-[#d4af37] transition-all ${
-                    isDarkMode ? 'bg-black/40 border-white/5 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'
-                  }`}
-                />
-              </div>
-
-              <button
-                onClick={saveExpense}
-                disabled={isSavingExpense}
-                className={`w-full py-3 rounded-lg uppercase text-xs tracking-widest font-black transition-all ${isSavingExpense ? 'bg-gray-700 text-gray-400' : 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black hover:opacity-90'}`}
-              >
-                {isSavingExpense ? 'SAVING...' : 'SAVE EXPENSE'}
+      {/* CALCULATOR MODAL */}
+      {showCalculator && (
+        <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-3">
+          <div className={`w-full max-w-xs p-4 rounded-xl border ${isDarkMode ? 'bg-[#0f0f0f] border-[#d4af37]/30' : 'bg-white border-gray-200'}`}>
+            <div className="flex justify-between items-center mb-3">
+              <h3 className="font-black text-[#d4af37] text-sm">CALCULATOR</h3>
+              <button onClick={() => { setShowCalculator(false); resetCalculator(); }} className="text-white/40">
+                <X size={16}/>
               </button>
             </div>
-          </div>
-        </div>
-      )}
 
-      {/* NOTE MODAL */}
-      {showModal === 'note' && (
-        <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-3 backdrop-blur-3xl">
-          <div className={`w-full max-w-xs p-4 rounded-2xl border relative shadow-2xl ${
-            isDarkMode
-              ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/30 text-white"
-              : "bg-gradient-to-br from-white to-gray-50 border-[#d4af37]/50 text-gray-900"
-          }`}>
-            <button onClick={() => setShowModal(null)} className="absolute top-2 right-2 text-white/20 hover:text-white/40 p-1">
-              <X size={20}/>
-            </button>
+            <input
+              type="number"
+              value={totalCalculation.subtotal || ''}
+              onChange={(e) => setTotalCalculation({...totalCalculation, subtotal: parseFloat(e.target.value) || 0})}
+              placeholder="SUBTOTAL"
+              className="w-full p-2 rounded-lg border text-sm mb-2 bg-black/40 border-white/10 text-white"
+            />
 
-            <div className="text-center mb-4">
-              <FileText size={30} className="text-[#d4af37] mx-auto mb-2" />
-              <h3 className="font-black text-[#d4af37] mb-1 uppercase text-base tracking-widest">ADD NOTE</h3>
-              <p className="text-[10px] opacity-50">Record important information</p>
-            </div>
-
-            <div className="space-y-4">
-              <div className="relative">
-                <textarea
-                  value={repNote}
-                  onChange={(e) => setRepNote(e.target.value)}
-                  placeholder="Type your note here..."
-                  className={`w-full p-3 rounded-lg border text-xs outline-none resize-none h-24 focus:border-[#d4af37] transition-all ${
-                    isDarkMode ? 'bg-black/40 border-white/5 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'
-                  }`}
-                />
-              </div>
-
-              <button
-                onClick={saveNote}
-                disabled={isSavingNote}
-                className={`w-full py-3 rounded-lg uppercase text-xs tracking-widest font-black transition-all ${isSavingNote ? 'bg-gray-700 text-gray-400' : 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black hover:opacity-90'}`}
+            <div className="flex gap-1 mb-2">
+              <button 
+                onClick={() => setTotalCalculation({...totalCalculation, usePercentage: false})} 
+                className={`flex-1 p-1 rounded-lg text-[9px] font-bold ${!totalCalculation.usePercentage ? 'bg-[#d4af37] text-black' : 'bg-white/10'}`}
               >
-                {isSavingNote ? 'SAVING...' : 'SAVE NOTE'}
+                Rs.
+              </button>
+              <button 
+                onClick={() => setTotalCalculation({...totalCalculation, usePercentage: true})} 
+                className={`flex-1 p-1 rounded-lg text-[9px] font-bold ${totalCalculation.usePercentage ? 'bg-[#d4af37] text-black' : 'bg-white/10'}`}
+              >
+                %
               </button>
             </div>
+
+            {totalCalculation.usePercentage ? (
+              <input
+                type="number"
+                value={totalCalculation.discountPercent || ''}
+                onChange={(e) => setTotalCalculation({...totalCalculation, discountPercent: parseFloat(e.target.value) || 0})}
+                placeholder="DISCOUNT %"
+                className="w-full p-2 rounded-lg border text-sm mb-2 bg-black/40 border-white/10 text-white"
+              />
+            ) : (
+              <input
+                type="number"
+                value={totalCalculation.discount || ''}
+                onChange={(e) => setTotalCalculation({...totalCalculation, discount: parseFloat(e.target.value) || 0})}
+                placeholder="DISCOUNT"
+                className="w-full p-2 rounded-lg border text-sm mb-2 bg-black/40 border-white/10 text-white"
+              />
+            )}
+
+            <input
+              type="number"
+              value={totalCalculation.tax || ''}
+              onChange={(e) => setTotalCalculation({...totalCalculation, tax: parseFloat(e.target.value) || 0})}
+              placeholder="TAX"
+              className="w-full p-2 rounded-lg border text-sm mb-3 bg-black/40 border-white/10 text-white"
+            />
+
+            <div className="bg-[#1a1a1a] p-2 rounded-lg mb-3 text-center">
+              <p className="text-[9px] opacity-60 mb-1">GRAND TOTAL</p>
+              <p className="text-base font-black text-[#d4af37]">
+                Rs.{(
+                  (totalCalculation.subtotal || 0) -
+                  (totalCalculation.usePercentage
+                    ? ((totalCalculation.subtotal || 0) * (totalCalculation.discountPercent || 0) / 100)
+                    : (totalCalculation.discount || 0)
+                  ) + (totalCalculation.tax || 0)
+                ).toLocaleString()}
+              </p>
+            </div>
+
+            <button 
+              onClick={calculateTotal} 
+              className="w-full py-2 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg text-xs mb-1"
+            >
+              CALCULATE
+            </button>
+            <button 
+              onClick={resetCalculator} 
+              className="w-full py-1.5 bg-[#1a1a1a] text-white/60 font-black rounded-lg text-[10px]"
+            >
+              RESET
+            </button>
           </div>
         </div>
       )}
@@ -3661,97 +2596,56 @@ export default function App() {
       {/* INVOICE MODAL */}
       {showModal === 'invoice' && selectedShop && (
         <div className="fixed inset-0 bg-black z-[100] overflow-y-auto">
-          <div className="min-h-screen p-3 max-w-lg mx-auto pb-32">
-            <div className="flex justify-between items-center mb-4 sticky top-0 bg-black/95 py-3 border-b border-white/10 backdrop-blur-xl z-10">
-              <div>
-                <h2 className="text-xl font-black uppercase text-white">{selectedShop.name}</h2>
-                <p className="text-xs text-[#d4af37] font-black uppercase mt-0.5">Create New Bill</p>
-              </div>
-              <button
-                onClick={() => { setShowModal(null); setCart({}); }}
-                className="p-2 bg-white/10 rounded-full text-white hover:bg-white/20 transition-all"
-              >
-                <X size={20}/>
+          <div className="min-h-screen p-3 max-w-lg mx-auto pb-20">
+            <div className="flex justify-between items-center mb-3 sticky top-0 bg-black py-2 border-b border-white/10">
+              <h2 className="text-sm font-black text-white">{selectedShop.name}</h2>
+              <button onClick={() => { setShowModal(null); setCart({}); }} className="p-1 bg-white/10 rounded-full">
+                <X size={16}/>
               </button>
             </div>
 
             <div className="space-y-2">
               {data.brands.map((b, index) => (
-                <div
-                  key={b.id}
-                  className="bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] p-3 rounded-xl border border-white/5 flex items-center justify-between hover:border-[#d4af37]/30 transition-all"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-sm ${
-                      isDarkMode
-                        ? 'bg-[#d4af37]/20 text-[#d4af37] border border-[#d4af37]/30'
-                        : 'bg-[#d4af37]/10 text-[#d4af37] border border-[#d4af37]/20'
-                    }`}>
-                      {b.sequence || index + 1}
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="text-xs font-black uppercase text-white">{b.name} ({b.size})</h4>
-                      <p className="text-xs text-[#d4af37] font-bold mt-0.5">Rs.{b.price.toLocaleString()}</p>
-                    </div>
+                <div key={b.id} className="bg-[#0f0f0f] p-2 rounded-xl border border-white/5 flex items-center justify-between">
+                  <div>
+                    <span className="text-xs font-bold">{b.name} ({b.size})</span>
+                    <p className="text-[10px] text-[#d4af37]">Rs.{b.price}</p>
                   </div>
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => setCart({...cart, [b.id]: Math.max(0, (Number(cart[b.id])||0)-1)})}
-                      className="w-8 h-8 bg-white/5 rounded-lg text-white font-black hover:bg-white/10 transition-all text-sm"
+                  <div className="flex items-center gap-1">
+                    <button 
+                      onClick={() => setCart({...cart, [b.id]: Math.max(0, (Number(cart[b.id])||0)-1)}} 
+                      className="w-6 h-6 bg-white/5 rounded-lg text-xs"
                     >
                       -
                     </button>
-                    <input
-                      type="number"
-                      value={cart[b.id] || ''}
-                      onChange={(e) => setCart({...cart, [b.id]: e.target.value})}
-                      onFocus={handleInputFocus}
-                      className="w-12 bg-transparent text-center font-black text-[#d4af37] text-base outline-none"
-                      placeholder="0"
+                    <input 
+                      type="number" 
+                      value={cart[b.id] || ''} 
+                      onChange={(e) => setCart({...cart, [b.id]: e.target.value})} 
+                      className="w-8 bg-transparent text-center text-[#d4af37] text-xs" 
                     />
-                    <button
-                      type="button"
-                      onClick={() => setCart({...cart, [b.id]: (Number(cart[b.id])||0)+1})}
-                      className="w-8 h-8 bg-white/5 rounded-lg text-white font-black hover:bg-white/10 transition-all text-sm"
+                    <button 
+                      onClick={() => setCart({...cart, [b.id]: (Number(cart[b.id])||0)+1})} 
+                      className="w-6 h-6 bg-white/5 rounded-lg text-xs"
                     >
                       +
                     </button>
                   </div>
                 </div>
               ))}
-              {data.brands.length === 0 && (
-                <div className="text-center py-6">
-                  <Package size={30} className="mx-auto opacity-20 mb-2" />
-                  <p className="text-xs opacity-30 italic">No brands added yet. Add brands in Settings.</p>
-                </div>
-              )}
             </div>
 
-            <div className="fixed bottom-0 inset-x-0 p-3 bg-black/95 border-t border-white/10 backdrop-blur-2xl z-20">
-              <div className="max-w-lg mx-auto">
-                <div className="flex justify-between items-center mb-3">
-                  <div>
-                    <span className="text-[10px] font-black uppercase opacity-40">Total Items</span>
-                    <p className="text-sm font-black text-white">
-                      {Object.values(cart).filter(q => q > 0).length}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-[10px] font-black uppercase opacity-40">Total Amount</span>
-                    <p className="text-xl font-black text-[#d4af37]">
-                      Rs.{calculateCartTotal().toLocaleString()}
-                    </p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleCreateOrder}
-                  className="w-full py-3 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-xl uppercase text-xs tracking-widest hover:opacity-90 transition-all"
-                >
-                  CONFIRM ORDER
-                </button>
+            <div className="fixed bottom-0 inset-x-0 p-2 bg-black border-t border-white/10">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-xs">Total:</span>
+                <span className="text-base font-black text-[#d4af37]">Rs.{calculateCartTotal().toLocaleString()}</span>
               </div>
+              <button 
+                onClick={handleCreateOrder} 
+                className="w-full py-2 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg text-xs"
+              >
+                CONFIRM ORDER
+              </button>
             </div>
           </div>
         </div>
@@ -3760,138 +2654,76 @@ export default function App() {
       {/* MANUAL ORDER MODAL */}
       {showModal === 'manual' && (
         <div className="fixed inset-0 bg-black z-[100] overflow-y-auto">
-          <div className="min-h-screen p-3 max-w-lg mx-auto pb-40">
-            <div className="flex justify-between items-center mb-4 sticky top-0 bg-black/95 py-3 border-b border-white/10 backdrop-blur-xl z-10">
-              <div>
-                <h2 className="text-xl font-black uppercase text-white">Manual Order</h2>
-                <p className="text-xs text-[#d4af37] font-black uppercase">Add Custom Items</p>
-              </div>
-              <button
-                onClick={() => {
-                  setShowModal(null);
-                  setManualItems([{ name: '', qty: 1, price: 0, subtotal: 0 }]);
-                }}
-                className="p-2 bg-white/10 rounded-full text-white hover:bg-white/20 transition-all"
+          <div className="min-h-screen p-3 max-w-lg mx-auto pb-28">
+            <div className="flex justify-between items-center mb-3 sticky top-0 bg-black py-2 border-b border-white/10">
+              <h2 className="text-sm font-black text-white">MANUAL ORDER</h2>
+              <button 
+                onClick={() => { 
+                  setShowModal(null); 
+                  setManualItems([{ name: '', qty: 1, price: 0, subtotal: 0 }]); 
+                }} 
+                className="p-1 bg-white/10 rounded-full"
               >
-                <X size={20}/>
+                <X size={16}/>
               </button>
             </div>
 
-            <div className="mb-4">
-              <label className="text-xs font-black uppercase opacity-60 mb-2 block">Select Shop</label>
-              <select
-                className="w-full bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] p-3 rounded-xl border border-white/5 text-white font-bold uppercase outline-none text-xs focus:border-[#d4af37] transition-all"
-                onChange={(e) => {
-                  const shopId = e.target.value;
-                  const shop = data.shops.find(s => s.id === shopId);
-                  setSelectedShop(shop);
-                }}
-                defaultValue=""
-              >
-                <option value="">-- SELECT SHOP --</option>
-                {data.shops.map(s => (
-                  <option key={s.id} value={s.id}>{s.name} - {s.area}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <h3 className="text-xs font-black uppercase opacity-60">Custom Items</h3>
-                <button
-                  type="button"
-                  onClick={addManualItem}
-                  className="text-[#d4af37] text-xs font-black uppercase flex items-center gap-1.5 hover:opacity-80 transition-all"
-                >
-                  <Plus size={16}/> ADD ITEM
-                </button>
-              </div>
-
-              {manualItems.map((item, index) => (
-                <div key={index} className="bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] p-3 rounded-xl border border-white/5 space-y-2">
-                  <div className="flex justify-between items-center">
-                    <span className="text-[10px] font-black uppercase opacity-60">Item #{index + 1}</span>
-                    {manualItems.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => removeManualItem(index)}
-                        className="p-1.5 text-red-500/60 hover:text-red-500 hover:bg-red-500/10 rounded transition-all"
-                      >
-                        <Trash2 size={14}/>
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <p className="text-[10px] font-black uppercase opacity-40 mb-1">Item Name</p>
-                      <input
-                        value={item.name}
-                        onChange={(e) => updateManualItem(index, 'name', e.target.value)}
-                        placeholder="PRODUCT NAME"
-                        className="w-full bg-black/40 p-2 rounded border border-white/5 text-white font-bold uppercase outline-none text-xs focus:border-[#d4af37] transition-all"
-                      />
-                    </div>
-
-                    <div>
-                      <p className="text-[10px] font-black uppercase opacity-40 mb-1">Quantity</p>
-                      <input
-                        type="number"
-                        value={item.qty}
-                        onChange={(e) => updateManualItem(index, 'qty', e.target.value)}
-                        onFocus={handleInputFocus}
-                        className="w-full bg-black/40 p-2 rounded border border-white/5 text-white font-bold text-center outline-none text-xs focus:border-[#d4af37] transition-all"
-                      />
-                    </div>
-
-                    <div>
-                      <p className="text-[10px] font-black uppercase opacity-40 mb-1">Unit Price (Rs.)</p>
-                      <input
-                        type="number"
-                        value={item.price}
-                        onChange={(e) => updateManualItem(index, 'price', e.target.value)}
-                        onFocus={handleInputFocus}
-                        placeholder="0"
-                        className="w-full bg-black/40 p-2 rounded border border-white/5 text-white font-bold text-center outline-none text-xs focus:border-[#d4af37] transition-all"
-                      />
-                    </div>
-
-                    <div>
-                      <p className="text-[10px] font-black uppercase opacity-40 mb-1">Subtotal (Rs.)</p>
-                      <div className="w-full bg-black/40 p-2 rounded border border-white/5 text-center">
-                        <span className="text-[#d4af37] font-black text-sm">Rs.{item.subtotal.toLocaleString()}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+            <select
+              className="w-full bg-[#0f0f0f] p-2 rounded-lg border border-white/5 text-white text-xs mb-3"
+              onChange={(e) => {
+                const shopId = e.target.value;
+                setSelectedShop(data.shops.find(s => s.id === shopId));
+              }}
+            >
+              <option value="">SELECT SHOP</option>
+              {data.shops.map(s => (
+                <option key={s.id} value={s.id}>{s.name}</option>
               ))}
-            </div>
+            </select>
 
-            <div className="fixed bottom-0 inset-x-0 p-3 bg-black/95 border-t border-white/10 backdrop-blur-2xl z-20">
-              <div className="max-w-lg mx-auto">
-                <div className="flex justify-between items-center mb-2">
-                  <div>
-                    <p className="text-[10px] font-black uppercase opacity-40">Selected Shop</p>
-                    <p className="text-sm font-black text-white">
-                      {selectedShop?.name || "Not Selected"}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-[10px] font-black uppercase opacity-40">Order Total</p>
-                    <p className="text-lg font-black text-[#d4af37]">
-                      Rs.{manualItems.reduce((sum, item) => sum + (item.subtotal || 0), 0).toLocaleString()}
-                    </p>
+            {manualItems.map((item, index) => (
+              <div key={index} className="bg-[#0f0f0f] p-2 rounded-lg border border-white/5 mb-2">
+                <div className="grid grid-cols-2 gap-1">
+                  <input
+                    value={item.name}
+                    onChange={(e) => updateManualItem(index, 'name', e.target.value)}
+                    placeholder="ITEM"
+                    className="bg-black/40 p-1 rounded text-[10px] border-white/5 text-white"
+                  />
+                  <input
+                    type="number"
+                    value={item.qty}
+                    onChange={(e) => updateManualItem(index, 'qty', e.target.value)}
+                    placeholder="QTY"
+                    className="bg-black/40 p-1 rounded text-[10px] border-white/5 text-white"
+                  />
+                  <input
+                    type="number"
+                    value={item.price}
+                    onChange={(e) => updateManualItem(index, 'price', e.target.value)}
+                    placeholder="PRICE"
+                    className="bg-black/40 p-1 rounded text-[10px] border-white/5 text-white"
+                  />
+                  <div className="bg-black/40 p-1 rounded text-center">
+                    <span className="text-[#d4af37] text-[10px]">Rs.{item.subtotal}</span>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={saveManualOrder}
-                  disabled={!selectedShop}
-                  className={`w-full py-3 font-black rounded-xl uppercase tracking-widest text-xs transition-all ${selectedShop ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black hover:opacity-90' : 'bg-gray-700 text-gray-400'}`}
-                >
-                  {selectedShop ? 'SAVE MANUAL ORDER' : 'SELECT SHOP FIRST'}
-                </button>
+                {manualItems.length > 1 && (
+                  <button onClick={() => removeManualItem(index)} className="mt-1 text-red-500 text-[8px]">Remove</button>
+                )}
               </div>
+            ))}
+
+            <button onClick={addManualItem} className="w-full py-1.5 bg-white/5 rounded-lg text-[#d4af37] text-xs mb-3">+ ADD ITEM</button>
+
+            <div className="fixed bottom-0 inset-x-0 p-2 bg-black border-t border-white/10">
+              <button
+                onClick={saveManualOrder}
+                disabled={!selectedShop}
+                className={`w-full py-2 font-black rounded-lg text-xs ${selectedShop ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black' : 'bg-gray-700 text-gray-400'}`}
+              >
+                {selectedShop ? 'SAVE ORDER' : 'SELECT SHOP FIRST'}
+              </button>
             </div>
           </div>
         </div>
@@ -3899,367 +2731,67 @@ export default function App() {
 
       {/* PREVIEW MODAL */}
       {showModal === 'preview' && lastOrder && (
-        <div className="fixed inset-0 bg-black/95 z-[110] flex items-center justify-center p-3 backdrop-blur-3xl">
-          <div className="bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] w-full max-w-sm p-4 rounded-2xl border border-[#d4af37]/30 shadow-2xl">
-            <div className="flex flex-col items-center text-center mb-4">
-              <div className="w-12 h-12 bg-gradient-to-br from-green-500/20 to-emerald-600/20 text-green-500 rounded-full flex items-center justify-center mb-3 border border-green-500/30">
-                <CheckCircle2 size={24}/>
-              </div>
-              <h3 className="text-lg font-black text-white uppercase">Bill Confirmed!</h3>
-              <p className="text-xs text-white/60 uppercase font-bold mt-1">{lastOrder.shopName}</p>
+        <div className="fixed inset-0 bg-black/95 z-[110] flex items-center justify-center p-3">
+          <div className="bg-[#0f0f0f] w-full max-w-xs p-4 rounded-xl border border-[#d4af37]/30">
+            <div className="text-center mb-3">
+              <CheckCircle2 size={30} className="text-green-500 mx-auto mb-2" />
+              <h3 className="text-sm font-black text-white">ORDER CONFIRMED</h3>
             </div>
 
-            <div className="bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] rounded-xl p-3 mb-4 border border-white/5">
-              <div className="space-y-2 max-h-32 overflow-y-auto pr-1">
-                {lastOrder.items && lastOrder.items.map((it, idx) => (
-                  <div key={idx} className="flex justify-between items-center text-xs uppercase font-bold py-1 border-b border-white/5 last:border-0">
-                    <div>
-                      <span className="text-white/80">{it.name}</span>
-                      <span className="text-white text-[10px] ml-1">x{it.qty} @ Rs.{it.price}</span>
-                    </div>
-                    <span className="text-white font-black">Rs.{it.subtotal.toLocaleString()}</span>
+            <div className="bg-[#1a1a1a] rounded-lg p-2 mb-3">
+              <div className="space-y-1 max-h-24 overflow-y-auto text-[9px]">
+                {lastOrder.items?.map((it, idx) => (
+                  <div key={idx} className="flex justify-between">
+                    <span>{it.name} x{it.qty}</span>
+                    <span className="font-bold">Rs.{it.subtotal}</span>
                   </div>
                 ))}
               </div>
-
-              <div className="mt-3 pt-2 border-t border-white/10 flex justify-between items-center">
-                <span className="text-xs font-black uppercase text-white">Total</span>
-                <span className="text-lg font-black text-[#d4af37]">Rs.{lastOrder.total.toLocaleString()}</span>
+              <div className="border-t border-white/10 mt-2 pt-2 flex justify-between">
+                <span className="text-[10px]">Total</span>
+                <span className="text-sm font-black text-[#d4af37]">Rs.{lastOrder.total}</span>
               </div>
             </div>
 
-            <div className="space-y-2">
-              <button
-                type="button"
-                onClick={() => {
-                  printBill(lastOrder);
-                  setShowModal(null);
-                }}
-                className="w-full py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-black rounded-lg uppercase text-xs flex items-center justify-center gap-1.5 hover:opacity-90 transition-all"
-              >
-                <Printer size={14} /> PRINT BILL
-              </button>
-              <button
-                type="button"
-                onClick={() => shareBillWithLocation(lastOrder)}
-                className="w-full py-2.5 bg-gradient-to-r from-[#25D366] to-[#128C7E] text-white font-black rounded-lg uppercase text-xs flex items-center justify-center gap-1.5 hover:opacity-90 transition-all"
-              >
-                <Navigation size={14} /> Share with Location
-              </button>
-              <button
-                type="button"
-                onClick={() => shareToWhatsApp(lastOrder)}
-                className="w-full py-2.5 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg uppercase text-xs flex items-center justify-center gap-1.5 hover:opacity-90 transition-all"
-              >
-                <Share2 size={14} /> Share Bill Only
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowModal(null);
-                  setLastOrder(null);
-                }}
-                className="w-full py-2.5 bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] text-white/60 font-black rounded-lg uppercase text-xs border border-white/5 hover:border-white/10 transition-all"
-              >
-                Close
-              </button>
+            <div className="space-y-1">
+              <button onClick={() => { printBill(lastOrder); setShowModal(null); }} className="w-full py-1.5 bg-blue-500 text-white font-black rounded-lg text-[10px]">PRINT</button>
+              <button onClick={() => { shareToWhatsApp(lastOrder); setShowModal(null); }} className="w-full py-1.5 bg-[#d4af37] text-black font-black rounded-lg text-[10px]">SHARE</button>
+              <button onClick={() => { setShowModal(null); setLastOrder(null); }} className="w-full py-1.5 bg-[#1a1a1a] text-white/60 font-black rounded-lg text-[10px]">CLOSE</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* SHOP PROFILE MODAL - ENHANCED */}
-      {showModal === 'shopProfile' && selectedShop && (
-        <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-3 backdrop-blur-3xl overflow-y-auto">
-          <div className="w-full max-w-xs p-5 rounded-2xl border border-[#d4af37]/30 bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] text-white">
-            <button
-              onClick={() => {
-                setShowModal(null);
-                setEditingProfile(null);
-                setShopProfileForm({
-                  ownerName: '',
-                  phone: '',
-                  email: '',
-                  address: '',
-                  gst: '',
-                  notes: '',
-                  creditLimit: '',
-                  paymentTerms: '',
-                  shopType: 'retail',
-                  location: ''
-                });
-              }}
-              className="absolute top-2 right-2 text-white/20 hover:text-white/40 p-1"
-            >
-              <X size={20}/>
-            </button>
-
-            <div className="text-center mb-4">
-              <Briefcase size={30} className="text-[#d4af37] mx-auto mb-2" />
-              <h3 className="font-black text-[#d4af37] mb-1 uppercase text-base tracking-widest">
-                {editingProfile ? 'Edit Profile' : 'Shop Profile'}
-              </h3>
-              <p className="text-xs text-white/80 font-bold">{selectedShop.name}</p>
-            </div>
-
-            <form onSubmit={saveShopProfile} className="space-y-3">
-              <input
-                name="ownerName"
-                placeholder="Owner Name"
-                value={shopProfileForm.ownerName}
-                onChange={(e) => setShopProfileForm({...shopProfileForm, ownerName: e.target.value})}
-                className="w-full p-3 rounded-lg border border-white/10 bg-black/40 text-white font-bold uppercase outline-none text-xs focus:border-[#d4af37] transition-all"
-              />
-              <input
-                name="phone"
-                placeholder="Phone Number"
-                value={shopProfileForm.phone}
-                onChange={(e) => setShopProfileForm({...shopProfileForm, phone: e.target.value})}
-                className="w-full p-3 rounded-lg border border-white/10 bg-black/40 text-white font-bold outline-none text-xs focus:border-[#d4af37] transition-all"
-              />
-              <input
-                name="email"
-                type="email"
-                placeholder="Email Address"
-                value={shopProfileForm.email}
-                onChange={(e) => setShopProfileForm({...shopProfileForm, email: e.target.value})}
-                className="w-full p-3 rounded-lg border border-white/10 bg-black/40 text-white font-bold outline-none text-xs focus:border-[#d4af37] transition-all"
-              />
-              <input
-                name="address"
-                placeholder="Address"
-                value={shopProfileForm.address}
-                onChange={(e) => setShopProfileForm({...shopProfileForm, address: e.target.value})}
-                className="w-full p-3 rounded-lg border border-white/10 bg-black/40 text-white font-bold uppercase outline-none text-xs focus:border-[#d4af37] transition-all"
-              />
-              <input
-                name="gst"
-                placeholder="GST Number"
-                value={shopProfileForm.gst}
-                onChange={(e) => setShopProfileForm({...shopProfileForm, gst: e.target.value})}
-                className="w-full p-3 rounded-lg border border-white/10 bg-black/40 text-white font-bold uppercase outline-none text-xs focus:border-[#d4af37] transition-all"
-              />
-
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <p className="text-[9px] font-black uppercase opacity-40 mb-1">Shop Type</p>
-                  <select
-                    value={shopProfileForm.shopType}
-                    onChange={(e) => setShopProfileForm({...shopProfileForm, shopType: e.target.value})}
-                    className="w-full p-2 rounded-lg border border-white/10 bg-black/40 text-white font-bold text-xs outline-none focus:border-[#d4af37]"
-                  >
-                    <option value="retail">Retail</option>
-                    <option value="wholesale">Wholesale</option>
-                    <option value="distributor">Distributor</option>
-                  </select>
-                </div>
-                <div>
-                  <p className="text-[9px] font-black uppercase opacity-40 mb-1">Credit Limit</p>
-                  <input
-                    type="number"
-                    placeholder="Rs."
-                    value={shopProfileForm.creditLimit}
-                    onChange={(e) => setShopProfileForm({...shopProfileForm, creditLimit: e.target.value})}
-                    onFocus={handleInputFocus}
-                    className="w-full p-2 rounded-lg border border-white/10 bg-black/40 text-white font-bold text-xs outline-none focus:border-[#d4af37]"
-                  />
-                </div>
-              </div>
-
-              <input
-                name="location"
-                placeholder="Location / Area"
-                value={shopProfileForm.location}
-                onChange={(e) => setShopProfileForm({...shopProfileForm, location: e.target.value})}
-                className="w-full p-3 rounded-lg border border-white/10 bg-black/40 text-white font-bold uppercase outline-none text-xs focus:border-[#d4af37] transition-all"
-              />
-
-              <textarea
-                name="notes"
-                placeholder="Additional Notes"
-                rows="2"
-                value={shopProfileForm.notes}
-                onChange={(e) => setShopProfileForm({...shopProfileForm, notes: e.target.value})}
-                className="w-full p-3 rounded-lg border border-white/10 bg-black/40 text-white text-xs outline-none resize-none focus:border-[#d4af37] transition-all"
-              />
-
-              <button
-                type="submit"
-                className="w-full py-3 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg uppercase text-xs tracking-widest hover:opacity-90 transition-all"
-              >
-                {editingProfile ? 'UPDATE PROFILE' : 'SAVE PROFILE'}
+      {/* SHOP MODAL */}
+      {showModal === 'shop' && (
+        <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-3">
+          <div className={`w-full max-w-xs p-4 rounded-xl border ${isDarkMode ? 'bg-[#0f0f0f] border-[#d4af37]/30' : 'bg-white border-gray-200'}`}>
+            <div className="flex justify-between items-center mb-3">
+              <h3 className="font-black text-[#d4af37] text-sm">NEW SHOP</h3>
+              <button onClick={() => setShowModal(null)} className="text-white/40">
+                <X size={16}/>
               </button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* TARGET MODAL - ENHANCED */}
-      {showModal === 'target' && (
-        <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-3 backdrop-blur-3xl overflow-y-auto">
-          <div className="w-full max-w-xs p-5 rounded-2xl border border-[#d4af37]/30 bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] text-white max-h-[90vh] overflow-y-auto">
-            <button onClick={() => setShowModal(null)} className="absolute top-2 right-2 text-white/20 hover:text-white/40 p-1">
-              <X size={20}/>
-            </button>
-
-            <div className="text-center mb-4">
-              <div className="relative">
-                <Target size={30} className="text-[#d4af37] mx-auto mb-2" />
-                <div className="absolute -top-1 -right-1 w-3 h-3 bg-[#d4af37] rounded-full animate-ping"></div>
-              </div>
-              <h3 className="font-black text-[#d4af37] mb-1 uppercase text-base tracking-widest">Monthly Target</h3>
-              <p className="text-[10px] opacity-50">Set your sales goal</p>
             </div>
-
-            <form onSubmit={saveMonthlyTarget} className="space-y-4">
-              <div>
-                <label className="text-[10px] font-black uppercase opacity-40 mb-1 block">Select Month</label>
-                <input
-                  type="month"
-                  value={targetMonth}
-                  onChange={(e) => setTargetMonth(e.target.value)}
-                  className="w-full p-3 rounded-lg border border-white/10 bg-black/40 text-white font-bold outline-none text-xs focus:border-[#d4af37] transition-all"
-                />
-              </div>
-
-              <div>
-                <label className="text-[10px] font-black uppercase opacity-40 mb-2 block">Target Type</label>
-                <div className="grid grid-cols-2 gap-2 mb-3">
-                  <button
-                    type="button"
-                    onClick={() => setTargetType('revenue')}
-                    className={`p-3 rounded-lg border flex flex-col items-center gap-1 transition-all ${
-                      targetType === 'revenue'
-                        ? 'bg-[#d4af37]/20 border-[#d4af37] text-[#d4af37]'
-                        : 'border-white/10 text-white/60 hover:border-white/30'
-                    }`}
-                  >
-                    <DollarSign size={20} />
-                    <span className="text-[9px] font-black uppercase">Revenue</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setTargetType('units')}
-                    className={`p-3 rounded-lg border flex flex-col items-center gap-1 transition-all ${
-                      targetType === 'units'
-                        ? 'bg-[#d4af37]/20 border-[#d4af37] text-[#d4af37]'
-                        : 'border-white/10 text-white/60 hover:border-white/30'
-                    }`}
-                  >
-                    <Package2 size={20} />
-                    <span className="text-[9px] font-black uppercase">Units</span>
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2 mb-3">
-                  <button
-                    type="button"
-                    onClick={() => setTargetCase('units')}
-                    className={`p-2 rounded-lg border text-xs font-black uppercase transition-all ${
-                      targetCase === 'units'
-                        ? 'bg-[#d4af37]/20 border-[#d4af37] text-[#d4af37]'
-                        : 'border-white/10 text-white/60 hover:border-white/30'
-                    }`}
-                  >
-                    Per Unit
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setTargetCase('cases')}
-                    className={`p-2 rounded-lg border text-xs font-black uppercase transition-all ${
-                      targetCase === 'cases'
-                        ? 'bg-[#d4af37]/20 border-[#d4af37] text-[#d4af37]'
-                        : 'border-white/10 text-white/60 hover:border-white/30'
-                    }`}
-                  >
-                    Cases (6x)
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <label className="text-[10px] font-black uppercase opacity-40 mb-2 block">Target Scope</label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setTargetSpecific('total')}
-                    className={`p-2 rounded-lg border text-xs font-black uppercase transition-all ${
-                      targetSpecific === 'total'
-                        ? 'bg-[#d4af37]/20 border-[#d4af37] text-[#d4af37]'
-                        : 'border-white/10 text-white/60 hover:border-white/30'
-                    }`}
-                  >
-                    Total Sales
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setTargetSpecific('brand')}
-                    className={`p-2 rounded-lg border text-xs font-black uppercase transition-all ${
-                      targetSpecific === 'brand'
-                        ? 'bg-[#d4af37]/20 border-[#d4af37] text-[#d4af37]'
-                        : 'border-white/10 text-white/60 hover:border-white/30'
-                    }`}
-                  >
-                    Specific Brand
-                  </button>
-                </div>
-              </div>
-
-              {targetSpecific === 'brand' && (
-                <div>
-                  <label className="text-[10px] font-black uppercase opacity-40 mb-1 block">Select Brand</label>
-                  <select
-                    value={targetBrand}
-                    onChange={(e) => setTargetBrand(e.target.value)}
-                    className="w-full p-3 rounded-lg border border-white/10 bg-black/40 text-white font-bold outline-none text-xs focus:border-[#d4af37] transition-all"
-                    required
-                  >
-                    <option value="">-- SELECT BRAND --</option>
-                    {data.brands.map(b => (
-                      <option key={b.id} value={b.name}>{b.name} ({b.size})</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              <div>
-                <label className="text-[10px] font-black uppercase opacity-40 mb-1 block">
-                  Target Amount {targetType === 'revenue' ? '(Rs.)' : '(Units)'}
-                  {targetCase === 'cases' && targetType === 'units' ? ' (in cases)' : ''}
-                </label>
-                <input
-                  type="number"
-                  value={targetAmount}
-                  onChange={(e) => setTargetAmount(e.target.value)}
-                  onFocus={handleInputFocus}
-                  placeholder="0"
-                  className="w-full p-3 rounded-lg border border-white/10 bg-black/40 text-white font-bold text-center outline-none text-xs focus:border-[#d4af37] transition-all"
-                />
-              </div>
-
-              {stats.monthlyTarget > 0 && (
-                <div className="p-3 bg-[#d4af37]/10 rounded-lg border border-[#d4af37]/30">
-                  <p className="text-xs opacity-60">Current Target</p>
-                  <p className="text-lg font-black text-[#d4af37]">
-                    {stats.targetType === 'revenue' ? 'Rs.' : ''}{stats.monthlyTarget.toLocaleString()}
-                    {stats.targetCase === 'cases' ? ' cases' : ' units'}
-                  </p>
-                  {stats.targetSpecific === 'brand' && stats.targetBrand && (
-                    <p className="text-[10px] opacity-70 mt-1">For: {stats.targetBrand}</p>
-                  )}
-                  <p className="text-xs opacity-60 mt-1">Progress: {stats.targetProgress.toFixed(1)}%</p>
-                  <p className="text-[10px] mt-2 text-white/80">
-                    Current: {stats.targetType === 'revenue' ? 'Rs.' : ''}{stats.targetType === 'revenue' ? stats.monthlySales.toLocaleString() : stats.monthlyUnits}
-                  </p>
-                </div>
-              )}
-
-              <button
-                type="submit"
-                className="w-full py-3 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg uppercase text-xs tracking-widest hover:opacity-90 transition-all"
-              >
-                SET TARGET
-              </button>
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              const f = e.target;
+              await addDoc(collection(db, 'shops'), {
+                userId: user.uid,
+                name: f.name.value.toUpperCase(),
+                area: f.area.value,
+                timestamp: Date.now()
+              });
+              showToast("Shop added!");
+              setShowModal(null);
+            }} className="space-y-2">
+              <input name="name" placeholder="SHOP NAME" className="w-full p-2 rounded-lg border text-xs bg-black/40 border-white/10 text-white" required />
+              <select name="area" className="w-full p-2 rounded-lg border text-xs bg-black/40 border-white/10 text-white" required>
+                <option value="">SELECT ROUTE</option>
+                {data.routes.map(r => (
+                  <option key={r.id} value={r.name}>{r.name}</option>
+                ))}
+              </select>
+              <button type="submit" className="w-full py-2 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg text-xs">SAVE</button>
             </form>
           </div>
         </div>
@@ -4267,121 +2799,26 @@ export default function App() {
 
       {/* ROUTE MODAL */}
       {showModal === 'route' && (
-        <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-3 backdrop-blur-3xl">
-          <div className={`w-full max-w-xs p-4 rounded-2xl border relative shadow-2xl ${
-            isDarkMode
-              ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/30 text-white"
-              : "bg-gradient-to-br from-white to-gray-50 border-[#d4af37]/50 text-gray-900"
-          }`}>
-            <button onClick={() => setShowModal(null)} className="absolute top-2 right-2 text-white/20 hover:text-white/40 p-1">
-              <X size={20}/>
-            </button>
-
-            <div className="text-center mb-4">
-              <MapPin size={28} className="text-[#d4af37] mx-auto mb-2" />
-              <h3 className="font-black text-[#d4af37] mb-1 uppercase text-base tracking-widest">New Route</h3>
-              <p className="text-[10px] opacity-50">Add new sales route</p>
+        <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-3">
+          <div className={`w-full max-w-xs p-4 rounded-xl border ${isDarkMode ? 'bg-[#0f0f0f] border-[#d4af37]/30' : 'bg-white border-gray-200'}`}>
+            <div className="flex justify-between items-center mb-3">
+              <h3 className="font-black text-[#d4af37] text-sm">NEW ROUTE</h3>
+              <button onClick={() => setShowModal(null)} className="text-white/40">
+                <X size={16}/>
+              </button>
             </div>
-
             <form onSubmit={async (e) => {
               e.preventDefault();
-              const f = e.target;
-              if (!user) {
-                showToast("Please login first!", "error");
-                return;
-              }
-              try {
-                await addDoc(collection(db, 'routes'), {
-                  userId: user.uid,
-                  timestamp: Date.now(),
-                  name: f.name.value.toUpperCase()
-                });
-                showToast("✅ Route added successfully!", "success");
-                setShowModal(null);
-              } catch (err) {
-                showToast("Error: " + err.message, "error");
-              }
-            }} className="space-y-3">
-              <input
-                name="name"
-                placeholder="ROUTE NAME"
-                className={`w-full p-3 rounded-lg border font-bold uppercase outline-none text-xs focus:border-[#d4af37] transition-all ${
-                  isDarkMode ? 'bg-black/40 border-white/5 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'
-                }`}
-                required
-              />
-              <button type="submit" className="w-full py-3 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg uppercase text-xs tracking-widest hover:opacity-90 transition-all">
-                SAVE ROUTE
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* SHOP MODAL */}
-      {showModal === 'shop' && (
-        <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-3 backdrop-blur-3xl">
-          <div className={`w-full max-w-xs p-4 rounded-2xl border relative shadow-2xl ${
-            isDarkMode
-              ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/30 text-white"
-              : "bg-gradient-to-br from-white to-gray-50 border-[#d4af37]/50 text-gray-900"
-          }`}>
-            <button onClick={() => setShowModal(null)} className="absolute top-2 right-2 text-white/20 hover:text-white/40 p-1">
-              <X size={20}/>
-            </button>
-
-            <div className="text-center mb-4">
-              <Store size={28} className="text-[#d4af37] mx-auto mb-2" />
-              <h3 className="font-black text-[#d4af37] mb-1 uppercase text-base tracking-widest">New Shop</h3>
-              <p className="text-[10px] opacity-50">Register new shop</p>
-            </div>
-
-            <form onSubmit={async (e) => {
-              e.preventDefault();
-              const f = e.target;
-              if (!user) {
-                showToast("Please login first!", "error");
-                return;
-              }
-              try {
-                await addDoc(collection(db, 'shops'), {
-                  userId: user.uid,
-                  timestamp: Date.now(),
-                  name: f.name.value.toUpperCase(),
-                  area: f.area.value
-                });
-                showToast("✅ Shop registered successfully!", "success");
-                setShowModal(null);
-              } catch (err) {
-                showToast("Error: " + err.message, "error");
-              }
-            }} className="space-y-3">
-              <input
-                name="name"
-                placeholder="SHOP NAME"
-                className={`w-full p-3 rounded-lg border font-bold uppercase outline-none text-xs focus:border-[#d4af37] transition-all ${
-                  isDarkMode ? 'bg-black/40 border-white/5 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'
-                }`}
-                required
-              />
-              <div className="relative">
-                <select
-                  name="area"
-                  className={`w-full p-3 rounded-lg border font-bold uppercase outline-none appearance-none text-xs focus:border-[#d4af37] transition-all ${
-                    isDarkMode ? 'bg-black/40 border-white/5 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'
-                  }`}
-                  required
-                >
-                  <option value="">SELECT ROUTE AREA</option>
-                  {data.routes.map(r => (
-                    <option key={r.id} value={r.name}>{r.name}</option>
-                  ))}
-                </select>
-                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 opacity-30" size={16}/>
-              </div>
-              <button type="submit" className="w-full py-3 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg uppercase text-xs tracking-widest hover:opacity-90 transition-all">
-                SAVE SHOP
-              </button>
+              await addDoc(collection(db, 'routes'), {
+                userId: user.uid,
+                name: e.target.name.value.toUpperCase(),
+                timestamp: Date.now()
+              });
+              showToast("Route added!");
+              setShowModal(null);
+            }} className="space-y-2">
+              <input name="name" placeholder="ROUTE NAME" className="w-full p-2 rounded-lg border text-xs bg-black/40 border-white/10 text-white" required />
+              <button type="submit" className="w-full py-2 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg text-xs">SAVE</button>
             </form>
           </div>
         </div>
@@ -4389,116 +2826,179 @@ export default function App() {
 
       {/* BRAND MODAL */}
       {showModal === 'brand' && (
-        <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-3 backdrop-blur-3xl">
-          <div className={`w-full max-w-xs p-4 rounded-2xl border relative shadow-2xl ${
-            isDarkMode
-              ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/30 text-white"
-              : "bg-gradient-to-br from-white to-gray-50 border-[#d4af37]/50 text-gray-900"
-          }`}>
-            <button onClick={() => setShowModal(null)} className="absolute top-2 right-2 text-white/20 hover:text-white/40 p-1">
-              <X size={20}/>
-            </button>
-
-            <div className="text-center mb-4">
-              <Package size={28} className="text-[#d4af37] mx-auto mb-2" />
-              <h3 className="font-black text-[#d4af37] mb-1 uppercase text-base tracking-widest">New Brand</h3>
-              <p className="text-[10px] opacity-50">Add new product brand (Next #{data.brands.length + 1})</p>
-            </div>
-
-            <form onSubmit={addBrandWithSequence} className="space-y-3">
-              <div className={`p-2 rounded-lg border ${isDarkMode ? 'bg-[#d4af37]/10 border-[#d4af37]/30' : 'bg-[#d4af37]/5 border-[#d4af37]/20'} text-center`}>
-                <span className="text-[10px] font-black uppercase opacity-60">Brand Number</span>
-                <div className="text-2xl font-black text-[#d4af37]">{data.brands.length + 1}</div>
-              </div>
-
-              <input
-                name="name"
-                placeholder="BRAND NAME"
-                className={`w-full p-3 rounded-lg border font-bold uppercase outline-none text-xs focus:border-[#d4af37] transition-all ${
-                  isDarkMode ? 'bg-black/40 border-white/5 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'
-                }`}
-                required
-              />
-              <input
-                name="size"
-                placeholder="SIZE (e.g., 500ML, 1KG)"
-                className={`w-full p-3 rounded-lg border font-bold uppercase outline-none text-xs focus:border-[#d4af37] transition-all ${
-                  isDarkMode ? 'bg-black/40 border-white/5 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'
-                }`}
-                required
-              />
-              <input
-                name="price"
-                type="number"
-                step="0.01"
-                placeholder="UNIT PRICE (Rs.)"
-                onFocus={handleInputFocus}
-                className={`w-full p-3 rounded-lg border font-bold outline-none text-xs focus:border-[#d4af37] transition-all ${
-                  isDarkMode ? 'bg-black/40 border-white/5 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'
-                }`}
-                required
-              />
-
-              {brandError && (
-                <div className="p-2 bg-red-500/20 border border-red-500/30 rounded-lg">
-                  <p className="text-red-500 text-xs font-bold text-center">{brandError}</p>
-                </div>
-              )}
-
-              <button type="submit" className="w-full py-3 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg uppercase text-xs tracking-widest hover:opacity-90 transition-all">
-                SAVE BRAND
+        <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-3">
+          <div className={`w-full max-w-xs p-4 rounded-xl border ${isDarkMode ? 'bg-[#0f0f0f] border-[#d4af37]/30' : 'bg-white border-gray-200'}`}>
+            <div className="flex justify-between items-center mb-3">
+              <h3 className="font-black text-[#d4af37] text-sm">NEW BRAND</h3>
+              <button onClick={() => setShowModal(null)} className="text-white/40">
+                <X size={16}/>
               </button>
+            </div>
+            <form onSubmit={addBrandWithSequence} className="space-y-2">
+              <input name="name" placeholder="BRAND NAME" className="w-full p-2 rounded-lg border text-xs bg-black/40 border-white/10 text-white" required />
+              <input name="size" placeholder="SIZE" className="w-full p-2 rounded-lg border text-xs bg-black/40 border-white/10 text-white" required />
+              <input name="price" type="number" placeholder="PRICE" className="w-full p-2 rounded-lg border text-xs bg-black/40 border-white/10 text-white" required />
+              <button type="submit" className="w-full py-2 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg text-xs">SAVE</button>
             </form>
           </div>
         </div>
       )}
 
-      {/* Custom Styles */}
+      {/* SHOP PROFILE MODAL */}
+      {showModal === 'shopProfile' && selectedShop && (
+        <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-3">
+          <div className="w-full max-w-xs p-4 rounded-xl border border-[#d4af37]/30 bg-[#0f0f0f]">
+            <div className="flex justify-between items-center mb-3">
+              <h3 className="font-black text-[#d4af37] text-sm">SHOP PROFILE</h3>
+              <button onClick={() => { setShowModal(null); setEditingProfile(null); }} className="text-white/40">
+                <X size={16}/>
+              </button>
+            </div>
+            <form onSubmit={saveShopProfile} className="space-y-2">
+              <input
+                placeholder="OWNER NAME"
+                value={shopProfileForm.ownerName}
+                onChange={(e) => setShopProfileForm({...shopProfileForm, ownerName: e.target.value})}
+                className="w-full p-2 rounded-lg border text-xs bg-black/40 border-white/10 text-white"
+              />
+              <input
+                placeholder="PHONE"
+                value={shopProfileForm.phone}
+                onChange={(e) => setShopProfileForm({...shopProfileForm, phone: e.target.value})}
+                className="w-full p-2 rounded-lg border text-xs bg-black/40 border-white/10 text-white"
+              />
+              <input
+                placeholder="ADDRESS"
+                value={shopProfileForm.address}
+                onChange={(e) => setShopProfileForm({...shopProfileForm, address: e.target.value})}
+                className="w-full p-2 rounded-lg border text-xs bg-black/40 border-white/10 text-white"
+              />
+              <button type="submit" className="w-full py-2 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg text-xs">SAVE</button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* EXPENSE MODAL */}
+      {showModal === 'expense' && (
+        <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-3">
+          <div className={`w-full max-w-xs p-4 rounded-xl border ${isDarkMode ? 'bg-[#0f0f0f] border-[#d4af37]/30' : 'bg-white border-gray-200'}`}>
+            <div className="flex justify-between items-center mb-3">
+              <h3 className="font-black text-[#d4af37] text-sm">ADD EXPENSE</h3>
+              <button onClick={() => setShowModal(null)} className="text-white/40">
+                <X size={16}/>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-4 gap-1 mb-3">
+              {['fuel', 'food', 'transport', 'other'].map(t => (
+                <button
+                  key={t}
+                  onClick={() => setExpenseType(t)}
+                  className={`p-2 rounded-lg border text-center text-[9px] font-bold uppercase ${expenseType === t ? 'border-[#d4af37]' : 'border-white/10'}`}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+
+            <input
+              type="number"
+              value={expenseAmount}
+              onChange={(e) => setExpenseAmount(e.target.value)}
+              placeholder="AMOUNT"
+              className="w-full p-2 rounded-lg border text-sm mb-2 bg-black/40 border-white/10 text-white"
+            />
+            <textarea
+              value={expenseNote}
+              onChange={(e) => setExpenseNote(e.target.value)}
+              placeholder="NOTE"
+              className="w-full p-2 rounded-lg border text-xs mb-3 bg-black/40 border-white/10 text-white h-16"
+            />
+            <button
+              onClick={saveExpense}
+              className="w-full py-2 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg text-xs"
+            >
+              SAVE
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* NOTE MODAL */}
+      {showModal === 'note' && (
+        <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-3">
+          <div className={`w-full max-w-xs p-4 rounded-xl border ${isDarkMode ? 'bg-[#0f0f0f] border-[#d4af37]/30' : 'bg-white border-gray-200'}`}>
+            <div className="flex justify-between items-center mb-3">
+              <h3 className="font-black text-[#d4af37] text-sm">ADD NOTE</h3>
+              <button onClick={() => setShowModal(null)} className="text-white/40">
+                <X size={16}/>
+              </button>
+            </div>
+            <textarea
+              value={repNote}
+              onChange={(e) => setRepNote(e.target.value)}
+              placeholder="TYPE NOTE HERE..."
+              className="w-full p-2 rounded-lg border text-xs mb-3 bg-black/40 border-white/10 text-white h-24"
+            />
+            <button
+              onClick={saveNote}
+              className="w-full py-2 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg text-xs"
+            >
+              SAVE
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* PRINT PREVIEW MODAL */}
+      {showPrintPreview && printOrder && (
+        <div className="fixed inset-0 bg-black/95 z-[200] flex items-center justify-center p-3">
+          <div className="bg-[#0f0f0f] w-full max-w-xs p-4 rounded-xl border border-[#d4af37]/30">
+            <div className="flex justify-between items-center mb-3">
+              <h3 className="text-sm font-black text-[#d4af37]">PRINT BILL</h3>
+              <button onClick={() => setShowPrintPreview(false)} className="text-white/40">
+                <X size={16}/>
+              </button>
+            </div>
+
+            <div className="bg-white p-3 rounded-lg mb-3 text-black text-[9px]">
+              <div className="text-center border-b border-gray-300 pb-2 mb-2">
+                <div className="font-bold text-[#d4af37]">{printOrder.companyName}</div>
+                <div className="font-bold">{printOrder.shopName}</div>
+              </div>
+              {printOrder.items?.map((item, idx) => (
+                <div key={idx} className="flex justify-between text-[8px]">
+                  <span>{item.name} x{item.qty}</span>
+                  <span>Rs.{item.subtotal}</span>
+                </div>
+              ))}
+              <div className="border-t border-gray-300 mt-2 pt-2 text-right font-bold">
+                Total: Rs.{printOrder.total}
+              </div>
+            </div>
+
+            <button 
+              onClick={() => { handlePrint(printOrder); setShowPrintPreview(false); }} 
+              className="w-full py-2 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg text-xs"
+            >
+              PRINT
+            </button>
+          </div>
+        </div>
+      )}
+
       <style>{`
         @keyframes progress {
           0% { width: 0%; }
           100% { width: 100%; }
         }
-
-        @keyframes progress-slow {
-          0% { width: 100%; }
-          100% { width: 0%; }
-        }
-
-        .animate-progress {
-          animation: progress 1.5s ease-in-out;
-        }
-
-        .animate-progress-slow {
-          animation: progress-slow 30s linear forwards;
-        }
-
-        * {
-          font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif !important;
-        }
-
-        button {
-          min-height: 44px;
-          min-width: 44px;
-        }
-
-        input, select, textarea {
-          font-size: 16px !important;
-        }
-
-        ::-webkit-scrollbar {
-          width: 3px;
-        }
-
-        ::-webkit-scrollbar-track {
-          background: rgba(255,255,255,0.05);
-          border-radius: 10px;
-        }
-
-        ::-webkit-scrollbar-thumb {
-          background: rgba(212, 175, 55, 0.5);
-          border-radius: 10px;
-        }
+        .animate-progress { animation: progress 1.2s ease-in-out; }
+        input, select, textarea { font-size: 16px !important; }
+        * { -webkit-text-size-adjust: 100%; -webkit-tap-highlight-color: transparent; }
+        button { min-height: 40px; min-width: 40px; }
+        ::-webkit-scrollbar { width: 2px; }
+        ::-webkit-scrollbar-thumb { background: rgba(212, 175, 55, 0.5); border-radius: 10px; }
       `}</style>
     </div>
   );
