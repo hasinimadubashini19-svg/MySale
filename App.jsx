@@ -789,6 +789,7 @@ export default function App() {
   // ========== STATISTICS ==========
   const stats = useMemo(() => {
     const todayStr = new Date().toLocaleDateString();
+    const todayISO = new Date().toISOString().split('T')[0];
     const currentMonth = new Date().getMonth();
     const currentYear = new Date().getFullYear();
     const currentMonthStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
@@ -850,7 +851,7 @@ export default function App() {
       }
     });
 
-    const todayExpenses = data.expenses.filter(e => e.date === todayStr);
+    const todayExpenses = data.expenses.filter(e => e.date === todayISO);
     const totalExpenses = todayExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
 
     const monthlyExpenses = data.expenses.filter(e => {
@@ -861,7 +862,7 @@ export default function App() {
       }
     }).reduce((sum, e) => sum + (e.amount || 0), 0);
 
-    const todayNotes = data.notes.filter(n => n.date === todayStr);
+    const todayNotes = data.notes.filter(n => n.date === todayISO);
 
     const monthTargets = data.targets?.filter(t => t.month === currentMonthStr) || [];
 
@@ -1610,6 +1611,12 @@ export default function App() {
                     >
                       <MapPin size={8}/> Loc
                     </button>
+                    <button
+                      onClick={() => confirmDelete(order.id, 'order', '')}
+                      className="text-[8px] bg-red-500/20 text-red-500 px-2 py-1 rounded"
+                    >
+                      <Trash2 size={8}/>
+                    </button>
                   </div>
                 </div>
               ))}
@@ -1719,7 +1726,7 @@ export default function App() {
         {activeTab === 'dashboard' && (
           <div className="space-y-3">
             {/* Today's Revenue Card */}
-            <div className="bg-gradient-to-br from-[#d4af37] via-[#c19a2e] to-[#b8860b] p-4 rounded-xl text-black">
+            <div className="bg-gradient-to-br from-[#d4af37] via-[#c19a2e] to-[#b8860b] p-4 rounded-xl text-black shadow-xl">
               <div className="flex justify-between items-start mb-2">
                 <div>
                   <p className="text-[9px] font-black uppercase opacity-80">Today's Revenue</p>
@@ -1741,74 +1748,119 @@ export default function App() {
               </div>
             </div>
 
-            {/* Today's Expenses - ENHANCED */}
-            <div className={`p-3 rounded-xl border ${
-              isDarkMode ? "bg-[#0f0f0f] border-white/10" : "bg-white border-gray-200"
+            {/* Today's Sales - Moved UP */}
+            <div className={`p-4 rounded-xl border shadow-lg ${
+              isDarkMode ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/10" : "bg-white border-gray-200"
             }`}>
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-1">
-                  <Wallet size={14} className="text-[#d4af37]" />
-                  <h3 className="text-xs font-black text-[#d4af37] uppercase">Today's Expenses</h3>
+              <div className="flex items-center gap-2 mb-3">
+                <div className="p-1.5 bg-gradient-to-br from-[#d4af37]/20 to-[#b8860b]/10 rounded-lg">
+                  <TrendingUp size={14} className="text-[#d4af37]" />
                 </div>
-                <span className="text-xs font-black text-red-500">Rs.{stats.expenses.toLocaleString()}</span>
+                <h3 className="text-sm font-black text-[#d4af37] uppercase tracking-wider">Today's Sales</h3>
+              </div>
+              
+              {stats.daily.summary.length > 0 ? (
+                <div className="space-y-2">
+                  {stats.daily.summary.map((item, idx) => (
+                    <div key={idx} className="flex justify-between items-center py-2 border-b border-white/10 last:border-0">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold">{item.name}</span>
+                          <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-white/10">x{item.units}</span>
+                        </div>
+                        <div className="text-[9px] opacity-60 mt-0.5">
+                          @ Rs.{item.avgPrice.toFixed(0)} per unit
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-sm font-black text-[#d4af37]">Rs.{item.revenue.toLocaleString()}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-6">
+                  <ShoppingBag size={30} className="mx-auto opacity-20 mb-2" />
+                  <p className="text-xs opacity-30 italic">No sales today</p>
+                </div>
+              )}
+            </div>
+
+            {/* Today's Expenses - ENHANCED */}
+            <div className={`p-4 rounded-xl border shadow-lg ${
+              isDarkMode ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/10" : "bg-white border-gray-200"
+            }`}>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 bg-gradient-to-br from-red-500/20 to-red-600/10 rounded-lg">
+                    <Wallet size={14} className="text-red-500" />
+                  </div>
+                  <h3 className="text-sm font-black text-red-500 uppercase tracking-wider">Today's Expenses</h3>
+                </div>
+                <span className="text-base font-black text-red-500">Rs.{stats.expenses.toLocaleString()}</span>
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {stats.todayExpenses.length > 0 ? (
                   <>
                     {/* Expense Summary by Type */}
-                    <div className="grid grid-cols-2 gap-1 mb-2">
+                    <div className="grid grid-cols-2 gap-2">
                       {Object.entries(stats.expensesByType).map(([type, amount]) => (
-                        <div key={type} className="bg-white/5 p-1.5 rounded-lg text-center">
-                          <p className="text-[8px] opacity-60 uppercase">{type}</p>
-                          <p className="text-[10px] font-bold text-red-400">Rs.{amount.toLocaleString()}</p>
+                        <div key={type} className="bg-white/5 p-2 rounded-lg text-center border border-white/10">
+                          <p className="text-[8px] opacity-60 uppercase mb-1">{type}</p>
+                          <p className="text-xs font-bold text-red-400">Rs.{amount.toLocaleString()}</p>
                         </div>
                       ))}
                     </div>
 
                     {/* Individual Expenses */}
-                    <div className="space-y-1 max-h-24 overflow-y-auto">
+                    <div className="space-y-1 max-h-32 overflow-y-auto">
                       {stats.todayExpenses.map((exp, idx) => (
-                        <div key={idx} className="flex justify-between items-center text-[10px] py-0.5 border-b border-white/5 last:border-0">
-                          <div className="flex items-center gap-1">
+                        <div key={idx} className="flex justify-between items-center py-1.5 border-b border-white/5 last:border-0">
+                          <div className="flex items-center gap-2">
                             {exp.type === 'fuel' && <Fuel size={10} className="text-red-500" />}
                             {exp.type === 'food' && <Coffee size={10} className="text-amber-500" />}
                             {exp.type === 'transport' && <Navigation size={10} className="text-blue-500" />}
-                            <span className="capitalize">{exp.type}</span>
+                            <span className="text-[10px] font-medium capitalize">{exp.type}</span>
                             {exp.note && <span className="text-[8px] opacity-50">- {exp.note}</span>}
                           </div>
-                          <span className="font-bold">Rs.{exp.amount.toLocaleString()}</span>
+                          <span className="text-xs font-bold">Rs.{exp.amount.toLocaleString()}</span>
                         </div>
                       ))}
                     </div>
                   </>
                 ) : (
-                  <p className="text-[10px] opacity-50 italic text-center py-2">No expenses today</p>
+                  <div className="text-center py-6">
+                    <CreditCard size={30} className="mx-auto opacity-20 mb-2" />
+                    <p className="text-xs opacity-30 italic">No expenses today</p>
+                  </div>
                 )}
               </div>
             </div>
 
             {/* Monthly Targets */}
             {stats.targets.length > 0 && (
-              <div className={`p-3 rounded-xl border ${
-                isDarkMode ? "bg-[#0f0f0f] border-[#d4af37]/30" : "bg-white border-[#d4af37]/30"
+              <div className={`p-4 rounded-xl border shadow-lg ${
+                isDarkMode ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/30" : "bg-white border-[#d4af37]/30"
               }`}>
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-1">
-                    <Target size={14} className="text-[#d4af37]" />
-                    <h3 className="text-xs font-black text-[#d4af37] uppercase">Targets ({stats.targets.length})</h3>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 bg-gradient-to-br from-[#d4af37]/20 to-[#b8860b]/10 rounded-lg">
+                      <Target size={14} className="text-[#d4af37]" />
+                    </div>
+                    <h3 className="text-sm font-black text-[#d4af37] uppercase tracking-wider">Targets ({stats.targets.length})</h3>
                   </div>
                   <button
                     onClick={() => setShowTargetModal(true)}
-                    className="text-[#d4af37] text-[9px] font-black"
+                    className="px-2 py-1 bg-[#d4af37]/20 text-[#d4af37] rounded-lg text-[8px] font-black"
                   >
                     + ADD
                   </button>
                 </div>
 
-                <div className="space-y-2 max-h-32 overflow-y-auto">
+                <div className="space-y-3 max-h-40 overflow-y-auto">
                   {stats.targets.map((target, idx) => (
-                    <div key={idx} className="bg-white/5 p-2 rounded-lg">
+                    <div key={idx} className="bg-white/5 p-2 rounded-lg border border-white/10">
                       <div className="flex justify-between items-center mb-1">
                         <span className="text-[9px] font-bold">
                           {target.specific === 'brand' ? target.brand : 'Total'}
@@ -1817,20 +1869,20 @@ export default function App() {
                         <div className="flex gap-1">
                           <button
                             onClick={() => editTarget(target)}
-                            className="text-blue-500 hover:text-blue-400 p-0.5"
+                            className="p-0.5 text-blue-500 hover:bg-blue-500/10 rounded"
                           >
-                            <Edit2 size={10} />
+                            <Edit2 size={8} />
                           </button>
                           <button
                             onClick={() => confirmDelete(target.id, 'target', target.brand || 'Target')}
-                            className="text-red-500 hover:text-red-400 p-0.5"
+                            className="p-0.5 text-red-500 hover:bg-red-500/10 rounded"
                           >
-                            <Trash2 size={10} />
+                            <Trash2 size={8} />
                           </button>
                         </div>
                       </div>
-                      <div className="flex justify-between items-center text-[9px] mb-1">
-                        <span>Progress:</span>
+                      <div className="flex justify-between items-center text-[8px] mb-1">
+                        <span className="opacity-60">Progress:</span>
                         <span className="font-bold">{target.achieved.toLocaleString()} / {target.amount.toLocaleString()}</span>
                       </div>
                       <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
@@ -1845,56 +1897,60 @@ export default function App() {
               </div>
             )}
 
-            {/* Monthly Performance - ENHANCED */}
-            <div className={`p-3 rounded-xl border ${
-              isDarkMode ? "bg-[#0f0f0f] border-white/10" : "bg-white border-gray-200"
+            {/* Monthly Performance - ENHANCED with borders */}
+            <div className={`p-4 rounded-xl border shadow-lg ${
+              isDarkMode ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/10" : "bg-white border-gray-200"
             }`}>
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-1">
-                  <BarChart3 size={14} className="text-[#d4af37]" />
-                  <h3 className="text-xs font-black text-[#d4af37] uppercase">Monthly Performance</h3>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 bg-gradient-to-br from-[#d4af37]/20 to-[#b8860b]/10 rounded-lg">
+                    <BarChart3 size={14} className="text-[#d4af37]" />
+                  </div>
+                  <h3 className="text-sm font-black text-[#d4af37] uppercase tracking-wider">Monthly Performance</h3>
                 </div>
                 <button
                   onClick={() => setShowAllMonthlyBrands(!showAllMonthlyBrands)}
-                  className="text-[#d4af37] text-[9px] font-black"
+                  className="px-2 py-1 bg-white/10 rounded-lg text-[8px] font-black"
                 >
                   {showAllMonthlyBrands ? 'Show Less' : 'Show All'}
                 </button>
               </div>
 
-              <div className="grid grid-cols-2 gap-2 mb-2">
-                <div className="bg-white/5 p-2 rounded-lg">
-                  <p className="text-[8px] opacity-60">Sales</p>
-                  <p className="text-sm font-black text-[#d4af37]">Rs.{stats.monthlySales.toLocaleString()}</p>
+              <div className="grid grid-cols-2 gap-2 mb-3">
+                <div className="bg-white/5 p-2 rounded-lg border border-white/10">
+                  <p className="text-[8px] opacity-60">Total Sales</p>
+                  <p className="text-base font-black text-[#d4af37]">Rs.{stats.monthlySales.toLocaleString()}</p>
                 </div>
-                <div className="bg-white/5 p-2 rounded-lg">
-                  <p className="text-[8px] opacity-60">Units</p>
-                  <p className="text-sm font-black text-[#d4af37]">{stats.monthly.totalUnits}</p>
+                <div className="bg-white/5 p-2 rounded-lg border border-white/10">
+                  <p className="text-[8px] opacity-60">Total Units</p>
+                  <p className="text-base font-black text-[#d4af37]">{stats.monthly.totalUnits}</p>
                 </div>
               </div>
 
-              {/* Brand-wise Performance */}
+              {/* Brand-wise Performance with borders */}
               <div className="space-y-2">
-                <p className="text-[9px] font-black uppercase opacity-60 mb-1">Brand Performance</p>
+                <p className="text-[9px] font-black uppercase opacity-60 mb-2">Brand Performance</p>
 
                 {stats.monthly.summary.slice(0, showAllMonthlyBrands ? undefined : 5).map((brand, idx) => (
-                  <div key={idx} className={`p-2 rounded-lg border mb-1 ${
-                    idx === 0 ? (isDarkMode ? 'bg-[#d4af37]/10 border-[#d4af37]/30' : 'bg-[#d4af37]/5 border-[#d4af37]/20') : ''
+                  <div key={idx} className={`p-3 rounded-lg border ${
+                    idx === 0 
+                      ? (isDarkMode ? 'bg-[#d4af37]/10 border-[#d4af37]/40' : 'bg-[#d4af37]/5 border-[#d4af37]/30')
+                      : 'bg-white/5 border-white/10'
                   }`}>
                     <div className="flex justify-between items-center">
                       <div className="flex-1">
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-2">
                           {idx === 0 && <Trophy size={12} className="text-[#d4af37]" />}
                           <span className="text-xs font-bold">{brand.name}</span>
                         </div>
-                        <div className="flex items-center gap-3 mt-0.5">
-                          <span className="text-[9px] opacity-70">{brand.units} units</span>
-                          <span className="text-[9px] opacity-70">@ Rs.{brand.avgPrice.toFixed(0)}</span>
+                        <div className="flex items-center gap-3 mt-1">
+                          <span className="text-[8px] opacity-70 border-r border-white/20 pr-2">{brand.units} units</span>
+                          <span className="text-[8px] opacity-70">@ Rs.{brand.avgPrice.toFixed(0)}</span>
                         </div>
                       </div>
-                      <div className="text-right">
+                      <div className="text-right border-l border-white/10 pl-3">
                         <p className="text-sm font-black text-[#d4af37]">Rs.{brand.revenue.toLocaleString()}</p>
-                        <p className="text-[8px] opacity-60">
+                        <p className="text-[7px] opacity-60 mt-0.5">
                           {stats.monthly.totalSales > 0 ? ((brand.revenue / stats.monthly.totalSales) * 100).toFixed(1) : 0}%
                         </p>
                       </div>
@@ -1903,29 +1959,12 @@ export default function App() {
                 ))}
 
                 {stats.monthly.summary.length === 0 && (
-                  <p className="text-[10px] opacity-30 italic text-center py-2">No monthly sales data</p>
+                  <div className="text-center py-6">
+                    <Package2 size={30} className="mx-auto opacity-20 mb-2" />
+                    <p className="text-xs opacity-30 italic">No monthly sales data</p>
+                  </div>
                 )}
               </div>
-            </div>
-
-            {/* Today's Sales */}
-            <div className={`p-3 rounded-xl border ${
-              isDarkMode ? "bg-[#0f0f0f] border-white/10" : "bg-white border-gray-200"
-            }`}>
-              <h3 className="text-xs font-black text-[#d4af37] uppercase mb-2">Today's Sales</h3>
-              {stats.daily.summary.length > 0 ? (
-                stats.daily.summary.map((item, idx) => (
-                  <div key={idx} className="flex justify-between items-center text-[10px] py-1 border-b border-white/5 last:border-0">
-                    <div className="flex-1">
-                      <span>{item.name}</span>
-                      <span className="text-[9px] opacity-60 ml-1">x{item.units}</span>
-                    </div>
-                    <span className="font-bold text-[#d4af37]">Rs.{item.revenue.toLocaleString()}</span>
-                  </div>
-                ))
-              ) : (
-                <p className="text-[10px] opacity-50 italic text-center py-2">No sales today</p>
-              )}
             </div>
           </div>
         )}
@@ -2171,6 +2210,9 @@ export default function App() {
                     </button>
                     <button onClick={() => shareToWhatsApp(o, false)} className="p-1 text-purple-500 hover:bg-purple-500/10 rounded">
                       <Share2 size={12}/>
+                    </button>
+                    <button onClick={() => confirmDelete(o.id, 'order', '')} className="p-1 text-red-500 hover:bg-red-500/10 rounded">
+                      <Trash2 size={12}/>
                     </button>
                   </div>
                 </div>
