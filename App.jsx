@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { initializeApp } from 'firebase/app';
 import {
   getAuth,
@@ -20,7 +20,8 @@ import {
   TrendingUp as TrendingIcon, ShoppingCart, Truck, Gift, Zap, Info,
   Receipt, Wallet, BadgePercent, Box, Circle, Square, Triangle,
   RotateCcw, Volume2, VolumeX, Trophy, Timer, Users, Shield, Heart,
-  Sparkles, Flame, Star as StarIcon, Menu, MoreVertical, Home
+  Sparkles, Flame, Star as StarIcon, Menu, MoreVertical, Home,
+  ArrowUpDown, ArrowUp, ArrowDown, RefreshCw, Play, Pause, Volume2 as Volume
 } from 'lucide-react';
 
 // --- FIREBASE CONFIG ---
@@ -114,8 +115,9 @@ export default function App() {
   const [loginError, setLoginError] = useState('');
   const [isFabOpen, setIsFabOpen] = useState(false);
   const [showShopMenu, setShowShopMenu] = useState(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  // Target States - Enhanced
+  // Target States
   const [targetAmount, setTargetAmount] = useState('');
   const [targetMonth, setTargetMonth] = useState(new Date().toISOString().slice(0, 7));
   const [targetType, setTargetType] = useState('revenue');
@@ -140,15 +142,20 @@ export default function App() {
   });
   const [editingProfile, setEditingProfile] = useState(null);
 
-  // Game State - Simplified
+  // Enhanced Game State
   const [showGame, setShowGame] = useState(false);
   const [gameScore, setGameScore] = useState(0);
   const [gameHighScore, setGameHighScore] = useState(0);
+  const [gameActive, setGameActive] = useState(false);
+  const [gameTimeLeft, setGameTimeLeft] = useState(30);
+  const [gameTargets, setGameTargets] = useState([]);
+  const [gameLevel, setGameLevel] = useState(1);
+  const [gameSound, setGameSound] = useState(true);
+  const [gameCombo, setGameCombo] = useState(0);
 
   // View States
   const [viewingShopProfile, setViewingShopProfile] = useState(null);
   const [viewingShopOrders, setViewingShopOrders] = useState(null);
-  const [viewingOrderDetails, setViewingOrderDetails] = useState(null);
 
   // ========== NETWORK STATUS LISTENER ==========
   useEffect(() => {
@@ -180,7 +187,7 @@ export default function App() {
     setToast({ show: true, message, type });
     setTimeout(() => {
       setToast({ show: false, message: '', type: 'success' });
-    }, 3000);
+    }, 2000);
   };
 
   // ========== SPLASH SCREEN & AUTH LISTENER ==========
@@ -351,7 +358,7 @@ export default function App() {
             showToast("📍 Location saved offline", "info");
           } else {
             addDoc(collection(db, 'locations'), locationData)
-              .then(() => showToast("📍 Location saved successfully!", "success"))
+              .then(() => showToast("📍 Location saved!", "success"))
               .catch(err => showToast("Error saving location: " + err.message, "error"));
           }
         },
@@ -386,7 +393,7 @@ export default function App() {
         userId: user.uid,
         updatedAt: Date.now()
       });
-      showToast("✅ Profile Saved Successfully!", "success");
+      showToast("✅ Profile Saved!", "success");
     } catch (err) {
       showToast("Error: " + err.message, "error");
     }
@@ -422,12 +429,15 @@ export default function App() {
         showToast("✅ Expense saved offline", "info");
       } else {
         await addDoc(collection(db, 'expenses'), expenseData);
-        showToast("✅ Expense saved successfully!", "success");
+        showToast("✅ Expense saved!", "success");
       }
 
       setExpenseAmount('');
       setExpenseNote('');
       setShowModal(null);
+      
+      // Force refresh dashboard
+      setRefreshKey(prev => prev + 1);
     } catch (err) {
       showToast("Error saving expense: " + err.message, "error");
     } finally {
@@ -454,8 +464,11 @@ export default function App() {
       if (type === 'target') await deleteDoc(doc(db, 'targets', id));
       if (type === 'shopProfile') await deleteDoc(doc(db, 'shopProfiles', id));
 
-      showToast(`✅ ${type} deleted successfully!`, 'success');
+      showToast(`✅ ${type} deleted!`, 'success');
       setShowDeleteConfirm({ show: false, id: null, type: '', name: '' });
+      
+      // Force refresh
+      setRefreshKey(prev => prev + 1);
     } catch (err) {
       showToast(`Error deleting ${type}: ` + err.message, 'error');
     }
@@ -489,7 +502,7 @@ export default function App() {
         showToast("✅ Note saved offline", "info");
       } else {
         await addDoc(collection(db, 'notes'), noteData);
-        showToast("✅ Note saved successfully!", "success");
+        showToast("✅ Note saved!", "success");
       }
 
       setRepNote('');
@@ -550,8 +563,10 @@ export default function App() {
         setLastOrder({ ...orderData, id: docRef.id });
         setShowModal('preview');
         setManualItems([{ name: '', qty: 1, price: 0, subtotal: 0 }]);
-        showToast("✅ Order saved successfully!", "success");
+        showToast("✅ Order saved!", "success");
       }
+      
+      setRefreshKey(prev => prev + 1);
     } catch (err) {
       showToast("Error saving order: " + err.message, "error");
     }
@@ -576,7 +591,7 @@ export default function App() {
       grandTotal: grandTotal
     }));
 
-    showToast(`💰 Grand Total: Rs.${grandTotal.toLocaleString()}`, "info");
+    showToast(`💰 Total: Rs.${grandTotal.toLocaleString()}`, "info");
   };
 
   const handleInputFocus = (e) => {
@@ -607,7 +622,7 @@ export default function App() {
     try {
       await sendPasswordResetEmail(auth, resetEmail);
       setResetSuccess(true);
-      showToast("📧 Password reset link sent! Check your email.", "success");
+      showToast("📧 Password reset link sent!", "success");
     } catch (err) {
       let errorMessage = "Error sending reset email";
       if (err.code === 'auth/user-not-found') {
@@ -771,6 +786,7 @@ export default function App() {
       setEditingTarget(null);
       setTargetAmount('');
       setTargetBrand('');
+      setRefreshKey(prev => prev + 1);
     } catch (err) {
       showToast("Error: " + err.message, "error");
     }
@@ -920,7 +936,7 @@ export default function App() {
       targets: targetProgress,
       targetCount: monthTargets.length
     };
-  }, [data.orders, data.expenses, data.notes, data.targets]);
+  }, [data.orders, data.expenses, data.notes, data.targets, refreshKey]);
 
   // ========== FILTER SHOPS ==========
   const filteredShops = useMemo(() => {
@@ -986,7 +1002,7 @@ export default function App() {
       });
     }
     msg += `\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯\n`;
-    msg += `💰 *TOTAL BILL: Rs.${(order.total || 0).toLocaleString()}*\n`;
+    msg += `💰 *TOTAL: Rs.${(order.total || 0).toLocaleString()}*\n`;
     msg += `⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯\n`;
     msg += `_Generated by Monarch Pro_`;
     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
@@ -1012,7 +1028,7 @@ export default function App() {
       });
     }
     msg += `\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯\n`;
-    msg += `💰 *TOTAL BILL: Rs.${(order.total || 0).toLocaleString()}*\n`;
+    msg += `💰 *TOTAL: Rs.${(order.total || 0).toLocaleString()}*\n`;
     msg += `⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯\n`;
     msg += `_Generated by Monarch Pro_`;
     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
@@ -1119,7 +1135,7 @@ export default function App() {
         }
 
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        showToast("🎉 Account created successfully!", "success");
+        showToast("🎉 Account created!", "success");
 
         try {
           await setDoc(doc(db, "settings", userCredential.user.uid), {
@@ -1216,8 +1232,10 @@ export default function App() {
         setCart({});
         setLastOrder({ ...orderData, id: docRef.id });
         setShowModal('preview');
-        showToast("✅ Order saved successfully!", "success");
+        showToast("✅ Order saved!", "success");
       }
+      
+      setRefreshKey(prev => prev + 1);
     } catch (err) {
       showToast("Error saving order: " + err.message, "error");
     }
@@ -1229,7 +1247,9 @@ export default function App() {
       await updateDoc(doc(db, 'brands', brandId), {
         [field]: field === 'price' ? parseFloat(value) : value.toUpperCase()
       });
-      showToast("Brand updated successfully!", "success");
+      showToast("Brand updated!", "success");
+      setEditingBrand(null);
+      setRefreshKey(prev => prev + 1);
     } catch (err) {
       showToast("Error updating brand: " + err.message, "error");
     }
@@ -1290,11 +1310,12 @@ export default function App() {
         showToast(`✅ Brand added offline (Number: ${sequence})`, "info");
       } else {
         await addDoc(collection(db, 'brands'), brandData);
-        showToast(`✅ Brand added successfully! (#${sequence})`, "success");
+        showToast(`✅ Brand added! (#${sequence})`, "success");
       }
 
       setBrandError('');
       setShowModal(null);
+      setRefreshKey(prev => prev + 1);
     } catch (err) {
       showToast("Error: " + err.message, "error");
     }
@@ -1321,113 +1342,244 @@ export default function App() {
       await updateDoc(doc(db, 'brands', brand1.id), { sequence: brand2.sequence });
       await updateDoc(doc(db, 'brands', brand2.id), { sequence: brand1.sequence });
 
-      showToast("✅ Brand reordered successfully!", "success");
+      showToast("✅ Brand reordered!", "success");
+      setRefreshKey(prev => prev + 1);
     } catch (err) {
       showToast("Error reordering brands: " + err.message, "error");
     }
   };
 
-  // ========== SIMPLIFIED GAME ==========
-  const handleTap = () => {
-    const newScore = gameScore + 1;
-    setGameScore(newScore);
-    if (navigator.vibrate) {
-      navigator.vibrate(30);
+  // ========== ENHANCED GAME FUNCTIONS ==========
+  const startGame = () => {
+    setGameActive(true);
+    setGameScore(0);
+    setGameTimeLeft(30);
+    setGameLevel(1);
+    setGameCombo(0);
+
+    const newTargets = [];
+    for (let i = 0; i < 5; i++) {
+      newTargets.push({
+        id: i,
+        x: Math.random() * 80 + 10,
+        y: Math.random() * 80 + 10,
+        value: 10,
+        type: Math.random() > 0.3 ? 'coin' : 'bonus'
+      });
     }
-    if (newScore > gameHighScore) {
-      setGameHighScore(newScore);
-      localStorage.setItem('monarchGameHighScore', newScore);
+    setGameTargets(newTargets);
+  };
+
+  useEffect(() => {
+    let timer;
+    if (gameActive && gameTimeLeft > 0) {
+      timer = setTimeout(() => {
+        setGameTimeLeft(prev => prev - 1);
+      }, 1000);
+    } else if (gameTimeLeft === 0) {
+      endGame();
+    }
+    return () => clearTimeout(timer);
+  }, [gameActive, gameTimeLeft]);
+
+  const endGame = () => {
+    setGameActive(false);
+    if (gameScore > gameHighScore) {
+      setGameHighScore(gameScore);
+      localStorage.setItem('monarchGameHighScore', gameScore);
+    }
+    showToast(`🎮 Game Over! Score: ${gameScore}`, "info");
+  };
+
+  const handleTargetClick = (id, type) => {
+    if (!gameActive) return;
+
+    let points = type === 'bonus' ? 20 : 10;
+    setGameScore(prev => prev + points);
+    setGameCombo(prev => prev + 1);
+
+    if (gameSound && navigator.vibrate) {
+      navigator.vibrate(50);
+    }
+
+    setGameTargets(prev => prev.filter(t => t.id !== id));
+
+    // Add new target
+    const newTarget = {
+      id: Date.now() + Math.random(),
+      x: Math.random() * 80 + 10,
+      y: Math.random() * 80 + 10,
+      value: 10,
+      type: Math.random() > 0.3 ? 'coin' : 'bonus'
+    };
+    setGameTargets(prev => [...prev, newTarget]);
+
+    // Level up
+    if (gameScore > 100 * gameLevel) {
+      setGameLevel(prev => prev + 1);
+      showToast(`🎯 Level ${gameLevel + 1}!`, "success");
     }
   };
 
   // ========== RENDER ==========
   if (isSplash || loading) {
     return (
-      <div className="h-screen bg-gradient-to-br from-black via-[#1a1a1a] to-[#2d2d2d] flex flex-col items-center justify-center relative overflow-hidden">
-        <div className="absolute inset-0">
-          <div className="absolute top-0 left-0 w-96 h-96 bg-[#d4af37] rounded-full filter blur-3xl animate-pulse"></div>
-          <div className="absolute bottom-0 right-0 w-96 h-96 bg-[#b8860b] rounded-full filter blur-3xl animate-pulse delay-1000"></div>
-        </div>
-
-        <button
-          onClick={() => {
-            setShowGame(true);
-            setIsSplash(false);
-          }}
-          className="relative z-10 transform hover:scale-110 transition-all duration-300"
-        >
-          <div className="relative">
-            <Crown size={70} className="text-[#d4af37] animate-pulse" />
-            <Heart size={25} className="text-[#d4af37] absolute -top-2 -right-2 animate-bounce" fill="#d4af37" />
+      <div className="min-h-screen bg-gradient-to-br from-[#0a0a0a] via-[#1a1a1a] to-[#000000] flex items-center justify-center">
+        <div className="text-center">
+          <div className="relative mb-8">
+            <div className="w-32 h-32 mx-auto relative">
+              <div className="absolute inset-0 bg-gradient-to-r from-[#d4af37] to-[#b8860b] rounded-full animate-ping opacity-20"></div>
+              <div className="relative z-10 w-32 h-32 bg-gradient-to-br from-[#d4af37] to-[#b8860b] rounded-full flex items-center justify-center shadow-2xl">
+                <Crown size={60} className="text-black" />
+              </div>
+            </div>
+            <Heart size={30} className="text-[#d4af37] absolute -top-2 -right-2 animate-bounce" fill="#d4af37" />
           </div>
-        </button>
-
-        <h1 className="mt-6 text-[#d4af37] text-4xl font-black tracking-widest italic uppercase relative z-10">
-          MONARCH
-        </h1>
-        <p className="mt-2 text-white/70 text-sm font-light tracking-wider relative z-10">
-          for my soul
-        </p>
-
-        <div className="mt-8 w-56 h-1.5 bg-white/10 rounded-full overflow-hidden relative z-10">
-          <div className="h-full bg-gradient-to-r from-[#d4af37] via-[#f5e7a3] to-[#b8860b] animate-progress"></div>
+          
+          <h1 className="text-[#d4af37] text-4xl font-black tracking-[0.2em] mb-3">MONARCH</h1>
+          <p className="text-white/70 text-lg font-light tracking-wider mb-8">for my soul</p>
+          
+          <div className="w-64 h-1.5 bg-white/10 rounded-full mx-auto overflow-hidden">
+            <div className="h-full bg-gradient-to-r from-[#d4af37] via-[#f5e7a3] to-[#b8860b] animate-progress"></div>
+          </div>
+          
+          <p className="text-white/30 text-xs mt-6 tracking-widest">version 2.0</p>
         </div>
       </div>
     );
   }
 
+  // ========== ENHANCED GAME SCREEN ==========
   if (showGame) {
     return (
-      <div className="h-screen bg-gradient-to-br from-black via-[#1a1a1a] to-[#2d2d2d] flex flex-col items-center justify-center p-4">
-        <div className="text-center mb-8">
-          <Trophy size={50} className="text-[#d4af37] mx-auto mb-4" />
-          <h2 className="text-[#d4af37] text-2xl font-black mb-2">TAP GAME</h2>
-          <p className="text-white/60 text-sm">Score: {gameScore}</p>
-          <p className="text-white/40 text-xs">Best: {gameHighScore}</p>
+      <div className="min-h-screen bg-gradient-to-br from-black via-[#1a1a1a] to-[#2d2d2d] flex flex-col items-center justify-center p-4 relative overflow-hidden">
+        <div className="absolute inset-0">
+          <div className="absolute top-0 left-0 w-96 h-96 bg-[#d4af37]/5 rounded-full filter blur-3xl"></div>
+          <div className="absolute bottom-0 right-0 w-96 h-96 bg-[#b8860b]/5 rounded-full filter blur-3xl"></div>
         </div>
 
-        <button
-          onClick={handleTap}
-          className="w-48 h-48 rounded-full bg-gradient-to-br from-[#d4af37] to-[#b8860b] text-black font-black text-2xl shadow-2xl hover:scale-105 transition-transform active:scale-95 mb-8"
-        >
-          TAP
-        </button>
+        <div className="relative z-10 w-full max-w-md">
+          <div className="flex justify-between items-center mb-4">
+            <div>
+              <h2 className="text-[#d4af37] text-2xl font-black uppercase flex items-center gap-2">
+                <Gamepad2 size={24} />
+                TAP HUNT
+              </h2>
+            </div>
+            <button
+              onClick={() => setGameSound(!gameSound)}
+              className="p-2 bg-white/10 rounded-lg"
+            >
+              {gameSound ? <Volume size={18} className="text-[#d4af37]"/> : <VolumeX size={18} className="text-white/40"/>}
+            </button>
+          </div>
 
-        <button
-          onClick={() => {
-            setShowGame(false);
-            setGameScore(0);
-            setIsSplash(true);
-            setTimeout(() => setIsSplash(false), 1500);
-          }}
-          className="px-6 py-3 bg-white/10 text-white/80 rounded-xl text-sm font-black border border-white/5"
-        >
-          BACK TO APP
-        </button>
+          <div className="grid grid-cols-4 gap-2 mb-4">
+            <div className="bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] p-2 rounded-xl text-center">
+              <p className="text-[#d4af37] text-xs uppercase">Score</p>
+              <p className="text-white text-lg font-black">{gameScore}</p>
+            </div>
+            <div className="bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] p-2 rounded-xl text-center">
+              <p className="text-[#d4af37] text-xs uppercase">Level</p>
+              <p className="text-white text-lg font-black">{gameLevel}</p>
+            </div>
+            <div className="bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] p-2 rounded-xl text-center">
+              <p className="text-[#d4af37] text-xs uppercase">Combo</p>
+              <p className="text-white text-lg font-black">{gameCombo}</p>
+            </div>
+            <div className="bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] p-2 rounded-xl text-center">
+              <p className="text-[#d4af37] text-xs uppercase">Time</p>
+              <p className="text-white text-lg font-black">{gameTimeLeft}s</p>
+            </div>
+          </div>
+
+          <div className="bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] rounded-2xl border border-[#d4af37]/30 p-4 mb-4 relative h-[400px]">
+            {!gameActive ? (
+              <div className="h-full flex flex-col items-center justify-center">
+                <Trophy size={60} className="text-[#d4af37] mb-4 opacity-50" />
+                <p className="text-white/60 text-center mb-2 text-sm">
+                  Tap the coins as fast as you can!<br/>
+                  <span className="text-[#d4af37]">30 seconds challenge</span>
+                </p>
+                <div className="flex gap-8 mb-4">
+                  <div className="text-center">
+                    <p className="text-white/40 text-xs">Best Score</p>
+                    <p className="text-[#d4af37] text-xl font-black">{gameHighScore}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={startGame}
+                  className="px-8 py-3 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-xl uppercase text-sm tracking-widest hover:opacity-90 transition-all"
+                >
+                  START GAME
+                </button>
+              </div>
+            ) : (
+              <div className="relative h-full">
+                {gameTargets.map(target => (
+                  <button
+                    key={target.id}
+                    onClick={() => handleTargetClick(target.id, target.type)}
+                    className={`absolute w-12 h-12 rounded-full flex items-center justify-center animate-pulse shadow-lg transform hover:scale-110 transition-all ${
+                      target.type === 'bonus'
+                        ? 'bg-gradient-to-r from-purple-500 to-pink-500'
+                        : 'bg-gradient-to-r from-[#d4af37] to-[#b8860b]'
+                    }`}
+                    style={{
+                      left: `${target.x}%`,
+                      top: `${target.y}%`,
+                      transform: 'translate(-50%, -50%)'
+                    }}
+                  >
+                    {target.type === 'bonus' ? (
+                      <Gift size={16} className="text-white" />
+                    ) : (
+                      <DollarSign size={16} className="text-black" />
+                    )}
+                  </button>
+                ))}
+                <div className="absolute bottom-0 left-0 right-0">
+                  <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-[#d4af37] to-[#b8860b]"
+                      style={{ width: `${(gameTimeLeft / 30) * 100}%` }}
+                    ></div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <button
+            onClick={() => {
+              setShowGame(false);
+              setGameActive(false);
+              setGameScore(0);
+            }}
+            className="w-full py-2.5 bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] text-white/60 font-black rounded-xl uppercase text-xs border border-white/5 hover:border-white/10 transition-all"
+          >
+            ← BACK TO APP
+          </button>
+        </div>
       </div>
     );
   }
 
+  // ========== ENHANCED LOGIN SCREEN ==========
   if (!user && showForgotPassword) {
     return (
-      <div className="h-screen bg-gradient-to-br from-black to-[#1a1a1a] flex items-center justify-center p-4">
-        <div className="w-full max-w-sm p-6 space-y-6 text-center bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] rounded-2xl border border-[#d4af37]/30 shadow-2xl">
-          <div className="space-y-3">
-            <div className="w-20 h-20 bg-gradient-to-br from-[#d4af37]/20 to-[#b8860b]/20 rounded-full flex items-center justify-center mx-auto border border-[#d4af37]/30">
-              <Crown size={40} className="text-[#d4af37]" />
-            </div>
-            <h2 className="text-white font-black text-xl tracking-widest uppercase">
-              Reset Password
-            </h2>
+      <div className="min-h-screen bg-gradient-to-br from-black to-[#1a1a1a] flex items-center justify-center p-4">
+        <div className="w-full max-w-sm bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] rounded-2xl border border-[#d4af37]/30 p-6">
+          <div className="text-center mb-6">
+            <Crown size={40} className="text-[#d4af37] mx-auto mb-3" />
+            <h2 className="text-white font-black text-xl">Reset Password</h2>
           </div>
 
           {resetSuccess ? (
             <div className="space-y-4">
-              <div className="p-4 bg-gradient-to-r from-green-500/20 to-emerald-600/20 rounded-xl border border-green-500/30">
-                <CheckCircle2 size={30} className="text-green-500 mx-auto mb-2" />
-                <p className="text-green-500 text-sm font-bold">
-                  Password reset link sent successfully!
-                </p>
+              <div className="p-4 bg-green-500/20 rounded-xl border border-green-500/30 text-center">
+                <CheckCircle2 size={40} className="text-green-500 mx-auto mb-2" />
+                <p className="text-green-500 font-bold">Reset link sent!</p>
               </div>
               <button
                 onClick={() => {
@@ -1435,7 +1587,7 @@ export default function App() {
                   setResetSuccess(false);
                   setResetEmail('');
                 }}
-                className="w-full py-3 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-xl uppercase text-sm tracking-widest hover:opacity-90 transition-all shadow-lg"
+                className="w-full py-3 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-xl text-sm"
               >
                 Back to Login
               </button>
@@ -1446,28 +1598,23 @@ export default function App() {
                 type="email"
                 value={resetEmail}
                 onChange={(e) => setResetEmail(e.target.value)}
-                placeholder="YOUR EMAIL ADDRESS"
-                className="w-full bg-black/50 backdrop-blur-sm p-4 rounded-xl border border-white/10 text-white font-bold outline-none focus:border-[#d4af37] transition-all"
+                placeholder="EMAIL"
+                className="w-full bg-black/50 p-3 rounded-xl border border-white/10 text-white text-sm outline-none focus:border-[#d4af37]"
               />
               <button
                 onClick={handleForgotPassword}
                 disabled={isSendingReset}
-                className={`w-full py-4 font-black rounded-xl uppercase text-sm tracking-widest transition-all ${
-                  isSendingReset
-                    ? 'bg-gray-700 text-gray-400'
-                    : 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black hover:opacity-90 shadow-lg'
+                className={`w-full py-3 font-black rounded-xl text-sm ${
+                  isSendingReset ? 'bg-gray-700 text-gray-400' : 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black'
                 }`}
               >
                 {isSendingReset ? 'SENDING...' : 'SEND RESET LINK'}
               </button>
               <button
-                onClick={() => {
-                  setShowForgotPassword(false);
-                  setResetEmail('');
-                }}
-                className="w-full py-3 text-white/60 font-bold rounded-xl text-sm hover:text-white transition-all"
+                onClick={() => setShowForgotPassword(false)}
+                className="w-full py-2 text-white/60 text-sm hover:text-white"
               >
-                ← Back to Login
+                ← Back
               </button>
             </div>
           )}
@@ -1478,27 +1625,20 @@ export default function App() {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-black via-[#1a1a1a] to-[#2d2d2d] flex items-center justify-center p-4 relative overflow-hidden">
-        <div className="absolute inset-0">
-          <div className="absolute top-0 left-0 w-96 h-96 bg-[#d4af37]/5 rounded-full filter blur-3xl animate-pulse"></div>
-          <div className="absolute bottom-0 right-0 w-96 h-96 bg-[#b8860b]/5 rounded-full filter blur-3xl animate-pulse delay-1000"></div>
-        </div>
-
-        <div className="w-full max-w-sm space-y-8 relative z-10">
-          <div className="text-center">
-            <div className="relative">
-              <div className="w-24 h-24 bg-gradient-to-br from-[#d4af37]/20 to-[#b8860b]/20 rounded-full flex items-center justify-center mx-auto border-2 border-[#d4af37]/30 shadow-2xl mb-4">
-                <Crown size={50} className="text-[#d4af37]" />
+      <div className="min-h-screen bg-gradient-to-br from-black via-[#1a1a1a] to-[#2d2d2d] flex items-center justify-center p-4">
+        <div className="w-full max-w-sm bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] rounded-2xl border border-[#d4af37]/30 p-6">
+          <div className="text-center mb-6">
+            <div className="relative inline-block mb-4">
+              <div className="w-20 h-20 bg-gradient-to-br from-[#d4af37] to-[#b8860b] rounded-full flex items-center justify-center">
+                <Crown size={40} className="text-black" />
               </div>
-              <div className="absolute -top-2 -right-2 animate-bounce">
-                <Heart size={20} className="text-[#d4af37]" fill="#d4af37" />
-              </div>
+              <Heart size={16} className="text-[#d4af37] absolute -top-1 -right-1" fill="#d4af37" />
             </div>
-            <h2 className="text-white font-black text-2xl tracking-widest uppercase">
-              {isRegisterMode ? "Create Account" : "Welcome Back"}
+            <h2 className="text-white font-black text-xl mb-1">
+              {isRegisterMode ? "SIGN UP" : "SIGN IN"}
             </h2>
-            <p className="text-[#d4af37]/70 text-sm mt-2 font-bold">
-              {isRegisterMode ? "Join Monarch Pro Today" : "Sign in to continue"}
+            <p className="text-[#d4af37]/70 text-xs">
+              {isRegisterMode ? "Create your account" : "Welcome back"}
             </p>
           </div>
 
@@ -1506,29 +1646,29 @@ export default function App() {
             <input
               name="email"
               type="email"
-              placeholder="EMAIL ADDRESS"
-              className="w-full bg-black/50 backdrop-blur-sm p-4 rounded-xl border border-white/10 text-white font-bold outline-none focus:border-[#d4af37] transition-all placeholder:text-white/30"
+              placeholder="EMAIL"
+              className="w-full bg-black/50 p-3 rounded-xl border border-white/10 text-white text-sm outline-none focus:border-[#d4af37]"
               required
             />
             <input
               name="password"
               type="password"
               placeholder="PASSWORD"
-              className="w-full bg-black/50 backdrop-blur-sm p-4 rounded-xl border border-white/10 text-white font-bold outline-none focus:border-[#d4af37] transition-all placeholder:text-white/30"
+              className="w-full bg-black/50 p-3 rounded-xl border border-white/10 text-white text-sm outline-none focus:border-[#d4af37]"
               required
             />
 
             {loginError && (
-              <div className="p-3 bg-red-500/20 border border-red-500/30 rounded-xl">
-                <p className="text-red-500 text-xs font-bold text-center">{loginError}</p>
+              <div className="p-2 bg-red-500/20 rounded-xl border border-red-500/30">
+                <p className="text-red-500 text-xs text-center">{loginError}</p>
               </div>
             )}
 
             <button
               type="submit"
-              className="w-full py-4 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-xl shadow-lg uppercase text-sm tracking-widest hover:opacity-90 transition-all transform hover:scale-[1.02]"
+              className="w-full py-3 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-xl text-sm"
             >
-              {isRegisterMode ? "Sign Up" : "Login"}
+              {isRegisterMode ? "SIGN UP" : "SIGN IN"}
             </button>
 
             <div className="flex justify-between items-center pt-2">
@@ -1538,18 +1678,18 @@ export default function App() {
                   setIsRegisterMode(!isRegisterMode);
                   setLoginError('');
                 }}
-                className="text-[#d4af37] text-sm font-bold uppercase tracking-widest opacity-80 hover:opacity-100 transition-all"
+                className="text-[#d4af37] text-xs font-bold"
               >
-                {isRegisterMode ? "← Sign In" : "Register"}
+                {isRegisterMode ? "← SIGN IN" : "SIGN UP"}
               </button>
 
               {!isRegisterMode && (
                 <button
                   type="button"
                   onClick={() => setShowForgotPassword(true)}
-                  className="text-white/60 text-sm font-bold uppercase tracking-widest opacity-80 hover:opacity-100 hover:text-[#d4af37] transition-all"
+                  className="text-white/60 text-xs hover:text-[#d4af37]"
                 >
-                  Forgot Password?
+                  Forgot?
                 </button>
               )}
             </div>
@@ -1559,8 +1699,9 @@ export default function App() {
     );
   }
 
+  // ========== MAIN APP ==========
   return (
-    <div className={`min-h-screen pb-24 text-sm ${
+    <div className={`min-h-screen pb-16 ${
       isDarkMode
         ? "bg-gradient-to-br from-[#0a0a0a] via-[#1a1a1a] to-[#0f0f0f] text-white"
         : "bg-gradient-to-br from-amber-50 via-yellow-50 to-orange-50 text-gray-900"
@@ -1583,34 +1724,30 @@ export default function App() {
       {isOffline && (
         <div className="fixed top-14 left-1/2 transform -translate-x-1/2 z-[90] px-3 py-1 bg-yellow-500/20 text-yellow-500 rounded-full border border-yellow-500/30 text-[10px] font-bold flex items-center gap-1">
           <WifiOff size={12} />
-          OFFLINE MODE
+          OFFLINE
         </div>
       )}
 
       {/* Delete Confirm Modal */}
       {showDeleteConfirm.show && (
         <div className="fixed inset-0 bg-black/95 z-[1000] flex items-center justify-center p-4">
-          <div className="bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] w-full max-w-sm p-5 rounded-2xl border border-red-500/30">
+          <div className="bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] w-full max-w-xs p-5 rounded-2xl border border-red-500/30">
             <div className="text-center mb-4">
               <Trash2 size={40} className="text-red-500 mx-auto mb-3" />
-              <h3 className="text-white font-black text-lg uppercase">Confirm Delete</h3>
-              <p className="text-white/60 text-sm mt-2">
-                {showDeleteConfirm.type === 'brand' && `Delete "${showDeleteConfirm.name}"?`}
-                {showDeleteConfirm.type === 'shop' && `Delete shop "${showDeleteConfirm.name}"?`}
-                {showDeleteConfirm.type === 'target' && 'Delete this target?'}
-              </p>
-              <p className="text-red-500 text-xs font-bold mt-3">This action cannot be undone!</p>
+              <h3 className="text-white font-black text-base">Confirm Delete</h3>
+              <p className="text-white/60 text-xs mt-2">{showDeleteConfirm.name}</p>
+              <p className="text-red-500 text-[10px] font-bold mt-3">This cannot be undone!</p>
             </div>
-            <div className="flex gap-3">
+            <div className="flex gap-2">
               <button
                 onClick={handleDelete}
-                className="flex-1 py-3 bg-gradient-to-r from-red-600 to-red-500 text-white font-black rounded-xl uppercase text-xs"
+                className="flex-1 py-2 bg-gradient-to-r from-red-600 to-red-500 text-white font-black rounded-lg text-xs"
               >
                 DELETE
               </button>
               <button
                 onClick={() => setShowDeleteConfirm({ show: false, id: null, type: '', name: '' })}
-                className="flex-1 py-3 bg-gradient-to-br from-[#333] to-[#444] text-white/80 font-black rounded-xl uppercase text-xs"
+                className="flex-1 py-2 bg-gradient-to-br from-[#333] to-[#444] text-white/80 font-black rounded-lg text-xs"
               >
                 CANCEL
               </button>
@@ -1621,147 +1758,125 @@ export default function App() {
 
       {/* SHOP ORDERS VIEW MODAL */}
       {viewingShopOrders && (
-        <div className="fixed inset-0 bg-black/95 z-[200] flex items-center justify-center p-3 backdrop-blur-3xl overflow-y-auto">
-          <div className="w-full max-w-md p-5 rounded-2xl border border-[#d4af37]/30 bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] text-white max-h-[90vh] overflow-y-auto">
-            <button
-              onClick={() => setViewingShopOrders(null)}
-              className="absolute top-2 right-2 text-white/20 hover:text-white/40 p-1"
-            >
-              <X size={20}/>
-            </button>
-
-            <div className="text-center mb-4">
-              <h3 className="font-black text-[#d4af37] mb-1 uppercase text-base">Shop Orders</h3>
-              <p className="text-sm text-white/80 font-bold">{viewingShopOrders.shop.name}</p>
+        <div className="fixed inset-0 bg-black/95 z-[200] flex items-center justify-center p-3 overflow-y-auto">
+          <div className="w-full max-w-md bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] p-4 rounded-2xl border border-[#d4af37]/30">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-black text-[#d4af37] text-sm">SHOP ORDERS</h3>
+              <button onClick={() => setViewingShopOrders(null)} className="text-white/40 hover:text-white/60 p-1">
+                <X size={18}/>
+              </button>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 mb-4">
-              <div className="bg-white/5 p-3 rounded-xl">
-                <p className="text-[10px] opacity-60">Total Sales</p>
-                <p className="text-lg font-black text-[#d4af37]">Rs.{viewingShopOrders.stats.totalSales.toLocaleString()}</p>
+            <p className="text-white font-bold text-sm mb-1">{viewingShopOrders.shop.name}</p>
+            <p className="text-white/40 text-[10px] mb-4">{viewingShopOrders.shop.area}</p>
+
+            <div className="grid grid-cols-2 gap-2 mb-4">
+              <div className="bg-white/5 p-2 rounded-lg">
+                <p className="text-[9px] opacity-60">Total Sales</p>
+                <p className="text-sm font-black text-[#d4af37]">Rs.{viewingShopOrders.stats.totalSales.toLocaleString()}</p>
               </div>
-              <div className="bg-white/5 p-3 rounded-xl">
-                <p className="text-[10px] opacity-60">Total Orders</p>
-                <p className="text-lg font-black text-[#d4af37]">{viewingShopOrders.stats.orderCount}</p>
+              <div className="bg-white/5 p-2 rounded-lg">
+                <p className="text-[9px] opacity-60">Total Orders</p>
+                <p className="text-sm font-black text-[#d4af37]">{viewingShopOrders.stats.orderCount}</p>
               </div>
             </div>
 
-            <div className="mb-4">
-              <p className="text-xs font-black uppercase text-[#d4af37] mb-2">Order History</p>
-              {viewingShopOrders.orders.length > 0 ? (
-                <div className="space-y-2">
-                  {viewingShopOrders.orders.slice(0, 10).map((order, idx) => (
-                    <div key={idx} className="bg-white/5 p-3 rounded-lg">
-                      <div className="flex justify-between items-start mb-1">
-                        <span className="text-[10px] opacity-60">
-                          {new Date(order.timestamp).toLocaleDateString()}
-                        </span>
-                        <span className="text-xs font-black text-[#d4af37]">Rs.{order.total.toLocaleString()}</span>
-                      </div>
-                      <div className="flex gap-1 mt-2">
-                        <button
-                          onClick={() => {
-                            setViewingShopOrders(null);
-                            printBill(order);
-                          }}
-                          className="text-[8px] bg-blue-500/20 text-blue-500 px-2 py-1 rounded"
-                        >
-                          Print
-                        </button>
-                        <button
-                          onClick={() => {
-                            setViewingShopOrders(null);
-                            shareToWhatsApp(order);
-                          }}
-                          className="text-[8px] bg-[#d4af37]/20 text-[#d4af37] px-2 py-1 rounded"
-                        >
-                          Share
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+            <div className="max-h-60 overflow-y-auto mb-4">
+              {viewingShopOrders.orders.slice(0, 10).map((order, idx) => (
+                <div key={idx} className="bg-white/5 p-2 rounded-lg mb-2">
+                  <div className="flex justify-between text-[10px]">
+                    <span>{new Date(order.timestamp).toLocaleDateString()}</span>
+                    <span className="text-[#d4af37] font-black">Rs.{order.total.toLocaleString()}</span>
+                  </div>
+                  <div className="flex gap-1 mt-1">
+                    <button
+                      onClick={() => {
+                        setViewingShopOrders(null);
+                        printBill(order);
+                      }}
+                      className="text-[8px] bg-blue-500/20 text-blue-500 px-2 py-1 rounded"
+                    >
+                      Print
+                    </button>
+                    <button
+                      onClick={() => {
+                        setViewingShopOrders(null);
+                        shareToWhatsApp(order);
+                      }}
+                      className="text-[8px] bg-[#d4af37]/20 text-[#d4af37] px-2 py-1 rounded"
+                    >
+                      Share
+                    </button>
+                  </div>
                 </div>
-              ) : (
-                <p className="text-center text-xs opacity-30 italic">No orders found</p>
-              )}
+              ))}
             </div>
 
-            <div className="flex gap-2 mt-4">
-              <button
-                onClick={() => {
-                  setSelectedShop(viewingShopOrders.shop);
-                  setViewingShopOrders(null);
-                  setShowModal('invoice');
-                }}
-                className="flex-1 py-2.5 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg uppercase text-xs"
-              >
-                NEW ORDER
-              </button>
-              <button
-                onClick={() => setViewingShopOrders(null)}
-                className="flex-1 py-2.5 bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] text-white/80 font-black rounded-lg uppercase text-xs"
-              >
-                CLOSE
-              </button>
-            </div>
+            <button
+              onClick={() => {
+                setSelectedShop(viewingShopOrders.shop);
+                setViewingShopOrders(null);
+                setShowModal('invoice');
+              }}
+              className="w-full py-2 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg text-xs mb-2"
+            >
+              NEW ORDER
+            </button>
           </div>
         </div>
       )}
 
       {/* Shop Profile View Modal */}
       {viewingShopProfile && (
-        <div className="fixed inset-0 bg-black/95 z-[150] flex items-center justify-center p-3 backdrop-blur-3xl">
-          <div className="w-full max-w-xs p-5 rounded-2xl border border-[#d4af37]/30 bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] text-white">
-            <button
-              onClick={() => setViewingShopProfile(null)}
-              className="absolute top-2 right-2 text-white/20 hover:text-white/40 p-1"
-            >
-              <X size={20}/>
-            </button>
-
-            <div className="text-center mb-4">
-              <h3 className="font-black text-[#d4af37] mb-1 uppercase text-base">Shop Profile</h3>
-              <p className="text-xs text-white/80 font-bold">{viewingShopProfile.shop.name}</p>
+        <div className="fixed inset-0 bg-black/95 z-[150] flex items-center justify-center p-3">
+          <div className="w-full max-w-xs bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] p-4 rounded-2xl border border-[#d4af37]/30">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-black text-[#d4af37] text-sm">SHOP PROFILE</h3>
+              <button onClick={() => setViewingShopProfile(null)} className="text-white/40 hover:text-white/60 p-1">
+                <X size={18}/>
+              </button>
             </div>
 
+            <p className="text-white font-bold text-sm mb-3">{viewingShopProfile.shop.name}</p>
+
             {viewingShopProfile.profile ? (
-              <div className="space-y-3">
-                <div className="bg-white/5 p-3 rounded-xl">
-                  <p className="text-[10px] opacity-60 mb-1">Owner</p>
-                  <p className="text-sm font-bold">{viewingShopProfile.profile.ownerName || 'Not set'}</p>
+              <div className="space-y-2 text-xs">
+                <div className="bg-white/5 p-2 rounded-lg">
+                  <p className="text-[9px] opacity-60 mb-1">Owner</p>
+                  <p className="font-bold">{viewingShopProfile.profile.ownerName || 'Not set'}</p>
                 </div>
-                <div className="bg-white/5 p-3 rounded-xl">
-                  <p className="text-[10px] opacity-60 mb-1">Phone</p>
-                  <p className="text-sm font-bold">{viewingShopProfile.profile.phone || 'Not set'}</p>
+                <div className="bg-white/5 p-2 rounded-lg">
+                  <p className="text-[9px] opacity-60 mb-1">Phone</p>
+                  <p className="font-bold">{viewingShopProfile.profile.phone || 'Not set'}</p>
                 </div>
-                <div className="bg-white/5 p-3 rounded-xl">
-                  <p className="text-[10px] opacity-60 mb-1">Address</p>
-                  <p className="text-sm font-bold">{viewingShopProfile.profile.address || 'Not set'}</p>
+                <div className="bg-white/5 p-2 rounded-lg">
+                  <p className="text-[9px] opacity-60 mb-1">Address</p>
+                  <p className="font-bold">{viewingShopProfile.profile.address || 'Not set'}</p>
                 </div>
               </div>
             ) : (
-              <p className="text-center text-white/60 text-sm py-4">No profile found</p>
+              <p className="text-white/60 text-xs text-center py-4">No profile found</p>
             )}
           </div>
         </div>
       )}
 
-      {/* Header - Compact */}
+      {/* Header */}
       <header className={`p-3 flex justify-between items-center sticky top-0 z-50 backdrop-blur-xl border-b ${
         isDarkMode ? "bg-black/90 border-[#d4af37]/20" : "bg-white/95 border-[#d4af37]/30"
       }`}>
         <button onClick={() => setShowGame(true)} className="flex items-center gap-2">
           <div className="relative">
             <div className="p-1.5 bg-gradient-to-br from-[#d4af37] to-[#b8860b] rounded-lg text-black">
-              <Crown size={16} />
+              <Crown size={18} />
             </div>
             <Heart size={8} className="text-[#d4af37] absolute -top-1 -right-1" fill="#d4af37" />
           </div>
           <div>
-            <h1 className="font-black text-xs tracking-tight uppercase text-[#d4af37]">
+            <h1 className="font-black text-sm tracking-tight uppercase text-[#d4af37]">
               {data.settings.company || "MONARCH"}
             </h1>
-            <p className={`text-[8px] font-bold uppercase ${isDarkMode ? 'text-white/60' : 'text-gray-600'}`}>
+            <p className={`text-[9px] font-bold uppercase ${isDarkMode ? 'text-white/60' : 'text-gray-600'}`}>
               {data.settings.name || "Rep"}
             </p>
           </div>
@@ -1770,11 +1885,11 @@ export default function App() {
         <div className="flex gap-1">
           {isOffline ? (
             <div className="p-1.5 bg-yellow-500/10 text-yellow-500 rounded-lg">
-              <WifiOff size={14} />
+              <WifiOff size={16} />
             </div>
           ) : (
             <div className="p-1.5 bg-green-500/10 text-green-500 rounded-lg">
-              <Wifi size={14} />
+              <Wifi size={16} />
             </div>
           )}
           <button
@@ -1783,13 +1898,13 @@ export default function App() {
               isDarkMode ? "bg-white/5 text-[#d4af37] border-white/10" : "bg-gray-100 text-amber-700 border-gray-200"
             }`}
           >
-            {isDarkMode ? <Sun size={14}/> : <Moon size={14}/>}
+            {isDarkMode ? <Sun size={16}/> : <Moon size={16}/>}
           </button>
           <button
             onClick={() => signOut(auth)}
             className="p-1.5 bg-red-500/10 text-red-500 rounded-lg border border-red-500/20"
           >
-            <LogOut size={14}/>
+            <LogOut size={16}/>
           </button>
         </div>
       </header>
@@ -1797,7 +1912,7 @@ export default function App() {
       {/* Main Content */}
       <main className="p-3 max-w-lg mx-auto space-y-3">
 
-        {/* DASHBOARD TAB */}
+        {/* DASHBOARD TAB - ENHANCED */}
         {activeTab === 'dashboard' && (
           <div className="space-y-3">
             {/* Today's Revenue Card */}
@@ -1854,7 +1969,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* Multiple Targets */}
+            {/* Monthly Targets */}
             {stats.targets.length > 0 && (
               <div className={`p-3 rounded-xl border ${
                 isDarkMode ? "bg-[#0f0f0f] border-[#d4af37]/30" : "bg-white border-[#d4af37]/30"
@@ -1911,13 +2026,21 @@ export default function App() {
               </div>
             )}
 
-            {/* Monthly Performance */}
+            {/* Monthly Performance - Enhanced */}
             <div className={`p-3 rounded-xl border ${
               isDarkMode ? "bg-[#0f0f0f] border-white/10" : "bg-white border-gray-200"
             }`}>
-              <div className="flex items-center gap-1 mb-2">
-                <BarChart3 size={14} className="text-[#d4af37]" />
-                <h3 className="text-xs font-black text-[#d4af37] uppercase">Monthly Performance</h3>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-1">
+                  <BarChart3 size={14} className="text-[#d4af37]" />
+                  <h3 className="text-xs font-black text-[#d4af37] uppercase">Monthly Performance</h3>
+                </div>
+                <button
+                  onClick={() => setShowAllMonthlyBrands(!showAllMonthlyBrands)}
+                  className="text-[#d4af37] text-[9px] font-black"
+                >
+                  {showAllMonthlyBrands ? 'Show Less' : 'Show All'}
+                </button>
               </div>
 
               <div className="grid grid-cols-2 gap-2 mb-2">
@@ -1931,26 +2054,62 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="space-y-1">
-                <p className="text-[8px] font-black uppercase opacity-60">Top Brands</p>
-                {stats.monthly.summary.slice(0, 3).map((brand, idx) => (
-                  <div key={idx} className="flex justify-between items-center text-[9px]">
-                    <span>{brand.name}</span>
+              {/* Top Brands - Like original code */}
+              <div className="space-y-2">
+                <p className="text-[9px] font-black uppercase opacity-60 mb-1">Top Brands</p>
+                
+                {/* Top Brand - Highlighted */}
+                {stats.monthly.summary.length > 0 && (
+                  <div className={`p-2 rounded-lg border mb-2 ${
+                    isDarkMode ? 'bg-[#d4af37]/10 border-[#d4af37]/30' : 'bg-[#d4af37]/5 border-[#d4af37]/20'
+                  }`}>
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <div className="flex items-center gap-1">
+                          <Trophy size={12} className="text-[#d4af37]" />
+                          <span className="text-xs font-black uppercase">{stats.monthly.summary[0].name}</span>
+                        </div>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="text-[8px] opacity-60">{stats.monthly.summary[0].units} units</span>
+                          <span className="text-[8px] opacity-60">Avg: Rs.{stats.monthly.summary[0].avgPrice.toFixed(0)}</span>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-black text-[#d4af37]">Rs.{stats.monthly.summary[0].revenue.toLocaleString()}</p>
+                        <p className="text-[8px] opacity-60">
+                          {stats.monthly.totalSales > 0 ? ((stats.monthly.summary[0].revenue / stats.monthly.totalSales) * 100).toFixed(1) : 0}%
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* All Brands */}
+                {showAllMonthlyBrands && stats.monthly.summary.slice(1, 5).map((brand, idx) => (
+                  <div key={idx} className="flex justify-between items-center text-[9px] py-1 border-b border-white/5 last:border-0">
+                    <span>{brand.name} ({brand.units})</span>
                     <span className="font-bold text-[#d4af37]">Rs.{brand.revenue.toLocaleString()}</span>
                   </div>
                 ))}
               </div>
+
+              {stats.monthly.summary.length === 0 && (
+                <p className="text-[10px] opacity-30 italic text-center py-2">No monthly sales data</p>
+              )}
             </div>
 
-            {/* Today's Sales */}
+            {/* Today's Sales - Like original code */}
             <div className={`p-3 rounded-xl border ${
               isDarkMode ? "bg-[#0f0f0f] border-white/10" : "bg-white border-gray-200"
             }`}>
               <h3 className="text-xs font-black text-[#d4af37] uppercase mb-2">Today's Sales</h3>
               {stats.daily.summary.length > 0 ? (
-                stats.daily.summary.slice(0, 4).map((item, idx) => (
+                stats.daily.summary.map((item, idx) => (
                   <div key={idx} className="flex justify-between items-center text-[10px] py-1 border-b border-white/5 last:border-0">
-                    <span>{item.name} x{item.units}</span>
+                    <div className="flex items-center gap-1">
+                      <Hash size={9} className="opacity-50" />
+                      <span>{item.name} x{item.units}</span>
+                    </div>
                     <span className="font-bold text-[#d4af37]">Rs.{item.revenue.toLocaleString()}</span>
                   </div>
                 ))
@@ -1964,17 +2123,27 @@ export default function App() {
         {/* SHOPS TAB - WITH GOLD BILL BUTTON */}
         {activeTab === 'shops' && (
           <div className="space-y-3">
-            {/* Search */}
-            <div className={`p-2 rounded-xl border flex items-center gap-2 ${
-              isDarkMode ? "bg-[#0f0f0f] border-white/10" : "bg-white border-gray-200"
-            }`}>
-              <Search size={14} className="opacity-30"/>
-              <input
-                value={shopSearch}
-                onChange={(e) => setShopSearch(e.target.value)}
-                placeholder="SEARCH SHOPS..."
-                className="bg-transparent text-[10px] font-bold uppercase outline-none w-full"
-              />
+            {/* Search and Add Shop Row */}
+            <div className="flex gap-2">
+              <div className={`flex-1 p-2 rounded-xl border flex items-center gap-2 ${
+                isDarkMode ? "bg-[#0f0f0f] border-white/10" : "bg-white border-gray-200"
+              }`}>
+                <Search size={14} className="opacity-30"/>
+                <input
+                  value={shopSearch}
+                  onChange={(e) => setShopSearch(e.target.value)}
+                  placeholder="SEARCH SHOPS..."
+                  className="bg-transparent text-[10px] font-bold uppercase outline-none w-full"
+                />
+              </div>
+              <button
+                onClick={() => setShowModal('shop')}
+                className={`px-3 py-2 rounded-xl border text-[#d4af37] font-black text-xs flex items-center gap-1 ${
+                  isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-gray-100 border-gray-200'
+                }`}
+              >
+                <Plus size={14} /> ADD
+              </button>
             </div>
 
             {/* Route Filter */}
@@ -2017,15 +2186,15 @@ export default function App() {
                   >
                     <div className="flex justify-between items-start mb-2">
                       <div>
-                        <h4 className="text-xs font-black uppercase">{s.name}</h4>
-                        <p className="text-[9px] opacity-60 mt-0.5">{s.area}</p>
+                        <h4 className="text-sm font-black uppercase">{s.name}</h4>
+                        <p className="text-[10px] opacity-60 mt-0.5">{s.area}</p>
                       </div>
                       <div className="relative">
                         <button
                           onClick={() => setShowShopMenu(showShopMenu === s.id ? null : s.id)}
                           className="p-1.5 hover:bg-white/10 rounded-lg"
                         >
-                          <MoreVertical size={14} />
+                          <MoreVertical size={16} />
                         </button>
                         
                         {showShopMenu === s.id && (
@@ -2091,7 +2260,7 @@ export default function App() {
                       <span>Orders: <span className="font-bold">{shopStats.orderCount}</span></span>
                     </div>
 
-                    {/* GOLD BILL BUTTON */}
+                    {/* Compact GOLD BILL BUTTON */}
                     <button
                       onClick={() => {
                         setSelectedShop(s);
@@ -2099,22 +2268,12 @@ export default function App() {
                       }}
                       className="w-full py-1.5 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg text-[9px] uppercase flex items-center justify-center gap-1"
                     >
-                      <Receipt size={12} /> CREATE BILL
+                      <Receipt size={12} /> BILL
                     </button>
                   </div>
                 );
               })}
             </div>
-
-            {/* Add Shop Button */}
-            <button
-              onClick={() => setShowModal('shop')}
-              className={`w-full py-3 rounded-xl border-2 border-dashed text-[#d4af37] font-black uppercase text-xs flex items-center justify-center gap-1 ${
-                isDarkMode ? 'border-[#d4af37]/40' : 'border-[#d4af37]/60'
-              }`}
-            >
-              <Plus size={16}/> ADD SHOP
-            </button>
           </div>
         )}
 
@@ -2227,9 +2386,9 @@ export default function App() {
           </div>
         )}
 
-        {/* SETTINGS TAB */}
+        {/* SETTINGS TAB - WITH BRAND REORDER */}
         {activeTab === 'settings' && (
-          <div className="space-y-3">
+          <div className="space-y-3 pb-16">
             {/* Profile Form */}
             <form onSubmit={handleSaveProfile} className={`p-3 rounded-xl border space-y-2 ${
               isDarkMode ? "bg-[#0f0f0f] border-white/10" : "bg-white border-gray-200"
@@ -2257,14 +2416,14 @@ export default function App() {
             </form>
 
             {/* Quick Add */}
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               <button
                 onClick={() => setShowModal('route')}
                 className={`py-2 rounded-xl border text-[#d4af37] font-black text-[9px] flex flex-col items-center ${
                   isDarkMode ? 'bg-[#1a1a1a] border-white/5' : 'bg-gray-50 border-gray-200'
                 }`}
               >
-                <MapPin size={16}/> ROUTE
+                <MapPin size={14}/> ROUTE
               </button>
               <button
                 onClick={() => setShowModal('brand')}
@@ -2272,7 +2431,15 @@ export default function App() {
                   isDarkMode ? 'bg-[#1a1a1a] border-white/5' : 'bg-gray-50 border-gray-200'
                 }`}
               >
-                <Package size={16}/> BRAND
+                <Package size={14}/> BRAND
+              </button>
+              <button
+                onClick={() => setShowTargetModal(true)}
+                className={`py-2 rounded-xl border text-[#d4af37] font-black text-[9px] flex flex-col items-center ${
+                  isDarkMode ? 'bg-[#1a1a1a] border-white/5' : 'bg-gray-50 border-gray-200'
+                }`}
+              >
+                <Target size={14}/> TARGET
               </button>
             </div>
 
@@ -2291,50 +2458,91 @@ export default function App() {
               ))}
             </div>
 
-            {/* Brands List */}
+            {/* Brands List with Reorder */}
             <div>
               <h4 className="text-xs font-black text-[#d4af37] uppercase mb-2">Brands</h4>
               {data.brands.map((b, idx) => (
                 <div key={b.id} className={`p-2 rounded-lg border mb-1 ${
                   isDarkMode ? 'bg-[#1a1a1a] border-white/5' : 'bg-gray-50 border-gray-200'
                 }`}>
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <span className="text-[10px] font-bold">{b.name} ({b.size})</span>
-                      <span className="text-[9px] ml-2 opacity-60">Rs.{b.price}</span>
-                    </div>
-                    <div className="flex gap-1">
-                      <button onClick={() => setEditingBrand(b.id)} className="text-blue-500 p-1">
-                        <Edit2 size={10}/>
+                  {editingBrand === b.id ? (
+                    <div className="space-y-2">
+                      <div className="flex gap-1">
+                        <input
+                          defaultValue={b.name}
+                          className="flex-1 p-1 text-[9px] bg-black/40 border border-white/10 rounded text-white"
+                          onBlur={(e) => saveBrandEdit(b.id, 'name', e.target.value)}
+                          autoFocus
+                        />
+                        <input
+                          defaultValue={b.size}
+                          className="w-16 p-1 text-[9px] bg-black/40 border border-white/10 rounded text-white"
+                          onBlur={(e) => saveBrandEdit(b.id, 'size', e.target.value)}
+                        />
+                        <input
+                          defaultValue={b.price}
+                          type="number"
+                          className="w-20 p-1 text-[9px] bg-black/40 border border-white/10 rounded text-white"
+                          onBlur={(e) => saveBrandEdit(b.id, 'price', e.target.value)}
+                        />
+                      </div>
+                      <button
+                        onClick={() => setEditingBrand(null)}
+                        className="w-full py-1 bg-gradient-to-br from-[#333] to-[#444] text-white text-[8px] font-black rounded"
+                      >
+                        Cancel
                       </button>
-                      <button onClick={() => confirmDelete(b.id, 'brand', b.name)} className="text-red-500 p-1">
-                        <Trash2 size={10}/>
-                      </button>
                     </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Today's Expenses */}
-            <div>
-              <h4 className="text-xs font-black text-[#d4af37] uppercase mb-2">Today's Expenses</h4>
-              {data.expenses.filter(e => e.date === new Date().toISOString().split('T')[0]).map(exp => (
-                <div key={exp.id} className={`p-2 rounded-lg border mb-1 flex justify-between items-center ${
-                  isDarkMode ? 'bg-[#1a1a1a] border-white/5' : 'bg-gray-50 border-gray-200'
-                }`}>
-                  <div className="flex items-center gap-1">
-                    {exp.type === 'fuel' && <Fuel size={10} className="text-red-500" />}
-                    {exp.type === 'food' && <Coffee size={10} className="text-amber-500" />}
-                    <span className="text-[9px]">{exp.type}</span>
-                    {exp.note && <span className="text-[8px] opacity-60">- {exp.note}</span>}
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <span className="text-[10px] font-bold text-red-500">Rs.{exp.amount}</span>
-                    <button onClick={() => confirmDelete(exp.id, 'expense', '')} className="text-red-500 p-1">
-                      <Trash2 size={10}/>
-                    </button>
-                  </div>
+                  ) : (
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-6 h-6 rounded flex items-center justify-center font-black text-xs ${
+                          isDarkMode ? 'bg-[#d4af37]/20 text-[#d4af37]' : 'bg-[#d4af37]/10 text-[#d4af37]'
+                        }`}>
+                          {b.sequence || idx + 1}
+                        </div>
+                        <div>
+                          <span className="text-xs font-bold">{b.name}</span>
+                          <span className="text-[9px] ml-1 opacity-60">{b.size}</span>
+                          <span className="text-[9px] ml-2 text-[#d4af37]">Rs.{b.price}</span>
+                        </div>
+                      </div>
+                      <div className="flex gap-1">
+                        {!isOffline && (
+                          <>
+                            {idx > 0 && (
+                              <button
+                                onClick={() => reorderBrands(b.id, 'up')}
+                                className="p-1 text-white/40 hover:text-white hover:bg-white/10 rounded"
+                              >
+                                <ArrowUp size={12} />
+                              </button>
+                            )}
+                            {idx < data.brands.length - 1 && (
+                              <button
+                                onClick={() => reorderBrands(b.id, 'down')}
+                                className="p-1 text-white/40 hover:text-white hover:bg-white/10 rounded"
+                              >
+                                <ArrowDown size={12} />
+                              </button>
+                            )}
+                          </>
+                        )}
+                        <button
+                          onClick={() => setEditingBrand(b.id)}
+                          className="p-1 text-blue-500 hover:bg-blue-500/10 rounded"
+                        >
+                          <Edit2 size={12} />
+                        </button>
+                        <button
+                          onClick={() => confirmDelete(b.id, 'brand', b.name)}
+                          className="p-1 text-red-500 hover:bg-red-500/10 rounded"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -2342,7 +2550,7 @@ export default function App() {
         )}
       </main>
 
-      {/* Bottom Navigation - Compact */}
+      {/* Bottom Navigation */}
       <nav className={`fixed bottom-2 inset-x-2 h-12 rounded-xl border flex items-center justify-around ${
         isDarkMode ? "bg-black/95 border-white/10" : "bg-white/95 border-gray-200"
       }`}>
@@ -2360,7 +2568,7 @@ export default function App() {
               activeTab === t.id ? 'text-[#d4af37]' : isDarkMode ? 'text-white/40' : 'text-gray-400'
             }`}
           >
-            <t.icon size={16} />
+            <t.icon size={18} />
             <span className="text-[7px] font-black uppercase mt-0.5">{t.label}</span>
           </button>
         ))}
@@ -2593,64 +2801,64 @@ export default function App() {
         </div>
       )}
 
-{/* INVOICE MODAL - FIXED */}
-{showModal === 'invoice' && selectedShop && (
-  <div className="fixed inset-0 bg-black z-[100] overflow-y-auto">
-    <div className="min-h-screen p-3 max-w-lg mx-auto pb-20">
-      <div className="flex justify-between items-center mb-3 sticky top-0 bg-black py-2 border-b border-white/10">
-        <h2 className="text-sm font-black text-white">{selectedShop.name}</h2>
-        <button onClick={() => { setShowModal(null); setCart({}); }} className="p-1 bg-white/10 rounded-full">
-          <X size={16}/>
-        </button>
-      </div>
-
-      <div className="space-y-2">
-        {data.brands.map((b, index) => (
-          <div key={b.id} className="bg-[#0f0f0f] p-2 rounded-xl border border-white/5 flex items-center justify-between">
-            <div>
-              <span className="text-xs font-bold">{b.name} ({b.size})</span>
-              <p className="text-[10px] text-[#d4af37]">Rs.{b.price}</p>
-            </div>
-            <div className="flex items-center gap-1">
-              <button 
-                onClick={() => setCart({...cart, [b.id]: Math.max(0, (Number(cart[b.id])||0)-1)})} 
-                className="w-6 h-6 bg-white/5 rounded-lg text-xs"
-              >
-                -
+      {/* INVOICE MODAL */}
+      {showModal === 'invoice' && selectedShop && (
+        <div className="fixed inset-0 bg-black z-[100] overflow-y-auto">
+          <div className="min-h-screen p-3 max-w-lg mx-auto pb-20">
+            <div className="flex justify-between items-center mb-3 sticky top-0 bg-black py-2 border-b border-white/10">
+              <h2 className="text-sm font-black text-white">{selectedShop.name}</h2>
+              <button onClick={() => { setShowModal(null); setCart({}); }} className="p-1 bg-white/10 rounded-full">
+                <X size={16}/>
               </button>
-              <input 
-                type="number" 
-                value={cart[b.id] || ''} 
-                onChange={(e) => setCart({...cart, [b.id]: e.target.value})} 
-                className="w-8 bg-transparent text-center text-[#d4af37] text-xs outline-none" 
-                placeholder="0"
-              />
+            </div>
+
+            <div className="space-y-2">
+              {data.brands.map((b, index) => (
+                <div key={b.id} className="bg-[#0f0f0f] p-2 rounded-xl border border-white/5 flex items-center justify-between">
+                  <div>
+                    <span className="text-xs font-bold">{b.name} ({b.size})</span>
+                    <p className="text-[10px] text-[#d4af37]">Rs.{b.price}</p>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button 
+                      onClick={() => setCart({...cart, [b.id]: Math.max(0, (Number(cart[b.id])||0)-1)})} 
+                      className="w-6 h-6 bg-white/5 rounded-lg text-xs"
+                    >
+                      -
+                    </button>
+                    <input 
+                      type="number" 
+                      value={cart[b.id] || ''} 
+                      onChange={(e) => setCart({...cart, [b.id]: e.target.value})} 
+                      className="w-8 bg-transparent text-center text-[#d4af37] text-xs outline-none" 
+                      placeholder="0"
+                    />
+                    <button 
+                      onClick={() => setCart({...cart, [b.id]: (Number(cart[b.id])||0) + 1})} 
+                      className="w-6 h-6 bg-white/5 rounded-lg text-xs"
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="fixed bottom-0 inset-x-0 p-2 bg-black border-t border-white/10">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-xs">Total:</span>
+                <span className="text-base font-black text-[#d4af37]">Rs.{calculateCartTotal().toLocaleString()}</span>
+              </div>
               <button 
-                onClick={() => setCart({...cart, [b.id]: (Number(cart[b.id])||0) + 1})} 
-                className="w-6 h-6 bg-white/5 rounded-lg text-xs"
+                onClick={handleCreateOrder} 
+                className="w-full py-2 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg text-xs"
               >
-                +
+                CONFIRM ORDER
               </button>
             </div>
           </div>
-        ))}
-      </div>
-
-      <div className="fixed bottom-0 inset-x-0 p-2 bg-black border-t border-white/10">
-        <div className="flex justify-between items-center mb-2">
-          <span className="text-xs">Total:</span>
-          <span className="text-base font-black text-[#d4af37]">Rs.{calculateCartTotal().toLocaleString()}</span>
         </div>
-        <button 
-          onClick={handleCreateOrder} 
-          className="w-full py-2 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg text-xs"
-        >
-          CONFIRM ORDER
-        </button>
-      </div>
-    </div>
-  </div>
-)}
+      )}
 
       {/* MANUAL ORDER MODAL */}
       {showModal === 'manual' && (
