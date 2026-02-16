@@ -22,7 +22,7 @@ import {
   RotateCcw, Volume2, VolumeX, Trophy, Timer, Users, Shield, Heart,
   Sparkles, Flame, Star as StarIcon, Menu, MoreVertical, Home,
   ArrowUpDown, ArrowUp, ArrowDown, RefreshCw, Play, Pause, Volume2 as Volume,
-  Map, MapPin as MapPinIcon
+  Map, MapPin as MapPinIcon, XCircle
 } from 'lucide-react';
 
 // --- FIREBASE CONFIG ---
@@ -83,6 +83,7 @@ export default function App() {
   const [selectedRouteFilter, setSelectedRouteFilter] = useState('ALL');
   const [manualItems, setManualItems] = useState([{ name: '', qty: 1, price: 0, subtotal: 0 }]);
   const [editingBrand, setEditingBrand] = useState(null);
+  const [editingBrandData, setEditingBrandData] = useState({ name: '', size: '', price: '' });
   const [movingBrandId, setMovingBrandId] = useState(null);
   const [targetPosition, setTargetPosition] = useState(null);
 
@@ -1210,17 +1211,34 @@ export default function App() {
   };
 
   // ========== SAVE BRAND EDIT ==========
-  const saveBrandEdit = async (brandId, field, value) => {
+  const saveBrandEdit = async () => {
+    if (!editingBrand || !editingBrandData.name || !editingBrandData.size || !editingBrandData.price) {
+      showToast("Please fill all fields", "error");
+      return;
+    }
+
     try {
-      await updateDoc(doc(db, 'brands', brandId), {
-        [field]: field === 'price' ? parseFloat(value) : value.toUpperCase()
+      await updateDoc(doc(db, 'brands', editingBrand), {
+        name: editingBrandData.name.toUpperCase(),
+        size: editingBrandData.size.toUpperCase(),
+        price: parseFloat(editingBrandData.price)
       });
       showToast("Brand updated!", "success");
       setEditingBrand(null);
+      setEditingBrandData({ name: '', size: '', price: '' });
       setRefreshKey(prev => prev + 1);
     } catch (err) {
       showToast("Error updating brand: " + err.message, "error");
     }
+  };
+
+  const startEditBrand = (brand) => {
+    setEditingBrand(brand.id);
+    setEditingBrandData({
+      name: brand.name,
+      size: brand.size,
+      price: brand.price.toString()
+    });
   };
 
   // ========== VALIDATE BRAND ==========
@@ -1231,7 +1249,8 @@ export default function App() {
 
     const exists = data.brands.find(b =>
       b.name?.toUpperCase() === name.toUpperCase() &&
-      b.size?.toUpperCase() === size.toUpperCase()
+      b.size?.toUpperCase() === size.toUpperCase() &&
+      b.id !== editingBrand // Skip current brand when editing
     );
     if (exists) return '❌ Brand already exists!';
     return '';
@@ -1340,7 +1359,7 @@ export default function App() {
           <div className="relative mb-8">
             <div className="w-32 h-32 mx-auto relative">
               <div className="absolute inset-0 bg-gradient-to-r from-[#d4af37] to-[#b8860b] rounded-full animate-ping opacity-20"></div>
-              <div className="relative z-10 w-32 h-32 bg-gradient-to-br from-[#d4af37] to-[#b8860b] rounded-full flex items-center justify-center shadow-2xl">
+              <div className="relative z-10 w-32 h-32 bg-gradient-to-br from-[#d4af37] to-[#b8860b] rounded-full flex items-center justify-center shadow-2xl border-4 border-[#d4af37]/30">
                 <Crown size={60} className="text-black" />
               </div>
             </div>
@@ -1366,8 +1385,11 @@ export default function App() {
       <div className="min-h-screen bg-gradient-to-br from-black to-[#1a1a1a] flex items-center justify-center p-4">
         <div className="w-full max-w-sm bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] rounded-2xl border border-[#d4af37]/30 p-6">
           <div className="text-center mb-6">
-            <Crown size={40} className="text-[#d4af37] mx-auto mb-3" />
+            <div className="w-20 h-20 bg-gradient-to-br from-[#d4af37] to-[#b8860b] rounded-full flex items-center justify-center mx-auto mb-4">
+              <Crown size={40} className="text-black" />
+            </div>
             <h2 className="text-white font-black text-xl">Reset Password</h2>
+            <p className="text-white/50 text-xs mt-2">Enter your email to receive reset link</p>
           </div>
 
           {resetSuccess ? (
@@ -1375,6 +1397,7 @@ export default function App() {
               <div className="p-4 bg-green-500/20 rounded-xl border border-green-500/30 text-center">
                 <CheckCircle2 size={40} className="text-green-500 mx-auto mb-2" />
                 <p className="text-green-500 font-bold">Reset link sent!</p>
+                <p className="text-white/50 text-xs mt-2">Check your email inbox</p>
               </div>
               <button
                 onClick={() => {
@@ -1382,7 +1405,7 @@ export default function App() {
                   setResetSuccess(false);
                   setResetEmail('');
                 }}
-                className="w-full py-3 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-xl text-sm"
+                className="w-full py-3 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-xl text-sm hover:opacity-90 transition-all"
               >
                 Back to Login
               </button>
@@ -1394,22 +1417,22 @@ export default function App() {
                 value={resetEmail}
                 onChange={(e) => setResetEmail(e.target.value)}
                 placeholder="EMAIL"
-                className="w-full bg-black/50 p-3 rounded-xl border border-white/10 text-white text-sm outline-none focus:border-[#d4af37]"
+                className="w-full bg-black/50 p-3 rounded-xl border border-white/10 text-white text-sm outline-none focus:border-[#d4af37] transition-all"
               />
               <button
                 onClick={handleForgotPassword}
                 disabled={isSendingReset}
-                className={`w-full py-3 font-black rounded-xl text-sm ${
-                  isSendingReset ? 'bg-gray-700 text-gray-400' : 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black'
+                className={`w-full py-3 font-black rounded-xl text-sm transition-all ${
+                  isSendingReset ? 'bg-gray-700 text-gray-400' : 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black hover:opacity-90'
                 }`}
               >
                 {isSendingReset ? 'SENDING...' : 'SEND RESET LINK'}
               </button>
               <button
                 onClick={() => setShowForgotPassword(false)}
-                className="w-full py-2 text-white/60 text-sm hover:text-white"
+                className="w-full py-2 text-white/60 text-sm hover:text-white transition-all"
               >
-                ← Back
+                ← Back to Login
               </button>
             </div>
           )}
@@ -1424,10 +1447,10 @@ export default function App() {
         <div className="w-full max-w-sm bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] rounded-2xl border border-[#d4af37]/30 p-6">
           <div className="text-center mb-6">
             <div className="relative inline-block mb-4">
-              <div className="w-20 h-20 bg-gradient-to-br from-[#d4af37] to-[#b8860b] rounded-full flex items-center justify-center">
+              <div className="w-20 h-20 bg-gradient-to-br from-[#d4af37] to-[#b8860b] rounded-full flex items-center justify-center shadow-lg">
                 <Crown size={40} className="text-black" />
               </div>
-              <Heart size={16} className="text-[#d4af37] absolute -top-1 -right-1" fill="#d4af37" />
+              <Heart size={16} className="text-[#d4af37] absolute -top-1 -right-1 animate-bounce" fill="#d4af37" />
             </div>
             <h2 className="text-white font-black text-xl mb-1">
               {isRegisterMode ? "SIGN UP" : "SIGN IN"}
@@ -1442,26 +1465,26 @@ export default function App() {
               name="email"
               type="email"
               placeholder="EMAIL"
-              className="w-full bg-black/50 p-3 rounded-xl border border-white/10 text-white text-sm outline-none focus:border-[#d4af37]"
+              className="w-full bg-black/50 p-3 rounded-xl border border-white/10 text-white text-sm outline-none focus:border-[#d4af37] transition-all"
               required
             />
             <input
               name="password"
               type="password"
               placeholder="PASSWORD"
-              className="w-full bg-black/50 p-3 rounded-xl border border-white/10 text-white text-sm outline-none focus:border-[#d4af37]"
+              className="w-full bg-black/50 p-3 rounded-xl border border-white/10 text-white text-sm outline-none focus:border-[#d4af37] transition-all"
               required
             />
 
             {loginError && (
-              <div className="p-2 bg-red-500/20 rounded-xl border border-red-500/30">
+              <div className="p-3 bg-red-500/20 rounded-xl border border-red-500/30">
                 <p className="text-red-500 text-xs text-center">{loginError}</p>
               </div>
             )}
 
             <button
               type="submit"
-              className="w-full py-3 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-xl text-sm"
+              className="w-full py-3 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-xl text-sm hover:opacity-90 transition-all"
             >
               {isRegisterMode ? "SIGN UP" : "SIGN IN"}
             </button>
@@ -1473,7 +1496,7 @@ export default function App() {
                   setIsRegisterMode(!isRegisterMode);
                   setLoginError('');
                 }}
-                className="text-[#d4af37] text-xs font-bold"
+                className="text-[#d4af37] text-xs font-bold hover:text-[#f5e7a3] transition-all"
               >
                 {isRegisterMode ? "← SIGN IN" : "SIGN UP"}
               </button>
@@ -1482,7 +1505,7 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => setShowForgotPassword(true)}
-                  className="text-white/60 text-xs hover:text-[#d4af37]"
+                  className="text-white/60 text-xs hover:text-[#d4af37] transition-all"
                 >
                   Forgot?
                 </button>
@@ -1528,7 +1551,9 @@ export default function App() {
         <div className="fixed inset-0 bg-black/95 z-[1000] flex items-center justify-center p-4">
           <div className="bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] w-full max-w-xs p-5 rounded-2xl border border-red-500/30">
             <div className="text-center mb-4">
-              <Trash2 size={40} className="text-red-500 mx-auto mb-3" />
+              <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-3 border border-red-500/30">
+                <Trash2 size={30} className="text-red-500" />
+              </div>
               <h3 className="text-white font-black text-base">Confirm Delete</h3>
               <p className="text-white/60 text-xs mt-2">{showDeleteConfirm.name}</p>
               <p className="text-red-500 text-[10px] font-bold mt-3">This cannot be undone!</p>
@@ -1536,13 +1561,13 @@ export default function App() {
             <div className="flex gap-2">
               <button
                 onClick={handleDelete}
-                className="flex-1 py-2 bg-gradient-to-r from-red-600 to-red-500 text-white font-black rounded-lg text-xs"
+                className="flex-1 py-2 bg-gradient-to-r from-red-600 to-red-500 text-white font-black rounded-lg text-xs hover:opacity-90 transition-all"
               >
                 DELETE
               </button>
               <button
                 onClick={() => setShowDeleteConfirm({ show: false, id: null, type: '', name: '' })}
-                className="flex-1 py-2 bg-gradient-to-br from-[#333] to-[#444] text-white/80 font-black rounded-lg text-xs"
+                className="flex-1 py-2 bg-gradient-to-br from-[#333] to-[#444] text-white/80 font-black rounded-lg text-xs hover:opacity-90 transition-all"
               >
                 CANCEL
               </button>
@@ -1557,7 +1582,7 @@ export default function App() {
           <div className="w-full max-w-md bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] p-4 rounded-2xl border border-[#d4af37]/30">
             <div className="flex justify-between items-center mb-4">
               <h3 className="font-black text-[#d4af37] text-sm">SHOP ORDERS</h3>
-              <button onClick={() => setViewingShopOrders(null)} className="text-white/40 hover:text-white/60 p-1">
+              <button onClick={() => setViewingShopOrders(null)} className="text-white/40 hover:text-white/60 p-1 transition-all">
                 <X size={18}/>
               </button>
             </div>
@@ -1566,11 +1591,11 @@ export default function App() {
             <p className="text-white/40 text-[10px] mb-4">{viewingShopOrders.shop.area}</p>
 
             <div className="grid grid-cols-2 gap-2 mb-4">
-              <div className="bg-white/5 p-2 rounded-lg">
+              <div className="bg-white/5 p-2 rounded-lg border border-white/10">
                 <p className="text-[9px] opacity-60">Total Sales</p>
                 <p className="text-sm font-black text-[#d4af37]">Rs.{viewingShopOrders.stats.totalSales.toLocaleString()}</p>
               </div>
-              <div className="bg-white/5 p-2 rounded-lg">
+              <div className="bg-white/5 p-2 rounded-lg border border-white/10">
                 <p className="text-[9px] opacity-60">Total Orders</p>
                 <p className="text-sm font-black text-[#d4af37]">{viewingShopOrders.stats.orderCount}</p>
               </div>
@@ -1578,7 +1603,7 @@ export default function App() {
 
             <div className="max-h-60 overflow-y-auto mb-4">
               {viewingShopOrders.orders.slice(0, 10).map((order, idx) => (
-                <div key={idx} className="bg-white/5 p-2 rounded-lg mb-2">
+                <div key={idx} className="bg-white/5 p-2 rounded-lg mb-2 border border-white/10">
                   <div className="flex justify-between text-[10px]">
                     <span>{new Date(order.timestamp).toLocaleDateString()}</span>
                     <span className="text-[#d4af37] font-black">Rs.{order.total.toLocaleString()}</span>
@@ -1589,7 +1614,7 @@ export default function App() {
                         setViewingShopOrders(null);
                         printBill(order);
                       }}
-                      className="text-[8px] bg-blue-500/20 text-blue-500 px-2 py-1 rounded"
+                      className="text-[8px] bg-blue-500/20 text-blue-500 px-2 py-1 rounded hover:bg-blue-500/30 transition-all"
                     >
                       Print
                     </button>
@@ -1598,7 +1623,7 @@ export default function App() {
                         setViewingShopOrders(null);
                         shareToWhatsApp(order, false);
                       }}
-                      className="text-[8px] bg-[#d4af37]/20 text-[#d4af37] px-2 py-1 rounded"
+                      className="text-[8px] bg-[#d4af37]/20 text-[#d4af37] px-2 py-1 rounded hover:bg-[#d4af37]/30 transition-all"
                     >
                       Share
                     </button>
@@ -1607,13 +1632,13 @@ export default function App() {
                         setViewingShopOrders(null);
                         shareToWhatsApp(order, true);
                       }}
-                      className="text-[8px] bg-green-500/20 text-green-500 px-2 py-1 rounded"
+                      className="text-[8px] bg-green-500/20 text-green-500 px-2 py-1 rounded hover:bg-green-500/30 transition-all"
                     >
                       <MapPin size={8}/> Loc
                     </button>
                     <button
                       onClick={() => confirmDelete(order.id, 'order', '')}
-                      className="text-[8px] bg-red-500/20 text-red-500 px-2 py-1 rounded"
+                      className="text-[8px] bg-red-500/20 text-red-500 px-2 py-1 rounded hover:bg-red-500/30 transition-all"
                     >
                       <Trash2 size={8}/>
                     </button>
@@ -1628,7 +1653,7 @@ export default function App() {
                 setViewingShopOrders(null);
                 setShowModal('invoice');
               }}
-              className="w-full py-2 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg text-xs mb-2"
+              className="w-full py-2 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg text-xs hover:opacity-90 transition-all"
             >
               NEW ORDER
             </button>
@@ -1642,7 +1667,7 @@ export default function App() {
           <div className="w-full max-w-xs bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] p-4 rounded-2xl border border-[#d4af37]/30">
             <div className="flex justify-between items-center mb-4">
               <h3 className="font-black text-[#d4af37] text-sm">SHOP PROFILE</h3>
-              <button onClick={() => setViewingShopProfile(null)} className="text-white/40 hover:text-white/60 p-1">
+              <button onClick={() => setViewingShopProfile(null)} className="text-white/40 hover:text-white/60 p-1 transition-all">
                 <X size={18}/>
               </button>
             </div>
@@ -1651,15 +1676,15 @@ export default function App() {
 
             {viewingShopProfile.profile ? (
               <div className="space-y-2 text-xs">
-                <div className="bg-white/5 p-2 rounded-lg">
+                <div className="bg-white/5 p-2 rounded-lg border border-white/10">
                   <p className="text-[9px] opacity-60 mb-1">Owner</p>
                   <p className="font-bold">{viewingShopProfile.profile.ownerName || 'Not set'}</p>
                 </div>
-                <div className="bg-white/5 p-2 rounded-lg">
+                <div className="bg-white/5 p-2 rounded-lg border border-white/10">
                   <p className="text-[9px] opacity-60 mb-1">Phone</p>
                   <p className="font-bold">{viewingShopProfile.profile.phone || 'Not set'}</p>
                 </div>
-                <div className="bg-white/5 p-2 rounded-lg">
+                <div className="bg-white/5 p-2 rounded-lg border border-white/10">
                   <p className="text-[9px] opacity-60 mb-1">Address</p>
                   <p className="font-bold">{viewingShopProfile.profile.address || 'Not set'}</p>
                 </div>
@@ -1704,15 +1729,15 @@ export default function App() {
           )}
           <button
             onClick={() => setIsDarkMode(!isDarkMode)}
-            className={`p-1.5 rounded-lg border ${
-              isDarkMode ? "bg-white/5 text-[#d4af37] border-white/10" : "bg-gray-100 text-amber-700 border-gray-200"
+            className={`p-1.5 rounded-lg border transition-all ${
+              isDarkMode ? "bg-white/5 text-[#d4af37] border-white/10 hover:bg-[#d4af37]/20" : "bg-gray-100 text-amber-700 border-gray-200 hover:bg-amber-100"
             }`}
           >
             {isDarkMode ? <Sun size={16}/> : <Moon size={16}/>}
           </button>
           <button
             onClick={() => signOut(auth)}
-            className="p-1.5 bg-red-500/10 text-red-500 rounded-lg border border-red-500/20"
+            className="p-1.5 bg-red-500/10 text-red-500 rounded-lg border border-red-500/20 hover:bg-red-500/20 transition-all"
           >
             <LogOut size={16}/>
           </button>
@@ -1722,23 +1747,23 @@ export default function App() {
       {/* Main Content */}
       <main className="p-3 max-w-lg mx-auto space-y-3">
 
-        {/* DASHBOARD TAB - ENHANCED */}
+        {/* DASHBOARD TAB */}
         {activeTab === 'dashboard' && (
           <div className="space-y-3">
             {/* Today's Revenue Card */}
-            <div className="bg-gradient-to-br from-[#d4af37] via-[#c19a2e] to-[#b8860b] p-4 rounded-xl text-black shadow-xl">
+            <div className="bg-gradient-to-br from-[#d4af37] via-[#c19a2e] to-[#b8860b] p-4 rounded-xl text-black shadow-xl border border-[#b8860b]/30">
               <div className="flex justify-between items-start mb-2">
                 <div>
                   <p className="text-[9px] font-black uppercase opacity-80">Today's Revenue</p>
                   <h2 className="text-xl font-black">Rs.{stats.daily.totalSales.toLocaleString()}</h2>
                 </div>
-                <div className="bg-black/20 p-1.5 rounded-lg text-right">
+                <div className="bg-black/20 p-1.5 rounded-lg text-right border border-black/10">
                   <p className="text-[8px] font-black uppercase">Expenses</p>
                   <p className="text-sm font-black text-red-800">- Rs.{stats.expenses.toLocaleString()}</p>
                 </div>
               </div>
               <div className="flex justify-between items-center">
-                <div className="bg-black/10 px-2 py-1 rounded-full text-[9px] font-black">
+                <div className="bg-black/10 px-2 py-1 rounded-full text-[9px] font-black border border-black/10">
                   Net: Rs.{(stats.daily.totalSales - stats.expenses).toLocaleString()}
                 </div>
                 <div className="text-right">
@@ -1748,12 +1773,12 @@ export default function App() {
               </div>
             </div>
 
-            {/* Today's Sales - Moved UP */}
+            {/* Today's Sales */}
             <div className={`p-4 rounded-xl border shadow-lg ${
               isDarkMode ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/10" : "bg-white border-gray-200"
             }`}>
               <div className="flex items-center gap-2 mb-3">
-                <div className="p-1.5 bg-gradient-to-br from-[#d4af37]/20 to-[#b8860b]/10 rounded-lg">
+                <div className="p-1.5 bg-gradient-to-br from-[#d4af37]/20 to-[#b8860b]/10 rounded-lg border border-[#d4af37]/20">
                   <TrendingUp size={14} className="text-[#d4af37]" />
                 </div>
                 <h3 className="text-sm font-black text-[#d4af37] uppercase tracking-wider">Today's Sales</h3>
@@ -1766,7 +1791,7 @@ export default function App() {
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
                           <span className="text-xs font-bold">{item.name}</span>
-                          <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-white/10">x{item.units}</span>
+                          <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-white/10 border border-white/20">x{item.units}</span>
                         </div>
                         <div className="text-[9px] opacity-60 mt-0.5">
                           @ Rs.{item.avgPrice.toFixed(0)} per unit
@@ -1786,13 +1811,13 @@ export default function App() {
               )}
             </div>
 
-            {/* Today's Expenses - ENHANCED */}
+            {/* Today's Expenses */}
             <div className={`p-4 rounded-xl border shadow-lg ${
               isDarkMode ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/10" : "bg-white border-gray-200"
             }`}>
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <div className="p-1.5 bg-gradient-to-br from-red-500/20 to-red-600/10 rounded-lg">
+                  <div className="p-1.5 bg-gradient-to-br from-red-500/20 to-red-600/10 rounded-lg border border-red-500/20">
                     <Wallet size={14} className="text-red-500" />
                   </div>
                   <h3 className="text-sm font-black text-red-500 uppercase tracking-wider">Today's Expenses</h3>
@@ -1824,7 +1849,15 @@ export default function App() {
                             <span className="text-[10px] font-medium capitalize">{exp.type}</span>
                             {exp.note && <span className="text-[8px] opacity-50">- {exp.note}</span>}
                           </div>
-                          <span className="text-xs font-bold">Rs.{exp.amount.toLocaleString()}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold">Rs.{exp.amount.toLocaleString()}</span>
+                            <button
+                              onClick={() => confirmDelete(exp.id, 'expense', `${exp.type} expense`)}
+                              className="text-red-500 hover:text-red-400 p-0.5"
+                            >
+                              <XCircle size={12} />
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -1845,14 +1878,14 @@ export default function App() {
               }`}>
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
-                    <div className="p-1.5 bg-gradient-to-br from-[#d4af37]/20 to-[#b8860b]/10 rounded-lg">
+                    <div className="p-1.5 bg-gradient-to-br from-[#d4af37]/20 to-[#b8860b]/10 rounded-lg border border-[#d4af37]/20">
                       <Target size={14} className="text-[#d4af37]" />
                     </div>
                     <h3 className="text-sm font-black text-[#d4af37] uppercase tracking-wider">Targets ({stats.targets.length})</h3>
                   </div>
                   <button
                     onClick={() => setShowTargetModal(true)}
-                    className="px-2 py-1 bg-[#d4af37]/20 text-[#d4af37] rounded-lg text-[8px] font-black"
+                    className="px-2 py-1 bg-[#d4af37]/20 text-[#d4af37] rounded-lg text-[8px] font-black hover:bg-[#d4af37]/30 transition-all"
                   >
                     + ADD
                   </button>
@@ -1897,20 +1930,20 @@ export default function App() {
               </div>
             )}
 
-            {/* Monthly Performance - ENHANCED with borders */}
+            {/* Monthly Performance */}
             <div className={`p-4 rounded-xl border shadow-lg ${
               isDarkMode ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/10" : "bg-white border-gray-200"
             }`}>
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <div className="p-1.5 bg-gradient-to-br from-[#d4af37]/20 to-[#b8860b]/10 rounded-lg">
+                  <div className="p-1.5 bg-gradient-to-br from-[#d4af37]/20 to-[#b8860b]/10 rounded-lg border border-[#d4af37]/20">
                     <BarChart3 size={14} className="text-[#d4af37]" />
                   </div>
                   <h3 className="text-sm font-black text-[#d4af37] uppercase tracking-wider">Monthly Performance</h3>
                 </div>
                 <button
                   onClick={() => setShowAllMonthlyBrands(!showAllMonthlyBrands)}
-                  className="px-2 py-1 bg-white/10 rounded-lg text-[8px] font-black"
+                  className="px-2 py-1 bg-white/10 rounded-lg text-[8px] font-black hover:bg-white/20 transition-all"
                 >
                   {showAllMonthlyBrands ? 'Show Less' : 'Show All'}
                 </button>
@@ -1927,7 +1960,7 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Brand-wise Performance with borders */}
+              {/* Brand-wise Performance */}
               <div className="space-y-2">
                 <p className="text-[9px] font-black uppercase opacity-60 mb-2">Brand Performance</p>
 
@@ -1969,7 +2002,7 @@ export default function App() {
           </div>
         )}
 
-        {/* SHOPS TAB - WITH GOLD BILL BUTTON */}
+        {/* SHOPS TAB */}
         {activeTab === 'shops' && (
           <div className="space-y-3">
             {/* Search and Add Shop Row */}
@@ -1987,8 +2020,8 @@ export default function App() {
               </div>
               <button
                 onClick={() => setShowModal('shop')}
-                className={`px-3 py-2 rounded-xl border text-[#d4af37] font-black text-xs flex items-center gap-1 ${
-                  isDarkMode ? 'bg-[#1a1a1a] border-white/10' : 'bg-gray-100 border-gray-200'
+                className={`px-3 py-2 rounded-xl border text-[#d4af37] font-black text-xs flex items-center gap-1 transition-all ${
+                  isDarkMode ? 'bg-[#1a1a1a] border-white/10 hover:bg-[#d4af37]/10' : 'bg-gray-100 border-gray-200 hover:bg-[#d4af37]/20'
                 }`}
               >
                 <Plus size={14} /> ADD
@@ -1999,10 +2032,10 @@ export default function App() {
             <div className="flex gap-1 overflow-x-auto pb-1">
               <button
                 onClick={() => setSelectedRouteFilter('ALL')}
-                className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase whitespace-nowrap border flex-shrink-0 ${
+                className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase whitespace-nowrap border transition-all ${
                   selectedRouteFilter === 'ALL'
                     ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black border-[#d4af37]'
-                    : isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white/60' : 'bg-gray-100 border-gray-200 text-gray-600'
+                    : isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white/60 hover:bg-white/10' : 'bg-gray-100 border-gray-200 text-gray-600 hover:bg-gray-200'
                 }`}>
                 ALL
               </button>
@@ -2010,10 +2043,10 @@ export default function App() {
                 <button
                   key={r.id}
                   onClick={() => setSelectedRouteFilter(r.name)}
-                  className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase whitespace-nowrap border flex-shrink-0 ${
+                  className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase whitespace-nowrap border transition-all ${
                     selectedRouteFilter === r.name
                       ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black border-[#d4af37]'
-                      : isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white/60' : 'bg-gray-100 border-gray-200 text-gray-600'
+                      : isDarkMode ? 'bg-[#1a1a1a] border-white/10 text-white/60 hover:bg-white/10' : 'bg-gray-100 border-gray-200 text-gray-600 hover:bg-gray-200'
                   }`}>
                   {r.name}
                 </button>
@@ -2041,7 +2074,7 @@ export default function App() {
                       <div className="relative">
                         <button
                           onClick={() => setShowShopMenu(showShopMenu === s.id ? null : s.id)}
-                          className="p-1.5 hover:bg-white/10 rounded-lg"
+                          className="p-1.5 hover:bg-white/10 rounded-lg transition-all"
                         >
                           <MoreVertical size={16} />
                         </button>
@@ -2054,7 +2087,7 @@ export default function App() {
                                   setShowShopMenu(null);
                                   viewShopOrders(s);
                                 }}
-                                className="w-full px-3 py-1.5 text-left text-[9px] font-black uppercase hover:bg-white/10 rounded flex items-center gap-1"
+                                className="w-full px-3 py-1.5 text-left text-[9px] font-black uppercase hover:bg-white/10 rounded flex items-center gap-1 transition-all"
                               >
                                 <History size={10} className="text-blue-500"/> Orders
                               </button>
@@ -2063,7 +2096,7 @@ export default function App() {
                                   setShowShopMenu(null);
                                   viewShopProfile(s);
                                 }}
-                                className="w-full px-3 py-1.5 text-left text-[9px] font-black uppercase hover:bg-white/10 rounded flex items-center gap-1"
+                                className="w-full px-3 py-1.5 text-left text-[9px] font-black uppercase hover:bg-white/10 rounded flex items-center gap-1 transition-all"
                               >
                                 <Eye size={10} className="text-green-500"/> Profile
                               </button>
@@ -2073,7 +2106,7 @@ export default function App() {
                                     setShowShopMenu(null);
                                     editShopProfile(shopProfile);
                                   }}
-                                  className="w-full px-3 py-1.5 text-left text-[9px] font-black uppercase hover:bg-white/10 rounded flex items-center gap-1"
+                                  className="w-full px-3 py-1.5 text-left text-[9px] font-black uppercase hover:bg-white/10 rounded flex items-center gap-1 transition-all"
                                 >
                                   <Edit2 size={10} className="text-blue-500"/> Edit
                                 </button>
@@ -2084,7 +2117,7 @@ export default function App() {
                                     setSelectedShop(s);
                                     setShowModal('shopProfile');
                                   }}
-                                  className="w-full px-3 py-1.5 text-left text-[9px] font-black uppercase hover:bg-white/10 rounded flex items-center gap-1"
+                                  className="w-full px-3 py-1.5 text-left text-[9px] font-black uppercase hover:bg-white/10 rounded flex items-center gap-1 transition-all"
                                 >
                                   <Plus size={10} className="text-[#d4af37]"/> Add Profile
                                 </button>
@@ -2094,7 +2127,7 @@ export default function App() {
                                   setShowShopMenu(null);
                                   confirmDelete(s.id, 'shop', s.name);
                                 }}
-                                className="w-full px-3 py-1.5 text-left text-[9px] font-black uppercase hover:bg-white/10 rounded flex items-center gap-1 text-red-500"
+                                className="w-full px-3 py-1.5 text-left text-[9px] font-black uppercase hover:bg-white/10 rounded flex items-center gap-1 text-red-500 transition-all"
                               >
                                 <Trash2 size={10}/> Delete
                               </button>
@@ -2115,7 +2148,7 @@ export default function App() {
                         setSelectedShop(s);
                         setShowModal('invoice');
                       }}
-                      className="w-full py-1.5 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg text-[9px] uppercase flex items-center justify-center gap-1"
+                      className="w-full py-1.5 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg text-[9px] uppercase flex items-center justify-center gap-1 hover:opacity-90 transition-all"
                     >
                       <Receipt size={12} /> BILL
                     </button>
@@ -2161,16 +2194,16 @@ export default function App() {
                     <p className="text-[8px] opacity-60">{o.companyName}</p>
                   </div>
                   <div className="flex gap-1">
-                    <button onClick={() => printBill(o)} className="p-1 text-blue-500 hover:bg-blue-500/10 rounded">
+                    <button onClick={() => printBill(o)} className="p-1 text-blue-500 hover:bg-blue-500/10 rounded transition-all">
                       <Printer size={12}/>
                     </button>
-                    <button onClick={() => shareToWhatsApp(o, false)} className="p-1 text-[#d4af37] hover:bg-[#d4af37]/10 rounded">
+                    <button onClick={() => shareToWhatsApp(o, false)} className="p-1 text-[#d4af37] hover:bg-[#d4af37]/10 rounded transition-all">
                       <Share2 size={12}/>
                     </button>
-                    <button onClick={() => shareToWhatsApp(o, true)} className="p-1 text-green-500 hover:bg-green-500/10 rounded">
+                    <button onClick={() => shareToWhatsApp(o, true)} className="p-1 text-green-500 hover:bg-green-500/10 rounded transition-all">
                       <MapPin size={12}/>
                     </button>
-                    <button onClick={() => confirmDelete(o.id, 'order', '')} className="p-1 text-red-500 hover:bg-red-500/10 rounded">
+                    <button onClick={() => confirmDelete(o.id, 'order', '')} className="p-1 text-red-500 hover:bg-red-500/10 rounded transition-all">
                       <Trash2 size={12}/>
                     </button>
                   </div>
@@ -2205,13 +2238,13 @@ export default function App() {
                     <p className="text-[8px] opacity-60">{o.companyName}</p>
                   </div>
                   <div className="flex gap-1">
-                    <button onClick={() => printBill(o)} className="p-1 text-blue-500 hover:bg-blue-500/10 rounded">
+                    <button onClick={() => printBill(o)} className="p-1 text-blue-500 hover:bg-blue-500/10 rounded transition-all">
                       <Printer size={12}/>
                     </button>
-                    <button onClick={() => shareToWhatsApp(o, false)} className="p-1 text-purple-500 hover:bg-purple-500/10 rounded">
+                    <button onClick={() => shareToWhatsApp(o, false)} className="p-1 text-purple-500 hover:bg-purple-500/10 rounded transition-all">
                       <Share2 size={12}/>
                     </button>
-                    <button onClick={() => confirmDelete(o.id, 'order', '')} className="p-1 text-red-500 hover:bg-red-500/10 rounded">
+                    <button onClick={() => confirmDelete(o.id, 'order', '')} className="p-1 text-red-500 hover:bg-red-500/10 rounded transition-all">
                       <Trash2 size={12}/>
                     </button>
                   </div>
@@ -2250,7 +2283,7 @@ export default function App() {
               />
               <button
                 onClick={() => setShowModal('note')}
-                className="bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black px-2 py-1 rounded-lg text-[9px] font-black"
+                className="bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black px-2 py-1 rounded-lg text-[9px] font-black hover:opacity-90 transition-all"
               >
                 ADD
               </button>
@@ -2269,7 +2302,7 @@ export default function App() {
                   </div>
                   <button
                     onClick={() => confirmDelete(note.id, 'note', '')}
-                    className="p-1 text-red-500 hover:bg-red-500/10 rounded"
+                    className="p-1 text-red-500 hover:bg-red-500/10 rounded transition-all"
                   >
                     <Trash2 size={10}/>
                   </button>
@@ -2280,57 +2313,59 @@ export default function App() {
           </div>
         )}
 
-        {/* SETTINGS TAB - WITH DRAG & DROP BRAND REORDER */}
+        {/* SETTINGS TAB */}
         {activeTab === 'settings' && (
           <div className="space-y-3 pb-16">
             {/* Profile Form */}
-            <form onSubmit={handleSaveProfile} className={`p-3 rounded-xl border space-y-2 ${
+            <form onSubmit={handleSaveProfile} className={`p-3 rounded-xl border ${
               isDarkMode ? "bg-[#0f0f0f] border-white/10" : "bg-white border-gray-200"
             }`}>
-              <h3 className="text-xs font-black text-[#d4af37] uppercase">Profile</h3>
-              <input
-                name="repName"
-                defaultValue={data.settings.name}
-                placeholder="YOUR NAME"
-                className={`w-full p-2 rounded-lg border text-[10px] font-bold uppercase outline-none ${
-                  isDarkMode ? 'bg-[#1a1a1a] border-white/5 text-white' : 'bg-gray-50 border-gray-200'
-                }`}
-              />
-              <input
-                name="companyName"
-                defaultValue={data.settings.company}
-                placeholder="COMPANY"
-                className={`w-full p-2 rounded-lg border text-[10px] font-bold uppercase outline-none ${
-                  isDarkMode ? 'bg-[#1a1a1a] border-white/5 text-white' : 'bg-gray-50 border-gray-200'
-                }`}
-              />
-              <button type="submit" className="w-full py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-black rounded-lg text-[10px] flex items-center justify-center gap-1">
-                <Save size={12}/> SAVE
-              </button>
+              <h3 className="text-xs font-black text-[#d4af37] uppercase mb-2">Profile</h3>
+              <div className="space-y-2">
+                <input
+                  name="repName"
+                  defaultValue={data.settings.name}
+                  placeholder="YOUR NAME"
+                  className={`w-full p-2 rounded-lg border text-[10px] font-bold uppercase outline-none ${
+                    isDarkMode ? 'bg-[#1a1a1a] border-white/5 text-white' : 'bg-gray-50 border-gray-200'
+                  }`}
+                />
+                <input
+                  name="companyName"
+                  defaultValue={data.settings.company}
+                  placeholder="COMPANY"
+                  className={`w-full p-2 rounded-lg border text-[10px] font-bold uppercase outline-none ${
+                    isDarkMode ? 'bg-[#1a1a1a] border-white/5 text-white' : 'bg-gray-50 border-gray-200'
+                  }`}
+                />
+                <button type="submit" className="w-full py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-black rounded-lg text-[10px] flex items-center justify-center gap-1 hover:opacity-90 transition-all">
+                  <Save size={12}/> SAVE
+                </button>
+              </div>
             </form>
 
             {/* Quick Add */}
             <div className="grid grid-cols-3 gap-2">
               <button
                 onClick={() => setShowModal('route')}
-                className={`py-2 rounded-xl border text-[#d4af37] font-black text-[9px] flex flex-col items-center ${
-                  isDarkMode ? 'bg-[#1a1a1a] border-white/5' : 'bg-gray-50 border-gray-200'
+                className={`py-2 rounded-xl border text-[#d4af37] font-black text-[9px] flex flex-col items-center transition-all ${
+                  isDarkMode ? 'bg-[#1a1a1a] border-white/5 hover:bg-[#d4af37]/10' : 'bg-gray-50 border-gray-200 hover:bg-[#d4af37]/20'
                 }`}
               >
                 <MapPin size={14}/> ROUTE
               </button>
               <button
                 onClick={() => setShowModal('brand')}
-                className={`py-2 rounded-xl border text-[#d4af37] font-black text-[9px] flex flex-col items-center ${
-                  isDarkMode ? 'bg-[#1a1a1a] border-white/5' : 'bg-gray-50 border-gray-200'
+                className={`py-2 rounded-xl border text-[#d4af37] font-black text-[9px] flex flex-col items-center transition-all ${
+                  isDarkMode ? 'bg-[#1a1a1a] border-white/5 hover:bg-[#d4af37]/10' : 'bg-gray-50 border-gray-200 hover:bg-[#d4af37]/20'
                 }`}
               >
                 <Package size={14}/> BRAND
               </button>
               <button
                 onClick={() => setShowModal('manual')}
-                className={`py-2 rounded-xl border text-[#d4af37] font-black text-[9px] flex flex-col items-center ${
-                  isDarkMode ? 'bg-[#1a1a1a] border-white/5' : 'bg-gray-50 border-gray-200'
+                className={`py-2 rounded-xl border text-[#d4af37] font-black text-[9px] flex flex-col items-center transition-all ${
+                  isDarkMode ? 'bg-[#1a1a1a] border-white/5 hover:bg-[#d4af37]/10' : 'bg-gray-50 border-gray-200 hover:bg-[#d4af37]/20'
                 }`}
               >
                 <ShoppingBag size={14}/> MANUAL
@@ -2345,14 +2380,14 @@ export default function App() {
                   isDarkMode ? 'bg-[#1a1a1a] border-white/5' : 'bg-gray-50 border-gray-200'
                 }`}>
                   <span className="text-[10px] font-bold">{r.name}</span>
-                  <button onClick={() => confirmDelete(r.id, 'route', r.name)} className="text-red-500 p-1">
+                  <button onClick={() => confirmDelete(r.id, 'route', r.name)} className="text-red-500 p-1 hover:bg-red-500/10 rounded transition-all">
                     <Trash2 size={12}/>
                   </button>
                 </div>
               ))}
             </div>
 
-            {/* Brands List with Drag & Drop Style Reorder */}
+            {/* Brands List */}
             <div>
               <h4 className="text-xs font-black text-[#d4af37] uppercase mb-2">Brands</h4>
               {data.brands.map((b, idx) => (
@@ -2368,29 +2403,42 @@ export default function App() {
                     <div className="space-y-2">
                       <div className="flex flex-wrap gap-1">
                         <input
-                          defaultValue={b.name}
-                          className="flex-1 min-w-[100px] p-1.5 text-[10px] bg-black/40 border border-white/10 rounded text-white"
-                          onBlur={(e) => saveBrandEdit(b.id, 'name', e.target.value)}
-                          autoFocus
+                          value={editingBrandData.name}
+                          onChange={(e) => setEditingBrandData({...editingBrandData, name: e.target.value})}
+                          placeholder="NAME"
+                          className="flex-1 min-w-[80px] p-1.5 text-[10px] bg-black/40 border border-white/10 rounded text-white"
                         />
                         <input
-                          defaultValue={b.size}
+                          value={editingBrandData.size}
+                          onChange={(e) => setEditingBrandData({...editingBrandData, size: e.target.value})}
+                          placeholder="SIZE"
                           className="w-16 p-1.5 text-[10px] bg-black/40 border border-white/10 rounded text-white"
-                          onBlur={(e) => saveBrandEdit(b.id, 'size', e.target.value)}
                         />
                         <input
-                          defaultValue={b.price}
+                          value={editingBrandData.price}
+                          onChange={(e) => setEditingBrandData({...editingBrandData, price: e.target.value})}
                           type="number"
+                          placeholder="PRICE"
                           className="w-20 p-1.5 text-[10px] bg-black/40 border border-white/10 rounded text-white"
-                          onBlur={(e) => saveBrandEdit(b.id, 'price', e.target.value)}
                         />
                       </div>
-                      <button
-                        onClick={() => setEditingBrand(null)}
-                        className="w-full py-1 bg-gradient-to-br from-[#333] to-[#444] text-white text-[8px] font-black rounded"
-                      >
-                        Cancel
-                      </button>
+                      <div className="flex gap-1">
+                        <button
+                          onClick={saveBrandEdit}
+                          className="flex-1 py-1 bg-gradient-to-r from-green-600 to-emerald-600 text-white text-[8px] font-black rounded hover:opacity-90 transition-all"
+                        >
+                          SAVE
+                        </button>
+                        <button
+                          onClick={() => {
+                            setEditingBrand(null);
+                            setEditingBrandData({ name: '', size: '', price: '' });
+                          }}
+                          className="flex-1 py-1 bg-gradient-to-br from-[#333] to-[#444] text-white text-[8px] font-black rounded hover:opacity-90 transition-all"
+                        >
+                          CANCEL
+                        </button>
+                      </div>
                     </div>
                   ) : (
                     <div className="flex items-center justify-between">
@@ -2403,7 +2451,7 @@ export default function App() {
                         <div className="flex-1">
                           <div className="flex items-center flex-wrap gap-1">
                             <span className="text-xs font-bold">{b.name}</span>
-                            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-white/10">{b.size}</span>
+                            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-white/10 border border-white/20">{b.size}</span>
                           </div>
                           <div className="text-[9px] text-[#d4af37] font-bold">Rs.{b.price}</div>
                         </div>
@@ -2413,7 +2461,7 @@ export default function App() {
                           <>
                             <button
                               onClick={() => startMoveBrand(b.id, event)}
-                              className={`p-1.5 rounded-lg ${
+                              className={`p-1.5 rounded-lg transition-all ${
                                 movingBrandId ? 'text-green-500 hover:bg-green-500/10' : 'text-white/40 hover:text-white hover:bg-white/10'
                               }`}
                               title="Move to position"
@@ -2423,7 +2471,7 @@ export default function App() {
                             {movingBrandId && movingBrandId !== b.id && (
                               <button
                                 onClick={() => moveBrandToPosition(b.id)}
-                                className="p-1.5 bg-green-500/20 text-green-500 rounded-lg"
+                                className="p-1.5 bg-green-500/20 text-green-500 rounded-lg hover:bg-green-500/30 transition-all"
                                 title="Drop here"
                               >
                                 <CheckCircle2 size={12} />
@@ -2432,14 +2480,14 @@ export default function App() {
                           </>
                         )}
                         <button
-                          onClick={() => setEditingBrand(b.id)}
-                          className="p-1.5 text-blue-500 hover:bg-blue-500/10 rounded-lg"
+                          onClick={() => startEditBrand(b)}
+                          className="p-1.5 text-blue-500 hover:bg-blue-500/10 rounded-lg transition-all"
                         >
                           <Edit2 size={12} />
                         </button>
                         <button
                           onClick={() => confirmDelete(b.id, 'brand', b.name)}
-                          className="p-1.5 text-red-500 hover:bg-red-500/10 rounded-lg"
+                          className="p-1.5 text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
                         >
                           <Trash2 size={12} />
                         </button>
@@ -2452,7 +2500,7 @@ export default function App() {
               {movingBrandId && (
                 <button
                   onClick={cancelMove}
-                  className="w-full mt-2 py-1.5 bg-red-500/20 text-red-500 rounded-lg text-[9px] font-black"
+                  className="w-full mt-2 py-1.5 bg-red-500/20 text-red-500 rounded-lg text-[9px] font-black hover:bg-red-500/30 transition-all"
                 >
                   Cancel Move
                 </button>
@@ -2476,8 +2524,8 @@ export default function App() {
           <button
             key={t.id}
             onClick={() => setActiveTab(t.id)}
-            className={`p-1 flex flex-col items-center ${
-              activeTab === t.id ? 'text-[#d4af37]' : isDarkMode ? 'text-white/40' : 'text-gray-400'
+            className={`p-1 flex flex-col items-center transition-all ${
+              activeTab === t.id ? 'text-[#d4af37]' : isDarkMode ? 'text-white/40 hover:text-white/60' : 'text-gray-400 hover:text-gray-600'
             }`}
           >
             <t.icon size={18} />
@@ -2495,7 +2543,7 @@ export default function App() {
                 setIsFabOpen(false);
                 setShowModal('expense');
               }}
-              className="w-10 h-10 bg-gradient-to-r from-[#d4af37] to-[#b8860b] rounded-full text-black flex items-center justify-center shadow-lg"
+              className="w-10 h-10 bg-gradient-to-r from-[#d4af37] to-[#b8860b] rounded-full text-black flex items-center justify-center shadow-lg hover:scale-110 transition-all"
             >
               <Wallet size={16} />
             </button>
@@ -2504,7 +2552,7 @@ export default function App() {
                 setIsFabOpen(false);
                 getLocation();
               }}
-              className="w-10 h-10 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full text-white flex items-center justify-center shadow-lg"
+              className="w-10 h-10 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full text-white flex items-center justify-center shadow-lg hover:scale-110 transition-all"
             >
               <Navigation size={16} />
             </button>
@@ -2513,7 +2561,7 @@ export default function App() {
                 setIsFabOpen(false);
                 setShowModal('note');
               }}
-              className="w-10 h-10 bg-gradient-to-r from-green-500 to-green-600 rounded-full text-white flex items-center justify-center shadow-lg"
+              className="w-10 h-10 bg-gradient-to-r from-green-500 to-green-600 rounded-full text-white flex items-center justify-center shadow-lg hover:scale-110 transition-all"
             >
               <FileText size={16} />
             </button>
@@ -2523,7 +2571,7 @@ export default function App() {
                 setShowCalculator(true);
                 resetCalculator();
               }}
-              className="w-10 h-10 bg-gradient-to-r from-purple-500 to-purple-600 rounded-full text-white flex items-center justify-center shadow-lg"
+              className="w-10 h-10 bg-gradient-to-r from-purple-500 to-purple-600 rounded-full text-white flex items-center justify-center shadow-lg hover:scale-110 transition-all"
             >
               <Calculator size={16} />
             </button>
@@ -2531,7 +2579,7 @@ export default function App() {
         )}
         <button
           onClick={() => setIsFabOpen(!isFabOpen)}
-          className="w-12 h-12 bg-gradient-to-r from-[#d4af37] to-[#b8860b] rounded-full text-black flex items-center justify-center shadow-2xl"
+          className="w-12 h-12 bg-gradient-to-r from-[#d4af37] to-[#b8860b] rounded-full text-black flex items-center justify-center shadow-2xl hover:scale-110 transition-all"
         >
           {isFabOpen ? <X size={20} /> : <Plus size={20} />}
         </button>
@@ -2540,10 +2588,10 @@ export default function App() {
       {/* TARGET MODAL */}
       {showTargetModal && (
         <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-3">
-          <div className="w-full max-w-xs p-4 rounded-xl border border-[#d4af37]/30 bg-[#0f0f0f]">
+          <div className="w-full max-w-xs p-4 rounded-xl border border-[#d4af37]/30 bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a]">
             <div className="flex justify-between items-center mb-3">
               <h3 className="font-black text-[#d4af37] text-sm">{editingTarget ? 'EDIT TARGET' : 'NEW TARGET'}</h3>
-              <button onClick={() => { setShowTargetModal(false); setEditingTarget(null); }} className="text-white/40">
+              <button onClick={() => { setShowTargetModal(false); setEditingTarget(null); }} className="text-white/40 hover:text-white/60 p-1 transition-all">
                 <X size={16}/>
               </button>
             </div>
@@ -2552,7 +2600,7 @@ export default function App() {
                 type="month"
                 value={targetMonth}
                 onChange={(e) => setTargetMonth(e.target.value)}
-                className="w-full p-2 rounded-lg border text-xs bg-black/40 border-white/10 text-white"
+                className="w-full p-2 rounded-lg border text-xs bg-black/40 border-white/10 text-white outline-none focus:border-[#d4af37] transition-all"
                 required
               />
 
@@ -2560,14 +2608,18 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => setTargetType('revenue')}
-                  className={`p-1 rounded-lg border text-[9px] font-bold ${targetType === 'revenue' ? 'bg-[#d4af37] text-black' : 'border-white/10'}`}
+                  className={`p-1 rounded-lg border text-[9px] font-bold transition-all ${
+                    targetType === 'revenue' ? 'bg-[#d4af37] text-black border-[#d4af37]' : 'border-white/10 hover:border-[#d4af37]/50'
+                  }`}
                 >
                   REVENUE
                 </button>
                 <button
                   type="button"
                   onClick={() => setTargetType('units')}
-                  className={`p-1 rounded-lg border text-[9px] font-bold ${targetType === 'units' ? 'bg-[#d4af37] text-black' : 'border-white/10'}`}
+                  className={`p-1 rounded-lg border text-[9px] font-bold transition-all ${
+                    targetType === 'units' ? 'bg-[#d4af37] text-black border-[#d4af37]' : 'border-white/10 hover:border-[#d4af37]/50'
+                  }`}
                 >
                   UNITS
                 </button>
@@ -2577,14 +2629,18 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => setTargetSpecific('total')}
-                  className={`p-1 rounded-lg border text-[8px] font-bold ${targetSpecific === 'total' ? 'bg-[#d4af37] text-black' : 'border-white/10'}`}
+                  className={`p-1 rounded-lg border text-[8px] font-bold transition-all ${
+                    targetSpecific === 'total' ? 'bg-[#d4af37] text-black border-[#d4af37]' : 'border-white/10 hover:border-[#d4af37]/50'
+                  }`}
                 >
                   TOTAL
                 </button>
                 <button
                   type="button"
                   onClick={() => setTargetSpecific('brand')}
-                  className={`p-1 rounded-lg border text-[8px] font-bold ${targetSpecific === 'brand' ? 'bg-[#d4af37] text-black' : 'border-white/10'}`}
+                  className={`p-1 rounded-lg border text-[8px] font-bold transition-all ${
+                    targetSpecific === 'brand' ? 'bg-[#d4af37] text-black border-[#d4af37]' : 'border-white/10 hover:border-[#d4af37]/50'
+                  }`}
                 >
                   BRAND
                 </button>
@@ -2594,12 +2650,12 @@ export default function App() {
                 <select
                   value={targetBrand}
                   onChange={(e) => setTargetBrand(e.target.value)}
-                  className="w-full p-2 rounded-lg border text-xs bg-black/40 border-white/10 text-white"
+                  className="w-full p-2 rounded-lg border text-xs bg-black/40 border-white/10 text-white outline-none focus:border-[#d4af37] transition-all"
                   required
                 >
                   <option value="">SELECT BRAND</option>
                   {data.brands.map(b => (
-                    <option key={b.id} value={b.name}>{b.name}</option>
+                    <option key={b.id} value={b.name}>{b.name} ({b.size})</option>
                   ))}
                 </select>
               )}
@@ -2609,13 +2665,13 @@ export default function App() {
                 value={targetAmount}
                 onChange={(e) => setTargetAmount(e.target.value)}
                 placeholder="AMOUNT"
-                className="w-full p-2 rounded-lg border text-xs bg-black/40 border-white/10 text-white"
+                className="w-full p-2 rounded-lg border text-xs bg-black/40 border-white/10 text-white outline-none focus:border-[#d4af37] transition-all"
                 required
               />
 
               <button
                 type="submit"
-                className="w-full py-2 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg text-xs"
+                className="w-full py-2 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg text-xs hover:opacity-90 transition-all"
               >
                 {editingTarget ? 'UPDATE' : 'SAVE'}
               </button>
@@ -2627,10 +2683,12 @@ export default function App() {
       {/* CALCULATOR MODAL */}
       {showCalculator && (
         <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-3">
-          <div className={`w-full max-w-xs p-4 rounded-xl border ${isDarkMode ? 'bg-[#0f0f0f] border-[#d4af37]/30' : 'bg-white border-gray-200'}`}>
+          <div className={`w-full max-w-xs p-4 rounded-xl border ${
+            isDarkMode ? 'bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/30' : 'bg-white border-gray-200'
+          }`}>
             <div className="flex justify-between items-center mb-3">
               <h3 className="font-black text-[#d4af37] text-sm">CALCULATOR</h3>
-              <button onClick={() => { setShowCalculator(false); resetCalculator(); }} className="text-white/40">
+              <button onClick={() => { setShowCalculator(false); resetCalculator(); }} className="text-white/40 hover:text-white/60 p-1 transition-all">
                 <X size={16}/>
               </button>
             </div>
@@ -2640,19 +2698,23 @@ export default function App() {
               value={totalCalculation.subtotal || ''}
               onChange={(e) => setTotalCalculation({...totalCalculation, subtotal: parseFloat(e.target.value) || 0})}
               placeholder="SUBTOTAL"
-              className="w-full p-2 rounded-lg border text-sm mb-2 bg-black/40 border-white/10 text-white"
+              className="w-full p-2 rounded-lg border text-sm mb-2 bg-black/40 border-white/10 text-white outline-none focus:border-[#d4af37] transition-all"
             />
 
             <div className="flex gap-1 mb-2">
               <button
                 onClick={() => setTotalCalculation({...totalCalculation, usePercentage: false})}
-                className={`flex-1 p-1 rounded-lg text-[9px] font-bold ${!totalCalculation.usePercentage ? 'bg-[#d4af37] text-black' : 'bg-white/10'}`}
+                className={`flex-1 p-1 rounded-lg text-[9px] font-bold transition-all ${
+                  !totalCalculation.usePercentage ? 'bg-[#d4af37] text-black' : 'bg-white/10 hover:bg-white/20'
+                }`}
               >
                 Rs.
               </button>
               <button
                 onClick={() => setTotalCalculation({...totalCalculation, usePercentage: true})}
-                className={`flex-1 p-1 rounded-lg text-[9px] font-bold ${totalCalculation.usePercentage ? 'bg-[#d4af37] text-black' : 'bg-white/10'}`}
+                className={`flex-1 p-1 rounded-lg text-[9px] font-bold transition-all ${
+                  totalCalculation.usePercentage ? 'bg-[#d4af37] text-black' : 'bg-white/10 hover:bg-white/20'
+                }`}
               >
                 %
               </button>
@@ -2664,7 +2726,7 @@ export default function App() {
                 value={totalCalculation.discountPercent || ''}
                 onChange={(e) => setTotalCalculation({...totalCalculation, discountPercent: parseFloat(e.target.value) || 0})}
                 placeholder="DISCOUNT %"
-                className="w-full p-2 rounded-lg border text-sm mb-2 bg-black/40 border-white/10 text-white"
+                className="w-full p-2 rounded-lg border text-sm mb-2 bg-black/40 border-white/10 text-white outline-none focus:border-[#d4af37] transition-all"
               />
             ) : (
               <input
@@ -2672,7 +2734,7 @@ export default function App() {
                 value={totalCalculation.discount || ''}
                 onChange={(e) => setTotalCalculation({...totalCalculation, discount: parseFloat(e.target.value) || 0})}
                 placeholder="DISCOUNT"
-                className="w-full p-2 rounded-lg border text-sm mb-2 bg-black/40 border-white/10 text-white"
+                className="w-full p-2 rounded-lg border text-sm mb-2 bg-black/40 border-white/10 text-white outline-none focus:border-[#d4af37] transition-all"
               />
             )}
 
@@ -2681,10 +2743,10 @@ export default function App() {
               value={totalCalculation.tax || ''}
               onChange={(e) => setTotalCalculation({...totalCalculation, tax: parseFloat(e.target.value) || 0})}
               placeholder="TAX"
-              className="w-full p-2 rounded-lg border text-sm mb-3 bg-black/40 border-white/10 text-white"
+              className="w-full p-2 rounded-lg border text-sm mb-3 bg-black/40 border-white/10 text-white outline-none focus:border-[#d4af37] transition-all"
             />
 
-            <div className="bg-[#1a1a1a] p-2 rounded-lg mb-3 text-center">
+            <div className="bg-[#1a1a1a] p-2 rounded-lg mb-3 text-center border border-white/10">
               <p className="text-[9px] opacity-60 mb-1">GRAND TOTAL</p>
               <p className="text-base font-black text-[#d4af37]">
                 Rs.{(
@@ -2699,13 +2761,13 @@ export default function App() {
 
             <button
               onClick={calculateTotal}
-              className="w-full py-2 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg text-xs mb-1"
+              className="w-full py-2 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg text-xs mb-1 hover:opacity-90 transition-all"
             >
               CALCULATE
             </button>
             <button
               onClick={resetCalculator}
-              className="w-full py-1.5 bg-[#1a1a1a] text-white/60 font-black rounded-lg text-[10px]"
+              className="w-full py-1.5 bg-[#1a1a1a] text-white/60 font-black rounded-lg text-[10px] hover:bg-[#2a2a2a] transition-all"
             >
               RESET
             </button>
@@ -2719,14 +2781,14 @@ export default function App() {
           <div className="min-h-screen p-3 max-w-lg mx-auto pb-20">
             <div className="flex justify-between items-center mb-3 sticky top-0 bg-black py-2 border-b border-white/10">
               <h2 className="text-sm font-black text-white">{selectedShop.name}</h2>
-              <button onClick={() => { setShowModal(null); setCart({}); }} className="p-1 bg-white/10 rounded-full">
+              <button onClick={() => { setShowModal(null); setCart({}); }} className="p-1 bg-white/10 rounded-full hover:bg-white/20 transition-all">
                 <X size={16}/>
               </button>
             </div>
 
             <div className="space-y-2">
               {data.brands.map((b, index) => (
-                <div key={b.id} className="bg-[#0f0f0f] p-2 rounded-xl border border-white/5 flex items-center justify-between">
+                <div key={b.id} className="bg-[#0f0f0f] p-2 rounded-xl border border-white/5 flex items-center justify-between hover:border-[#d4af37]/30 transition-all">
                   <div>
                     <span className="text-xs font-bold">{b.name} ({b.size})</span>
                     <p className="text-[10px] text-[#d4af37]">Rs.{b.price}</p>
@@ -2734,7 +2796,7 @@ export default function App() {
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => setCart({...cart, [b.id]: Math.max(0, (Number(cart[b.id])||0)-1)})}
-                      className="w-6 h-6 bg-white/5 rounded-lg text-xs"
+                      className="w-6 h-6 bg-white/5 rounded-lg text-xs hover:bg-white/10 transition-all"
                     >
                       -
                     </button>
@@ -2747,7 +2809,7 @@ export default function App() {
                     />
                     <button
                       onClick={() => setCart({...cart, [b.id]: (Number(cart[b.id])||0) + 1})}
-                      className="w-6 h-6 bg-white/5 rounded-lg text-xs"
+                      className="w-6 h-6 bg-white/5 rounded-lg text-xs hover:bg-white/10 transition-all"
                     >
                       +
                     </button>
@@ -2763,7 +2825,7 @@ export default function App() {
               </div>
               <button
                 onClick={handleCreateOrder}
-                className="w-full py-2 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg text-xs"
+                className="w-full py-2 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg text-xs hover:opacity-90 transition-all"
               >
                 CONFIRM ORDER
               </button>
@@ -2783,14 +2845,14 @@ export default function App() {
                   setShowModal(null);
                   setManualItems([{ name: '', qty: 1, price: 0, subtotal: 0 }]);
                 }}
-                className="p-1 bg-white/10 rounded-full"
+                className="p-1 bg-white/10 rounded-full hover:bg-white/20 transition-all"
               >
                 <X size={16}/>
               </button>
             </div>
 
             <select
-              className="w-full bg-[#0f0f0f] p-2 rounded-lg border border-white/5 text-white text-xs mb-3"
+              className="w-full bg-[#0f0f0f] p-2 rounded-lg border border-white/5 text-white text-xs mb-3 outline-none focus:border-[#d4af37] transition-all"
               onChange={(e) => {
                 const shopId = e.target.value;
                 setSelectedShop(data.shops.find(s => s.id === shopId));
@@ -2809,39 +2871,39 @@ export default function App() {
                     value={item.name}
                     onChange={(e) => updateManualItem(index, 'name', e.target.value)}
                     placeholder="ITEM"
-                    className="bg-black/40 p-1 rounded text-[10px] border-white/5 text-white"
+                    className="bg-black/40 p-1 rounded text-[10px] border-white/5 text-white outline-none focus:border-[#d4af37] transition-all"
                   />
                   <input
                     type="number"
                     value={item.qty}
                     onChange={(e) => updateManualItem(index, 'qty', e.target.value)}
                     placeholder="QTY"
-                    className="bg-black/40 p-1 rounded text-[10px] border-white/5 text-white"
+                    className="bg-black/40 p-1 rounded text-[10px] border-white/5 text-white outline-none focus:border-[#d4af37] transition-all"
                   />
                   <input
                     type="number"
                     value={item.price}
                     onChange={(e) => updateManualItem(index, 'price', e.target.value)}
                     placeholder="PRICE"
-                    className="bg-black/40 p-1 rounded text-[10px] border-white/5 text-white"
+                    className="bg-black/40 p-1 rounded text-[10px] border-white/5 text-white outline-none focus:border-[#d4af37] transition-all"
                   />
-                  <div className="bg-black/40 p-1 rounded text-center">
+                  <div className="bg-black/40 p-1 rounded text-center border border-white/5">
                     <span className="text-[#d4af37] text-[10px]">Rs.{item.subtotal}</span>
                   </div>
                 </div>
                 {manualItems.length > 1 && (
-                  <button onClick={() => removeManualItem(index)} className="mt-1 text-red-500 text-[8px]">Remove</button>
+                  <button onClick={() => removeManualItem(index)} className="mt-1 text-red-500 text-[8px] hover:text-red-400 transition-all">Remove</button>
                 )}
               </div>
             ))}
 
-            <button onClick={addManualItem} className="w-full py-1.5 bg-white/5 rounded-lg text-[#d4af37] text-xs mb-3">+ ADD ITEM</button>
+            <button onClick={addManualItem} className="w-full py-1.5 bg-white/5 rounded-lg text-[#d4af37] text-xs mb-3 hover:bg-white/10 transition-all">+ ADD ITEM</button>
 
             <div className="fixed bottom-0 inset-x-0 p-2 bg-black border-t border-white/10">
               <button
                 onClick={saveManualOrder}
                 disabled={!selectedShop}
-                className={`w-full py-2 font-black rounded-lg text-xs ${selectedShop ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black' : 'bg-gray-700 text-gray-400'}`}
+                className={`w-full py-2 font-black rounded-lg text-xs transition-all ${selectedShop ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black hover:opacity-90' : 'bg-gray-700 text-gray-400'}`}
               >
                 {selectedShop ? 'SAVE ORDER' : 'SELECT SHOP FIRST'}
               </button>
@@ -2855,11 +2917,13 @@ export default function App() {
         <div className="fixed inset-0 bg-black/95 z-[110] flex items-center justify-center p-3">
           <div className="bg-[#0f0f0f] w-full max-w-xs p-4 rounded-xl border border-[#d4af37]/30">
             <div className="text-center mb-3">
-              <CheckCircle2 size={30} className="text-green-500 mx-auto mb-2" />
+              <div className="w-12 h-12 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-2 border border-green-500/30">
+                <CheckCircle2 size={24} className="text-green-500" />
+              </div>
               <h3 className="text-sm font-black text-white">ORDER CONFIRMED</h3>
             </div>
 
-            <div className="bg-[#1a1a1a] rounded-lg p-2 mb-3">
+            <div className="bg-[#1a1a1a] rounded-lg p-2 mb-3 border border-white/10">
               <div className="space-y-1 max-h-24 overflow-y-auto text-[9px]">
                 {lastOrder.items?.map((it, idx) => (
                   <div key={idx} className="flex justify-between">
@@ -2875,10 +2939,10 @@ export default function App() {
             </div>
 
             <div className="space-y-1">
-              <button onClick={() => { printBill(lastOrder); setShowModal(null); }} className="w-full py-1.5 bg-blue-500 text-white font-black rounded-lg text-[10px]">PRINT</button>
-              <button onClick={() => { shareToWhatsApp(lastOrder, false); setShowModal(null); }} className="w-full py-1.5 bg-[#d4af37] text-black font-black rounded-lg text-[10px]">SHARE</button>
-              <button onClick={() => { shareToWhatsApp(lastOrder, true); setShowModal(null); }} className="w-full py-1.5 bg-green-500 text-white font-black rounded-lg text-[10px]">SHARE + LOC</button>
-              <button onClick={() => { setShowModal(null); setLastOrder(null); }} className="w-full py-1.5 bg-[#1a1a1a] text-white/60 font-black rounded-lg text-[10px]">CLOSE</button>
+              <button onClick={() => { printBill(lastOrder); setShowModal(null); }} className="w-full py-1.5 bg-blue-500 text-white font-black rounded-lg text-[10px] hover:bg-blue-600 transition-all">PRINT</button>
+              <button onClick={() => { shareToWhatsApp(lastOrder, false); setShowModal(null); }} className="w-full py-1.5 bg-[#d4af37] text-black font-black rounded-lg text-[10px] hover:bg-[#b8860b] transition-all">SHARE</button>
+              <button onClick={() => { shareToWhatsApp(lastOrder, true); setShowModal(null); }} className="w-full py-1.5 bg-green-500 text-white font-black rounded-lg text-[10px] hover:bg-green-600 transition-all">SHARE + LOC</button>
+              <button onClick={() => { setShowModal(null); setLastOrder(null); }} className="w-full py-1.5 bg-[#1a1a1a] text-white/60 font-black rounded-lg text-[10px] hover:bg-[#2a2a2a] transition-all">CLOSE</button>
             </div>
           </div>
         </div>
@@ -2887,10 +2951,12 @@ export default function App() {
       {/* SHOP MODAL */}
       {showModal === 'shop' && (
         <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-3">
-          <div className={`w-full max-w-xs p-4 rounded-xl border ${isDarkMode ? 'bg-[#0f0f0f] border-[#d4af37]/30' : 'bg-white border-gray-200'}`}>
+          <div className={`w-full max-w-xs p-4 rounded-xl border ${
+            isDarkMode ? 'bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/30' : 'bg-white border-gray-200'
+          }`}>
             <div className="flex justify-between items-center mb-3">
               <h3 className="font-black text-[#d4af37] text-sm">NEW SHOP</h3>
-              <button onClick={() => setShowModal(null)} className="text-white/40">
+              <button onClick={() => setShowModal(null)} className="text-white/40 hover:text-white/60 p-1 transition-all">
                 <X size={16}/>
               </button>
             </div>
@@ -2906,14 +2972,14 @@ export default function App() {
               showToast("Shop added!");
               setShowModal(null);
             }} className="space-y-2">
-              <input name="name" placeholder="SHOP NAME" className="w-full p-2 rounded-lg border text-xs bg-black/40 border-white/10 text-white" required />
-              <select name="area" className="w-full p-2 rounded-lg border text-xs bg-black/40 border-white/10 text-white" required>
+              <input name="name" placeholder="SHOP NAME" className="w-full p-2 rounded-lg border text-xs bg-black/40 border-white/10 text-white outline-none focus:border-[#d4af37] transition-all" required />
+              <select name="area" className="w-full p-2 rounded-lg border text-xs bg-black/40 border-white/10 text-white outline-none focus:border-[#d4af37] transition-all" required>
                 <option value="">SELECT ROUTE</option>
                 {data.routes.map(r => (
                   <option key={r.id} value={r.name}>{r.name}</option>
                 ))}
               </select>
-              <button type="submit" className="w-full py-2 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg text-xs">SAVE</button>
+              <button type="submit" className="w-full py-2 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg text-xs hover:opacity-90 transition-all">SAVE</button>
             </form>
           </div>
         </div>
@@ -2922,10 +2988,12 @@ export default function App() {
       {/* ROUTE MODAL */}
       {showModal === 'route' && (
         <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-3">
-          <div className={`w-full max-w-xs p-4 rounded-xl border ${isDarkMode ? 'bg-[#0f0f0f] border-[#d4af37]/30' : 'bg-white border-gray-200'}`}>
+          <div className={`w-full max-w-xs p-4 rounded-xl border ${
+            isDarkMode ? 'bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/30' : 'bg-white border-gray-200'
+          }`}>
             <div className="flex justify-between items-center mb-3">
               <h3 className="font-black text-[#d4af37] text-sm">NEW ROUTE</h3>
-              <button onClick={() => setShowModal(null)} className="text-white/40">
+              <button onClick={() => setShowModal(null)} className="text-white/40 hover:text-white/60 p-1 transition-all">
                 <X size={16}/>
               </button>
             </div>
@@ -2939,8 +3007,8 @@ export default function App() {
               showToast("Route added!");
               setShowModal(null);
             }} className="space-y-2">
-              <input name="name" placeholder="ROUTE NAME" className="w-full p-2 rounded-lg border text-xs bg-black/40 border-white/10 text-white" required />
-              <button type="submit" className="w-full py-2 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg text-xs">SAVE</button>
+              <input name="name" placeholder="ROUTE NAME" className="w-full p-2 rounded-lg border text-xs bg-black/40 border-white/10 text-white outline-none focus:border-[#d4af37] transition-all" required />
+              <button type="submit" className="w-full py-2 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg text-xs hover:opacity-90 transition-all">SAVE</button>
             </form>
           </div>
         </div>
@@ -2949,18 +3017,20 @@ export default function App() {
       {/* BRAND MODAL */}
       {showModal === 'brand' && (
         <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-3">
-          <div className={`w-full max-w-xs p-4 rounded-xl border ${isDarkMode ? 'bg-[#0f0f0f] border-[#d4af37]/30' : 'bg-white border-gray-200'}`}>
+          <div className={`w-full max-w-xs p-4 rounded-xl border ${
+            isDarkMode ? 'bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/30' : 'bg-white border-gray-200'
+          }`}>
             <div className="flex justify-between items-center mb-3">
               <h3 className="font-black text-[#d4af37] text-sm">NEW BRAND</h3>
-              <button onClick={() => setShowModal(null)} className="text-white/40">
+              <button onClick={() => setShowModal(null)} className="text-white/40 hover:text-white/60 p-1 transition-all">
                 <X size={16}/>
               </button>
             </div>
             <form onSubmit={addBrandWithSequence} className="space-y-2">
-              <input name="name" placeholder="BRAND NAME" className="w-full p-2 rounded-lg border text-xs bg-black/40 border-white/10 text-white" required />
-              <input name="size" placeholder="SIZE" className="w-full p-2 rounded-lg border text-xs bg-black/40 border-white/10 text-white" required />
-              <input name="price" type="number" placeholder="PRICE" className="w-full p-2 rounded-lg border text-xs bg-black/40 border-white/10 text-white" required />
-              <button type="submit" className="w-full py-2 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg text-xs">SAVE</button>
+              <input name="name" placeholder="BRAND NAME" className="w-full p-2 rounded-lg border text-xs bg-black/40 border-white/10 text-white outline-none focus:border-[#d4af37] transition-all" required />
+              <input name="size" placeholder="SIZE" className="w-full p-2 rounded-lg border text-xs bg-black/40 border-white/10 text-white outline-none focus:border-[#d4af37] transition-all" required />
+              <input name="price" type="number" placeholder="PRICE" className="w-full p-2 rounded-lg border text-xs bg-black/40 border-white/10 text-white outline-none focus:border-[#d4af37] transition-all" required />
+              <button type="submit" className="w-full py-2 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg text-xs hover:opacity-90 transition-all">SAVE</button>
             </form>
           </div>
         </div>
@@ -2969,10 +3039,10 @@ export default function App() {
       {/* SHOP PROFILE MODAL */}
       {showModal === 'shopProfile' && selectedShop && (
         <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-3">
-          <div className="w-full max-w-xs p-4 rounded-xl border border-[#d4af37]/30 bg-[#0f0f0f]">
+          <div className="w-full max-w-xs p-4 rounded-xl border border-[#d4af37]/30 bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a]">
             <div className="flex justify-between items-center mb-3">
               <h3 className="font-black text-[#d4af37] text-sm">SHOP PROFILE</h3>
-              <button onClick={() => { setShowModal(null); setEditingProfile(null); }} className="text-white/40">
+              <button onClick={() => { setShowModal(null); setEditingProfile(null); }} className="text-white/40 hover:text-white/60 p-1 transition-all">
                 <X size={16}/>
               </button>
             </div>
@@ -2981,21 +3051,21 @@ export default function App() {
                 placeholder="OWNER NAME"
                 value={shopProfileForm.ownerName}
                 onChange={(e) => setShopProfileForm({...shopProfileForm, ownerName: e.target.value})}
-                className="w-full p-2 rounded-lg border text-xs bg-black/40 border-white/10 text-white"
+                className="w-full p-2 rounded-lg border text-xs bg-black/40 border-white/10 text-white outline-none focus:border-[#d4af37] transition-all"
               />
               <input
                 placeholder="PHONE"
                 value={shopProfileForm.phone}
                 onChange={(e) => setShopProfileForm({...shopProfileForm, phone: e.target.value})}
-                className="w-full p-2 rounded-lg border text-xs bg-black/40 border-white/10 text-white"
+                className="w-full p-2 rounded-lg border text-xs bg-black/40 border-white/10 text-white outline-none focus:border-[#d4af37] transition-all"
               />
               <input
                 placeholder="ADDRESS"
                 value={shopProfileForm.address}
                 onChange={(e) => setShopProfileForm({...shopProfileForm, address: e.target.value})}
-                className="w-full p-2 rounded-lg border text-xs bg-black/40 border-white/10 text-white"
+                className="w-full p-2 rounded-lg border text-xs bg-black/40 border-white/10 text-white outline-none focus:border-[#d4af37] transition-all"
               />
-              <button type="submit" className="w-full py-2 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg text-xs">SAVE</button>
+              <button type="submit" className="w-full py-2 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg text-xs hover:opacity-90 transition-all">SAVE</button>
             </form>
           </div>
         </div>
@@ -3004,10 +3074,12 @@ export default function App() {
       {/* EXPENSE MODAL */}
       {showModal === 'expense' && (
         <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-3">
-          <div className={`w-full max-w-xs p-4 rounded-xl border ${isDarkMode ? 'bg-[#0f0f0f] border-[#d4af37]/30' : 'bg-white border-gray-200'}`}>
+          <div className={`w-full max-w-xs p-4 rounded-xl border ${
+            isDarkMode ? 'bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/30' : 'bg-white border-gray-200'
+          }`}>
             <div className="flex justify-between items-center mb-3">
               <h3 className="font-black text-[#d4af37] text-sm">ADD EXPENSE</h3>
-              <button onClick={() => setShowModal(null)} className="text-white/40">
+              <button onClick={() => setShowModal(null)} className="text-white/40 hover:text-white/60 p-1 transition-all">
                 <X size={16}/>
               </button>
             </div>
@@ -3017,7 +3089,9 @@ export default function App() {
                 <button
                   key={t}
                   onClick={() => setExpenseType(t)}
-                  className={`p-2 rounded-lg border text-center text-[9px] font-bold uppercase ${expenseType === t ? 'border-[#d4af37]' : 'border-white/10'}`}
+                  className={`p-2 rounded-lg border text-center text-[9px] font-bold uppercase transition-all ${
+                    expenseType === t ? 'border-[#d4af37] bg-[#d4af37]/10' : 'border-white/10 hover:border-[#d4af37]/50'
+                  }`}
                 >
                   {t}
                 </button>
@@ -3029,17 +3103,17 @@ export default function App() {
               value={expenseAmount}
               onChange={(e) => setExpenseAmount(e.target.value)}
               placeholder="AMOUNT"
-              className="w-full p-2 rounded-lg border text-sm mb-2 bg-black/40 border-white/10 text-white"
+              className="w-full p-2 rounded-lg border text-sm mb-2 bg-black/40 border-white/10 text-white outline-none focus:border-[#d4af37] transition-all"
             />
             <textarea
               value={expenseNote}
               onChange={(e) => setExpenseNote(e.target.value)}
               placeholder="NOTE"
-              className="w-full p-2 rounded-lg border text-xs mb-3 bg-black/40 border-white/10 text-white h-16"
+              className="w-full p-2 rounded-lg border text-xs mb-3 bg-black/40 border-white/10 text-white outline-none focus:border-[#d4af37] transition-all h-16"
             />
             <button
               onClick={saveExpense}
-              className="w-full py-2 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg text-xs"
+              className="w-full py-2 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg text-xs hover:opacity-90 transition-all"
             >
               SAVE
             </button>
@@ -3050,10 +3124,12 @@ export default function App() {
       {/* NOTE MODAL */}
       {showModal === 'note' && (
         <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-3">
-          <div className={`w-full max-w-xs p-4 rounded-xl border ${isDarkMode ? 'bg-[#0f0f0f] border-[#d4af37]/30' : 'bg-white border-gray-200'}`}>
+          <div className={`w-full max-w-xs p-4 rounded-xl border ${
+            isDarkMode ? 'bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/30' : 'bg-white border-gray-200'
+          }`}>
             <div className="flex justify-between items-center mb-3">
               <h3 className="font-black text-[#d4af37] text-sm">ADD NOTE</h3>
-              <button onClick={() => setShowModal(null)} className="text-white/40">
+              <button onClick={() => setShowModal(null)} className="text-white/40 hover:text-white/60 p-1 transition-all">
                 <X size={16}/>
               </button>
             </div>
@@ -3061,11 +3137,11 @@ export default function App() {
               value={repNote}
               onChange={(e) => setRepNote(e.target.value)}
               placeholder="TYPE NOTE HERE..."
-              className="w-full p-2 rounded-lg border text-xs mb-3 bg-black/40 border-white/10 text-white h-24"
+              className="w-full p-2 rounded-lg border text-xs mb-3 bg-black/40 border-white/10 text-white outline-none focus:border-[#d4af37] transition-all h-24"
             />
             <button
               onClick={saveNote}
-              className="w-full py-2 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg text-xs"
+              className="w-full py-2 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg text-xs hover:opacity-90 transition-all"
             >
               SAVE
             </button>
@@ -3079,12 +3155,12 @@ export default function App() {
           <div className="bg-[#0f0f0f] w-full max-w-xs p-4 rounded-xl border border-[#d4af37]/30">
             <div className="flex justify-between items-center mb-3">
               <h3 className="text-sm font-black text-[#d4af37]">PRINT BILL</h3>
-              <button onClick={() => setShowPrintPreview(false)} className="text-white/40">
+              <button onClick={() => setShowPrintPreview(false)} className="text-white/40 hover:text-white/60 p-1 transition-all">
                 <X size={16}/>
               </button>
             </div>
 
-            <div className="bg-white p-3 rounded-lg mb-3 text-black text-[9px]">
+            <div className="bg-white p-3 rounded-lg mb-3 text-black text-[9px] border border-gray-200">
               <div className="text-center border-b border-gray-300 pb-2 mb-2">
                 <div className="font-bold text-[#d4af37]">{printOrder.companyName}</div>
                 <div className="font-bold">{printOrder.shopName}</div>
@@ -3102,7 +3178,7 @@ export default function App() {
 
             <button
               onClick={() => { handlePrint(printOrder); setShowPrintPreview(false); }}
-              className="w-full py-2 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg text-xs"
+              className="w-full py-2 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg text-xs hover:opacity-90 transition-all"
             >
               PRINT
             </button>
@@ -3121,6 +3197,7 @@ export default function App() {
         button { min-height: 40px; min-width: 40px; }
         ::-webkit-scrollbar { width: 2px; }
         ::-webkit-scrollbar-thumb { background: rgba(212, 175, 55, 0.5); border-radius: 10px; }
+        .no-zoom { touch-action: pan-y pinch-zoom; }
       `}</style>
     </div>
   );
