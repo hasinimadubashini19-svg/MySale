@@ -21,8 +21,8 @@ import {
   Receipt, Wallet, BadgePercent, Box, Circle, Square, Triangle,
   RotateCcw, Volume2, VolumeX, Trophy, Timer, Users, Shield, Heart,
   Sparkles, Flame, Star as StarIcon, Menu, MoreVertical, Home,
-  ArrowUpDown, ArrowUp, ArrowDown, RefreshCw, Play, Pause, Volume2 as Volume,
-  Map, MapPin as MapPinIcon, XCircle, Target as TargetIcon, Crosshair
+  ArrowUpDown, ArrowUp, ArrowDown, RefreshCw, Play, Pause,
+  Map, MapPin as MapPinIcon, XCircle, Target as TargetIcon
 } from 'lucide-react';
 
 // --- FIREBASE CONFIG ---
@@ -121,6 +121,7 @@ export default function App() {
   const [showShopMenu, setShowShopMenu] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [shareWithLocation, setShareWithLocation] = useState(false);
+  const [showAppInfo, setShowAppInfo] = useState(false);
 
   // Target States
   const [targetAmount, setTargetAmount] = useState('');
@@ -806,7 +807,7 @@ export default function App() {
           o.items.forEach(i => {
             const qty = i.qty || 0;
             const subtotal = i.subtotal || 0;
-            const itemName = i.name; // Keep full name including size
+            const itemName = i.name;
             totalUnits += qty;
 
             if (!summary[itemName]) {
@@ -1351,161 +1352,6 @@ export default function App() {
     setMovingBrandId(null);
   };
 
-  // BUBBLE SHOOTER GAME
-  const [showGame, setShowGame] = useState(false);
-  const [gameScore, setGameScore] = useState(0);
-  const [gameHighScore, setGameHighScore] = useState(0);
-  const [gameActive, setGameActive] = useState(false);
-  const [gameTimeLeft, setGameTimeLeft] = useState(30);
-  const [gameLevel, setGameLevel] = useState(1);
-  const [gameSound, setGameSound] = useState(true);
-  const [gameBubbles, setGameBubbles] = useState([]);
-  const [gameShots, setGameShots] = useState([]);
-  const [gameShotsRemaining, setGameShotsRemaining] = useState(5);
-  const [gameTargetScore, setGameTargetScore] = useState(100);
-  const [gameCannonAngle, setGameCannonAngle] = useState(0);
-
-  // Load high score
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem('monarchBubbleHighScore');
-      if (saved) setGameHighScore(parseInt(saved));
-    } catch (err) {
-      console.error("Error loading game data:", err);
-    }
-  }, []);
-
-  // BUBBLE SHOOTER GAME FUNCTIONS
-  const startBubbleGame = () => {
-    setGameActive(true);
-    setGameScore(0);
-    setGameTimeLeft(30);
-    setGameLevel(1);
-    setGameShotsRemaining(5);
-    setGameTargetScore(100);
-    
-    // Create initial bubbles
-    const newBubbles = [];
-    for (let i = 0; i < 8; i++) {
-      newBubbles.push({
-        id: i,
-        x: 10 + Math.random() * 80,
-        y: 10 + Math.random() * 60,
-        size: 30 + Math.floor(Math.random() * 20),
-        color: `hsl(${Math.random() * 60 + 30}, 80%, 60%)`,
-        value: 10 + Math.floor(Math.random() * 20),
-        speed: 0.5 + Math.random() * 1.5
-      });
-    }
-    setGameBubbles(newBubbles);
-    setGameShots([]);
-  };
-
-  useEffect(() => {
-    let timer;
-    if (gameActive && gameTimeLeft > 0) {
-      timer = setTimeout(() => {
-        setGameTimeLeft(prev => prev - 1);
-      }, 1000);
-    } else if (gameTimeLeft === 0) {
-      endBubbleGame();
-    }
-    return () => clearTimeout(timer);
-  }, [gameActive, gameTimeLeft]);
-
-  // Game loop for bubble movement
-  useEffect(() => {
-    if (!gameActive) return;
-    
-    const interval = setInterval(() => {
-      setGameBubbles(prev => prev.map(bubble => ({
-        ...bubble,
-        y: bubble.y + bubble.speed * (gameLevel * 0.2)
-      })).filter(bubble => bubble.y < 90)); // Remove bubbles that go off screen
-      
-      // Add new bubbles occasionally
-      if (Math.random() < 0.05 && gameBubbles.length < 12) {
-        setGameBubbles(prev => [...prev, {
-          id: Date.now() + Math.random(),
-          x: 10 + Math.random() * 80,
-          y: 5,
-          size: 30 + Math.floor(Math.random() * 20),
-          color: `hsl(${Math.random() * 60 + 30}, 80%, 60%)`,
-          value: 10 + Math.floor(Math.random() * 20) * gameLevel,
-          speed: 0.5 + Math.random() * 1.5
-        }]);
-      }
-    }, 100);
-    
-    return () => clearInterval(interval);
-  }, [gameActive, gameBubbles.length, gameLevel]);
-
-  const handleCanvasClick = (e) => {
-    if (!gameActive || gameShotsRemaining <= 0) return;
-    
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * 100;
-    const y = ((e.clientY - rect.top) / rect.height) * 100;
-    
-    // Calculate angle for cannon
-    const angle = Math.atan2(y - 85, x - 50) * 180 / Math.PI;
-    setGameCannonAngle(angle);
-    
-    // Check for bubble hits
-    let hitBubble = null;
-    let minDistance = 100;
-    
-    gameBubbles.forEach(bubble => {
-      const distance = Math.sqrt(Math.pow(x - bubble.x, 2) + Math.pow(y - bubble.y, 2));
-      if (distance < bubble.size / 2) {
-        if (distance < minDistance) {
-          minDistance = distance;
-          hitBubble = bubble;
-        }
-      }
-    });
-    
-    if (hitBubble) {
-      // Hit a bubble
-      setGameBubbles(prev => prev.filter(b => b.id !== hitBubble.id));
-      setGameScore(prev => prev + hitBubble.value);
-      setGameShotsRemaining(prev => prev + 1); // Gain a shot for hitting
-      
-      if (gameSound && navigator.vibrate) {
-        navigator.vibrate(50);
-      }
-      
-      // Level up
-      if (gameScore > gameLevel * 100) {
-        setGameLevel(prev => prev + 1);
-        setGameShotsRemaining(prev => prev + 2);
-        setGameTargetScore(prev => prev + 100);
-        showToast(`🎯 Level ${gameLevel + 1}!`, "success");
-      }
-    } else {
-      // Missed - add shot effect
-      setGameShotsRemaining(prev => prev - 1);
-      setGameShots(prev => [...prev, {
-        id: Date.now(),
-        x, y,
-        timestamp: Date.now()
-      }]);
-      
-      setTimeout(() => {
-        setGameShots(prev => prev.filter(s => s.id !== Date.now()));
-      }, 300);
-    }
-  };
-
-  const endBubbleGame = () => {
-    setGameActive(false);
-    if (gameScore > gameHighScore) {
-      setGameHighScore(gameScore);
-      localStorage.setItem('monarchBubbleHighScore', gameScore);
-    }
-    showToast(`🎮 Game Over! Score: ${gameScore}`, "info");
-  };
-
   // ========== RENDER ==========
   if (isSplash || loading) {
     return (
@@ -1534,8 +1380,8 @@ export default function App() {
     );
   }
 
-  // ========== BUBBLE SHOOTER GAME SCREEN ==========
-  if (showGame) {
+  // ========== APP INFO SCREEN ==========
+  if (showAppInfo) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-200 dark:from-black dark:via-[#1a1a1a] dark:to-[#000000] flex flex-col items-center justify-center p-4 relative overflow-hidden">
         <div className="absolute inset-0">
@@ -1544,136 +1390,103 @@ export default function App() {
         </div>
 
         <div className="relative z-10 w-full max-w-md">
-          <div className="flex justify-between items-center mb-4">
-            <div>
-              <h2 className="text-[#d4af37] text-2xl font-black uppercase flex items-center gap-2">
-                <Gamepad2 size={24} />
-                BUBBLE SHOOTER
-              </h2>
+          {/* Header */}
+          <div className="flex justify-between items-center mb-8">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-gradient-to-br from-[#d4af37] to-[#b8860b] rounded-xl text-black">
+                <Crown size={24} />
+              </div>
+              <div>
+                <h1 className="text-[#d4af37] text-xl font-black">SALES MONARCH</h1>
+                <p className="text-gray-600 dark:text-white/60 text-[10px] font-bold">PROFESSIONAL EDITION</p>
+              </div>
             </div>
             <button
-              onClick={() => setGameSound(!gameSound)}
-              className="p-2 bg-gray-200 dark:bg-white/10 rounded-lg"
+              onClick={() => setShowAppInfo(false)}
+              className="p-2 bg-gray-200 dark:bg-white/10 rounded-lg text-gray-700 dark:text-white/60 hover:bg-gray-300 dark:hover:bg-white/20 transition-all"
             >
-              {gameSound ? <Volume size={18} className="text-[#d4af37]"/> : <VolumeX size={18} className="text-gray-400 dark:text-white/40"/>}
+              <X size={20} />
             </button>
           </div>
 
-          <div className="grid grid-cols-4 gap-2 mb-4">
-            <div className="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-[#1a1a1a] dark:to-[#000000] p-2 rounded-xl text-center border border-gray-200 dark:border-[#d4af37]/20">
-              <p className="text-[#d4af37] text-xs uppercase">Score</p>
-              <p className="text-gray-900 dark:text-white text-lg font-black">{gameScore}</p>
+          {/* Features Grid */}
+          <div className="grid grid-cols-2 gap-3 mb-6">
+            <div className="bg-white dark:bg-gradient-to-br dark:from-[#0f0f0f] dark:to-[#1a1a1a] p-3 rounded-xl border border-[#d4af37]/20">
+              <Store size={20} className="text-[#d4af37] mb-2" />
+              <h3 className="text-gray-900 dark:text-white text-xs font-black mb-1">Shop Management</h3>
+              <p className="text-gray-600 dark:text-white/50 text-[9px]">Add, track & manage all your shops with route filtering</p>
             </div>
-            <div className="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-[#1a1a1a] dark:to-[#000000] p-2 rounded-xl text-center border border-gray-200 dark:border-[#d4af37]/20">
-              <p className="text-[#d4af37] text-xs uppercase">Level</p>
-              <p className="text-gray-900 dark:text-white text-lg font-black">{gameLevel}</p>
+            <div className="bg-white dark:bg-gradient-to-br dark:from-[#0f0f0f] dark:to-[#1a1a1a] p-3 rounded-xl border border-[#d4af37]/20">
+              <Receipt size={20} className="text-[#d4af37] mb-2" />
+              <h3 className="text-gray-900 dark:text-white text-xs font-black mb-1">Smart Invoicing</h3>
+              <p className="text-gray-600 dark:text-white/50 text-[9px]">Create bills, print, share via WhatsApp with location</p>
             </div>
-            <div className="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-[#1a1a1a] dark:to-[#000000] p-2 rounded-xl text-center border border-gray-200 dark:border-[#d4af37]/20">
-              <p className="text-[#d4af37] text-xs uppercase">Shots</p>
-              <p className="text-gray-900 dark:text-white text-lg font-black">{gameShotsRemaining}</p>
+            <div className="bg-white dark:bg-gradient-to-br dark:from-[#0f0f0f] dark:to-[#1a1a1a] p-3 rounded-xl border border-[#d4af37]/20">
+              <BarChart3 size={20} className="text-[#d4af37] mb-2" />
+              <h3 className="text-gray-900 dark:text-white text-xs font-black mb-1">Analytics</h3>
+              <p className="text-gray-600 dark:text-white/50 text-[9px]">Daily & monthly sales, expenses, brand performance</p>
             </div>
-            <div className="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-[#1a1a1a] dark:to-[#000000] p-2 rounded-xl text-center border border-gray-200 dark:border-[#d4af37]/20">
-              <p className="text-[#d4af37] text-xs uppercase">Time</p>
-              <p className="text-gray-900 dark:text-white text-lg font-black">{gameTimeLeft}s</p>
+            <div className="bg-white dark:bg-gradient-to-br dark:from-[#0f0f0f] dark:to-[#1a1a1a] p-3 rounded-xl border border-[#d4af37]/20">
+              <Target size={20} className="text-[#d4af37] mb-2" />
+              <h3 className="text-gray-900 dark:text-white text-xs font-black mb-1">Target Tracking</h3>
+              <p className="text-gray-600 dark:text-white/50 text-[9px]">Set revenue/unit targets & track progress</p>
+            </div>
+            <div className="bg-white dark:bg-gradient-to-br dark:from-[#0f0f0f] dark:to-[#1a1a1a] p-3 rounded-xl border border-[#d4af37]/20">
+              <MapPin size={20} className="text-[#d4af37] mb-2" />
+              <h3 className="text-gray-900 dark:text-white text-xs font-black mb-1">Location Tracking</h3>
+              <p className="text-gray-600 dark:text-white/50 text-[9px]">Save shop locations & share in bills</p>
+            </div>
+            <div className="bg-white dark:bg-gradient-to-br dark:from-[#0f0f0f] dark:to-[#1a1a1a] p-3 rounded-xl border border-[#d4af37]/20">
+              <WifiOff size={20} className="text-[#d4af37] mb-2" />
+              <h3 className="text-gray-900 dark:text-white text-xs font-black mb-1">Offline Mode</h3>
+              <p className="text-gray-600 dark:text-white/50 text-[9px]">Work without internet, sync when online</p>
             </div>
           </div>
 
-          <div className="bg-gradient-to-br from-gray-100 to-gray-200 dark:from-[#0f0f0f] dark:to-[#1a1a1a] rounded-2xl border border-[#d4af37]/30 p-4 mb-4 relative h-[400px] overflow-hidden">
-            {/* Game Canvas */}
-            <div 
-              className="relative w-full h-full cursor-crosshair"
-              onClick={handleCanvasClick}
-            >
-              {/* Cannon */}
-              <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-16 h-16">
-                <div 
-                  className="absolute bottom-2 left-1/2 w-1 h-12 bg-[#d4af37] origin-bottom"
-                  style={{ 
-                    transform: `translateX(-50%) rotate(${gameCannonAngle}deg)`,
-                    transition: 'transform 0.1s'
-                  }}
-                ></div>
-                <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-8 h-8 bg-gradient-to-r from-[#d4af37] to-[#b8860b] rounded-full border-2 border-black"></div>
+          {/* Stats */}
+          <div className="bg-white dark:bg-gradient-to-br dark:from-[#0f0f0f] dark:to-[#1a1a1a] p-3 rounded-xl border border-[#d4af37]/20 mb-6">
+            <h3 className="text-gray-900 dark:text-white text-xs font-black mb-3">Your Stats</h3>
+            <div className="grid grid-cols-3 gap-2 text-center">
+              <div>
+                <p className="text-[#d4af37] text-lg font-black">{data.shops.length}</p>
+                <p className="text-gray-600 dark:text-white/50 text-[8px] font-bold">Shops</p>
               </div>
-
-              {/* Bubbles */}
-              {gameBubbles.map(bubble => (
-                <div
-                  key={bubble.id}
-                  className="absolute rounded-full flex items-center justify-center text-white font-bold text-xs shadow-lg animate-float"
-                  style={{
-                    left: `${bubble.x}%`,
-                    top: `${bubble.y}%`,
-                    width: `${bubble.size}px`,
-                    height: `${bubble.size}px`,
-                    backgroundColor: bubble.color,
-                    transform: 'translate(-50%, -50%)',
-                    boxShadow: '0 4px 15px rgba(212, 175, 55, 0.3)'
-                  }}
-                >
-                  {bubble.value}
-                </div>
-              ))}
-
-              {/* Shot effects */}
-              {gameShots.map(shot => (
-                <div
-                  key={shot.id}
-                  className="absolute w-2 h-2 bg-[#d4af37] rounded-full animate-ping"
-                  style={{
-                    left: `${shot.x}%`,
-                    top: `${shot.y}%`,
-                    transform: 'translate(-50%, -50%)'
-                  }}
-                ></div>
-              ))}
-
-              {/* Game Overlay when not active */}
-              {!gameActive && (
-                <div className="absolute inset-0 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center">
-                  <Trophy size={60} className="text-[#d4af37] mb-4" />
-                  <p className="text-white text-center mb-2 text-sm">
-                    Pop the bubbles before they escape!<br/>
-                    <span className="text-[#d4af37]">Get extra shots for hits!</span>
-                  </p>
-                  <div className="flex gap-8 mb-4">
-                    <div className="text-center">
-                      <p className="text-white/60 text-xs">Best Score</p>
-                      <p className="text-[#d4af37] text-xl font-black">{gameHighScore}</p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={startBubbleGame}
-                    className="px-8 py-3 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-xl uppercase text-sm tracking-widest hover:opacity-90 transition-all"
-                  >
-                    START GAME
-                  </button>
-                </div>
-              )}
-
-              {/* Time bar */}
-              {gameActive && (
-                <div className="absolute bottom-0 left-0 right-0">
-                  <div className="h-1.5 bg-gray-200 dark:bg-white/10 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-[#d4af37] to-[#b8860b]"
-                      style={{ width: `${(gameTimeLeft / 30) * 100}%` }}
-                    ></div>
-                  </div>
-                </div>
-              )}
+              <div>
+                <p className="text-[#d4af37] text-lg font-black">{data.orders.length}</p>
+                <p className="text-gray-600 dark:text-white/50 text-[8px] font-bold">Orders</p>
+              </div>
+              <div>
+                <p className="text-[#d4af37] text-lg font-black">{data.brands.length}</p>
+                <p className="text-gray-600 dark:text-white/50 text-[8px] font-bold">Brands</p>
+              </div>
             </div>
+          </div>
+
+          {/* Quick Tips */}
+          <div className="bg-white dark:bg-gradient-to-br dark:from-[#0f0f0f] dark:to-[#1a1a1a] p-3 rounded-xl border border-[#d4af37]/20 mb-6">
+            <h3 className="text-gray-900 dark:text-white text-xs font-black mb-2 flex items-center gap-1">
+              <Sparkles size={14} className="text-[#d4af37]" /> Quick Tips
+            </h3>
+            <div className="space-y-1 text-[9px] text-gray-600 dark:text-white/60">
+              <p className="flex items-start gap-1">• Tap crown logo to view this info anytime</p>
+              <p className="flex items-start gap-1">• Use gold + button for quick actions</p>
+              <p className="flex items-start gap-1">• Long press on brands to reorder</p>
+              <p className="flex items-start gap-1">• Share bills with location for delivery</p>
+              <p className="flex items-start gap-1">• Works offline - syncs automatically</p>
+            </div>
+          </div>
+
+          {/* Version */}
+          <div className="text-center">
+            <p className="text-gray-500 dark:text-white/30 text-[9px] font-bold">VERSION 2.0.0</p>
+            <p className="text-gray-500 dark:text-white/30 text-[8px] mt-1">© 2025 SALES MONARCH. All rights reserved.</p>
           </div>
 
           <button
-            onClick={() => {
-              setShowGame(false);
-              setGameActive(false);
-              setGameScore(0);
-            }}
-            className="w-full py-2.5 bg-gradient-to-br from-gray-200 to-gray-300 dark:from-[#1a1a1a] dark:to-[#000000] text-gray-700 dark:text-white/60 font-black rounded-xl uppercase text-xs border border-gray-300 dark:border-[#d4af37]/20 hover:bg-gray-300 dark:hover:border-[#d4af37]/30 transition-all"
+            onClick={() => setShowAppInfo(false)}
+            className="w-full mt-4 py-2.5 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-xl text-sm hover:opacity-90 transition-all"
           >
-            ← BACK TO APP
+            BACK TO APP
           </button>
         </div>
       </div>
@@ -1684,9 +1497,9 @@ export default function App() {
   if (!user && showForgotPassword) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-200 dark:from-black dark:to-[#000000] flex items-center justify-center p-4">
-        <div className="w-full max-w-sm bg-white dark:bg-gradient-to-br dark:from-[#0f0f0f] dark:to-[#1a1a1a] rounded-2xl border border-[#d4af37]/30 p-6">
+        <div className="w-full max-w-sm bg-white dark:bg-gradient-to-br dark:from-[#0f0f0f] dark:to-[#1a1a1a] rounded-2xl border border-[#d4af37]/30 p-6 shadow-xl">
           <div className="text-center mb-6">
-            <div className="w-20 h-20 bg-gradient-to-br from-[#d4af37] to-[#b8860b] rounded-full flex items-center justify-center mx-auto mb-4">
+            <div className="w-20 h-20 bg-gradient-to-br from-[#d4af37] to-[#b8860b] rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
               <Crown size={40} className="text-black" />
             </div>
             <h2 className="text-gray-900 dark:text-white font-black text-xl">Reset Password</h2>
@@ -1718,7 +1531,7 @@ export default function App() {
                 value={resetEmail}
                 onChange={(e) => setResetEmail(e.target.value)}
                 placeholder="EMAIL"
-                className="w-full bg-gray-50 dark:bg-black/50 p-3 rounded-xl border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white text-sm outline-none focus:border-[#d4af37] transition-all"
+                className="w-full bg-gray-50 dark:bg-black/50 p-3 rounded-xl border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white text-sm outline-none focus:border-[#d4af37] transition-all font-medium"
               />
               <button
                 onClick={handleForgotPassword}
@@ -1733,7 +1546,7 @@ export default function App() {
               </button>
               <button
                 onClick={() => setShowForgotPassword(false)}
-                className="w-full py-2 text-gray-600 dark:text-white/60 text-sm hover:text-gray-900 dark:hover:text-white transition-all"
+                className="w-full py-2 text-gray-600 dark:text-white/60 text-sm hover:text-gray-900 dark:hover:text-white transition-all font-medium"
               >
                 ← Back to Login
               </button>
@@ -1747,7 +1560,7 @@ export default function App() {
   if (!user) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-200 dark:from-black dark:via-[#1a1a1a] dark:to-[#000000] flex items-center justify-center p-4">
-        <div className="w-full max-w-sm bg-white dark:bg-gradient-to-br dark:from-[#0f0f0f] dark:to-[#1a1a1a] rounded-2xl border border-[#d4af37]/30 p-6">
+        <div className="w-full max-w-sm bg-white dark:bg-gradient-to-br dark:from-[#0f0f0f] dark:to-[#1a1a1a] rounded-2xl border border-[#d4af37]/30 p-6 shadow-xl">
           <div className="text-center mb-6">
             <div className="relative inline-block mb-4">
               <div className="w-20 h-20 bg-gradient-to-br from-[#d4af37] to-[#b8860b] rounded-full flex items-center justify-center shadow-lg">
@@ -1758,7 +1571,7 @@ export default function App() {
             <h2 className="text-gray-900 dark:text-white font-black text-xl mb-1">
               {isRegisterMode ? "SIGN UP" : "SIGN IN"}
             </h2>
-            <p className="text-[#d4af37] text-xs">
+            <p className="text-[#d4af37] text-xs font-bold">
               {isRegisterMode ? "Create your account" : "Welcome back"}
             </p>
           </div>
@@ -1768,20 +1581,20 @@ export default function App() {
               name="email"
               type="email"
               placeholder="EMAIL"
-              className="w-full bg-gray-50 dark:bg-black/50 p-3 rounded-xl border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white text-sm outline-none focus:border-[#d4af37] transition-all"
+              className="w-full bg-gray-50 dark:bg-black/50 p-3 rounded-xl border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white text-sm outline-none focus:border-[#d4af37] transition-all font-medium"
               required
             />
             <input
               name="password"
               type="password"
               placeholder="PASSWORD"
-              className="w-full bg-gray-50 dark:bg-black/50 p-3 rounded-xl border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white text-sm outline-none focus:border-[#d4af37] transition-all"
+              className="w-full bg-gray-50 dark:bg-black/50 p-3 rounded-xl border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white text-sm outline-none focus:border-[#d4af37] transition-all font-medium"
               required
             />
 
             {loginError && (
               <div className="p-3 bg-red-50 dark:bg-red-500/20 rounded-xl border border-red-200 dark:border-red-500/30">
-                <p className="text-red-700 dark:text-red-500 text-xs text-center">{loginError}</p>
+                <p className="text-red-700 dark:text-red-500 text-xs text-center font-bold">{loginError}</p>
               </div>
             )}
 
@@ -1808,7 +1621,7 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => setShowForgotPassword(true)}
-                  className="text-gray-600 dark:text-white/60 text-xs hover:text-gray-900 dark:hover:text-[#d4af37] transition-all"
+                  className="text-gray-600 dark:text-white/60 text-xs font-medium hover:text-gray-900 dark:hover:text-[#d4af37] transition-all"
                 >
                   Forgot?
                 </button>
@@ -1830,7 +1643,7 @@ export default function App() {
 
       {/* Toast Notification */}
       {toast.show && (
-        <div className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-[1000] px-4 py-2 rounded-xl shadow-2xl backdrop-blur-xl border flex items-center gap-2 text-xs ${
+        <div className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-[1000] px-4 py-2 rounded-xl shadow-2xl backdrop-blur-xl border flex items-center gap-2 text-xs font-bold ${
           toast.type === 'success' 
             ? 'bg-green-50 dark:bg-green-500/20 text-green-700 dark:text-green-500 border-green-200 dark:border-green-500/30' 
             : toast.type === 'error'
@@ -1839,13 +1652,13 @@ export default function App() {
         }`}>
           {toast.type === 'success' && <CheckCircle2 size={16} />}
           {toast.type === 'error' && <AlertCircle size={16} />}
-          <span className="font-bold">{toast.message}</span>
+          <span>{toast.message}</span>
         </div>
       )}
 
       {/* Offline Indicator */}
       {isOffline && (
-        <div className="fixed top-14 left-1/2 transform -translate-x-1/2 z-[90] px-3 py-1 bg-yellow-50 dark:bg-yellow-500/20 text-yellow-700 dark:text-yellow-500 rounded-full border border-yellow-200 dark:border-yellow-500/30 text-[10px] font-bold flex items-center gap-1">
+        <div className="fixed top-14 left-1/2 transform -translate-x-1/2 z-[90] px-3 py-1 bg-yellow-50 dark:bg-yellow-500/20 text-yellow-700 dark:text-yellow-500 rounded-full border border-yellow-200 dark:border-yellow-500/30 text-[10px] font-bold flex items-center gap-1 shadow-lg">
           <WifiOff size={12} />
           OFFLINE
         </div>
@@ -1854,13 +1667,13 @@ export default function App() {
       {/* Delete Confirm Modal */}
       {showDeleteConfirm.show && (
         <div className="fixed inset-0 bg-black/50 dark:bg-black/95 z-[1000] flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-gradient-to-br dark:from-[#1a1a1a] dark:to-[#000000] w-full max-w-xs p-5 rounded-2xl border border-red-200 dark:border-red-500/30">
+          <div className="bg-white dark:bg-gradient-to-br dark:from-[#1a1a1a] dark:to-[#000000] w-full max-w-xs p-5 rounded-2xl border border-red-200 dark:border-red-500/30 shadow-xl">
             <div className="text-center mb-4">
               <div className="w-16 h-16 bg-red-50 dark:bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-3 border border-red-200 dark:border-red-500/30">
                 <Trash2 size={30} className="text-red-600 dark:text-red-500" />
               </div>
               <h3 className="text-gray-900 dark:text-white font-black text-base">Confirm Delete</h3>
-              <p className="text-gray-600 dark:text-white/60 text-xs mt-2">{showDeleteConfirm.name}</p>
+              <p className="text-gray-600 dark:text-white/60 text-xs mt-2 font-medium">{showDeleteConfirm.name}</p>
               <p className="text-red-600 dark:text-red-500 text-[10px] font-bold mt-3">This cannot be undone!</p>
             </div>
             <div className="flex gap-2">
@@ -1884,7 +1697,7 @@ export default function App() {
       {/* SHOP ORDERS VIEW MODAL */}
       {viewingShopOrders && (
         <div className="fixed inset-0 bg-black/50 dark:bg-black/95 z-[200] flex items-center justify-center p-3 overflow-y-auto">
-          <div className="w-full max-w-md bg-white dark:bg-gradient-to-br dark:from-[#0f0f0f] dark:to-[#1a1a1a] p-4 rounded-2xl border border-[#d4af37]/30">
+          <div className="w-full max-w-md bg-white dark:bg-gradient-to-br dark:from-[#0f0f0f] dark:to-[#1a1a1a] p-4 rounded-2xl border border-[#d4af37]/30 shadow-xl">
             <div className="flex justify-between items-center mb-4">
               <h3 className="font-black text-[#d4af37] text-sm">SHOP ORDERS</h3>
               <button onClick={() => setViewingShopOrders(null)} className="text-gray-400 dark:text-white/40 hover:text-gray-600 dark:hover:text-white/60 p-1 transition-all">
@@ -1892,16 +1705,16 @@ export default function App() {
               </button>
             </div>
 
-            <p className="text-gray-900 dark:text-white font-bold text-sm mb-1">{viewingShopOrders.shop.name}</p>
-            <p className="text-gray-600 dark:text-white/40 text-[10px] mb-4">{viewingShopOrders.shop.area}</p>
+            <p className="text-gray-900 dark:text-white font-black text-sm mb-1">{viewingShopOrders.shop.name}</p>
+            <p className="text-gray-600 dark:text-white/40 text-[10px] font-medium mb-4">{viewingShopOrders.shop.area}</p>
 
             <div className="grid grid-cols-2 gap-2 mb-4">
               <div className="bg-gray-50 dark:bg-white/5 p-2 rounded-lg border border-gray-200 dark:border-white/10">
-                <p className="text-[9px] text-gray-600 dark:text-white/60">Total Sales</p>
+                <p className="text-[9px] text-gray-600 dark:text-white/60 font-medium">Total Sales</p>
                 <p className="text-sm font-black text-[#d4af37]">Rs.{viewingShopOrders.stats.totalSales.toLocaleString()}</p>
               </div>
               <div className="bg-gray-50 dark:bg-white/5 p-2 rounded-lg border border-gray-200 dark:border-white/10">
-                <p className="text-[9px] text-gray-600 dark:text-white/60">Total Orders</p>
+                <p className="text-[9px] text-gray-600 dark:text-white/60 font-medium">Total Orders</p>
                 <p className="text-sm font-black text-[#d4af37]">{viewingShopOrders.stats.orderCount}</p>
               </div>
             </div>
@@ -1910,7 +1723,7 @@ export default function App() {
               {viewingShopOrders.orders.slice(0, 10).map((order, idx) => (
                 <div key={idx} className="bg-gray-50 dark:bg-white/5 p-2 rounded-lg mb-2 border border-gray-200 dark:border-white/10">
                   <div className="flex justify-between text-[10px]">
-                    <span className="text-gray-700 dark:text-white">{new Date(order.timestamp).toLocaleDateString()}</span>
+                    <span className="text-gray-700 dark:text-white font-medium">{new Date(order.timestamp).toLocaleDateString()}</span>
                     <span className="text-[#d4af37] font-black">Rs.{order.total.toLocaleString()}</span>
                   </div>
                   <div className="flex gap-1 mt-1">
@@ -1919,7 +1732,7 @@ export default function App() {
                         setViewingShopOrders(null);
                         printBill(order);
                       }}
-                      className="text-[8px] bg-blue-50 dark:bg-blue-500/20 text-blue-700 dark:text-blue-500 px-2 py-1 rounded hover:bg-blue-100 dark:hover:bg-blue-500/30 transition-all"
+                      className="text-[8px] bg-blue-50 dark:bg-blue-500/20 text-blue-700 dark:text-blue-500 px-2 py-1 rounded hover:bg-blue-100 dark:hover:bg-blue-500/30 transition-all font-black"
                     >
                       Print
                     </button>
@@ -1928,7 +1741,7 @@ export default function App() {
                         setViewingShopOrders(null);
                         shareToWhatsApp(order, false);
                       }}
-                      className="text-[8px] bg-[#d4af37]/20 text-[#d4af37] px-2 py-1 rounded hover:bg-[#d4af37]/30 transition-all"
+                      className="text-[8px] bg-[#d4af37]/20 text-[#d4af37] px-2 py-1 rounded hover:bg-[#d4af37]/30 transition-all font-black"
                     >
                       Share
                     </button>
@@ -1937,13 +1750,13 @@ export default function App() {
                         setViewingShopOrders(null);
                         shareToWhatsApp(order, true);
                       }}
-                      className="text-[8px] bg-green-50 dark:bg-green-500/20 text-green-700 dark:text-green-500 px-2 py-1 rounded hover:bg-green-100 dark:hover:bg-green-500/30 transition-all"
+                      className="text-[8px] bg-green-50 dark:bg-green-500/20 text-green-700 dark:text-green-500 px-2 py-1 rounded hover:bg-green-100 dark:hover:bg-green-500/30 transition-all font-black"
                     >
                       <MapPin size={8}/> Loc
                     </button>
                     <button
                       onClick={() => confirmDelete(order.id, 'order', '')}
-                      className="text-[8px] bg-red-50 dark:bg-red-500/20 text-red-700 dark:text-red-500 px-2 py-1 rounded hover:bg-red-100 dark:hover:bg-red-500/30 transition-all"
+                      className="text-[8px] bg-red-50 dark:bg-red-500/20 text-red-700 dark:text-red-500 px-2 py-1 rounded hover:bg-red-100 dark:hover:bg-red-500/30 transition-all font-black"
                     >
                       <Trash2 size={8}/>
                     </button>
@@ -1969,7 +1782,7 @@ export default function App() {
       {/* Shop Profile View Modal */}
       {viewingShopProfile && (
         <div className="fixed inset-0 bg-black/50 dark:bg-black/95 z-[150] flex items-center justify-center p-3">
-          <div className="w-full max-w-xs bg-white dark:bg-gradient-to-br dark:from-[#0f0f0f] dark:to-[#1a1a1a] p-4 rounded-2xl border border-[#d4af37]/30">
+          <div className="w-full max-w-xs bg-white dark:bg-gradient-to-br dark:from-[#0f0f0f] dark:to-[#1a1a1a] p-4 rounded-2xl border border-[#d4af37]/30 shadow-xl">
             <div className="flex justify-between items-center mb-4">
               <h3 className="font-black text-[#d4af37] text-sm">SHOP PROFILE</h3>
               <button onClick={() => setViewingShopProfile(null)} className="text-gray-400 dark:text-white/40 hover:text-gray-600 dark:hover:text-white/60 p-1 transition-all">
@@ -1977,25 +1790,25 @@ export default function App() {
               </button>
             </div>
 
-            <p className="text-gray-900 dark:text-white font-bold text-sm mb-3">{viewingShopProfile.shop.name}</p>
+            <p className="text-gray-900 dark:text-white font-black text-sm mb-3">{viewingShopProfile.shop.name}</p>
 
             {viewingShopProfile.profile ? (
               <div className="space-y-2 text-xs">
                 <div className="bg-gray-50 dark:bg-white/5 p-2 rounded-lg border border-gray-200 dark:border-white/10">
-                  <p className="text-[9px] text-gray-600 dark:text-white/60 mb-1">Owner</p>
+                  <p className="text-[9px] text-gray-600 dark:text-white/60 font-medium mb-1">Owner</p>
                   <p className="text-gray-900 dark:text-white font-bold">{viewingShopProfile.profile.ownerName || 'Not set'}</p>
                 </div>
                 <div className="bg-gray-50 dark:bg-white/5 p-2 rounded-lg border border-gray-200 dark:border-white/10">
-                  <p className="text-[9px] text-gray-600 dark:text-white/60 mb-1">Phone</p>
+                  <p className="text-[9px] text-gray-600 dark:text-white/60 font-medium mb-1">Phone</p>
                   <p className="text-gray-900 dark:text-white font-bold">{viewingShopProfile.profile.phone || 'Not set'}</p>
                 </div>
                 <div className="bg-gray-50 dark:bg-white/5 p-2 rounded-lg border border-gray-200 dark:border-white/10">
-                  <p className="text-[9px] text-gray-600 dark:text-white/60 mb-1">Address</p>
+                  <p className="text-[9px] text-gray-600 dark:text-white/60 font-medium mb-1">Address</p>
                   <p className="text-gray-900 dark:text-white font-bold">{viewingShopProfile.profile.address || 'Not set'}</p>
                 </div>
               </div>
             ) : (
-              <p className="text-gray-600 dark:text-white/60 text-xs text-center py-4">No profile found</p>
+              <p className="text-gray-600 dark:text-white/60 text-xs text-center py-4 font-medium">No profile found</p>
             )}
           </div>
         </div>
@@ -2007,7 +1820,7 @@ export default function App() {
           ? "bg-black/90 border-[#d4af37]/20" 
           : "bg-white/90 border-[#d4af37]/30"
       }`}>
-        <button onClick={() => setShowGame(true)} className="flex items-center gap-2">
+        <button onClick={() => setShowAppInfo(true)} className="flex items-center gap-2">
           <div className="relative">
             <div className="p-1.5 bg-gradient-to-br from-[#d4af37] to-[#b8860b] rounded-lg text-black">
               <Crown size={18} />
@@ -2108,9 +1921,9 @@ export default function App() {
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
                           <span className="text-xs font-bold text-gray-900 dark:text-white">{item.name}</span>
-                          <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-white border border-gray-200 dark:border-white/20">x{item.units}</span>
+                          <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-white border border-gray-200 dark:border-white/20 font-medium">x{item.units}</span>
                         </div>
-                        <div className="text-[9px] text-gray-600 dark:text-white/60 mt-0.5">
+                        <div className="text-[9px] text-gray-600 dark:text-white/60 mt-0.5 font-medium">
                           @ Rs.{item.avgPrice.toFixed(0)} per unit
                         </div>
                       </div>
@@ -2123,7 +1936,7 @@ export default function App() {
               ) : (
                 <div className="text-center py-6">
                   <ShoppingBag size={30} className="mx-auto text-gray-300 dark:text-white/20 mb-2" />
-                  <p className="text-xs text-gray-500 dark:text-white/30 italic">No sales today</p>
+                  <p className="text-xs text-gray-500 dark:text-white/30 italic font-medium">No sales today</p>
                 </div>
               )}
             </div>
@@ -2159,7 +1972,7 @@ export default function App() {
                     <div className="grid grid-cols-2 gap-2">
                       {Object.entries(stats.expensesByType).map(([type, amount]) => (
                         <div key={type} className="bg-gray-50 dark:bg-white/5 p-2 rounded-lg text-center border border-gray-200 dark:border-white/10">
-                          <p className="text-[8px] text-gray-600 dark:text-white/60 uppercase mb-1">{type}</p>
+                          <p className="text-[8px] text-gray-600 dark:text-white/60 uppercase font-bold mb-1">{type}</p>
                           <p className={`text-xs font-bold ${
                             isDarkMode ? "text-red-400" : "text-red-600"
                           }`}>Rs.{amount.toLocaleString()}</p>
@@ -2175,8 +1988,8 @@ export default function App() {
                             {exp.type === 'fuel' && <Fuel size={10} className={isDarkMode ? "text-red-500" : "text-red-600"} />}
                             {exp.type === 'food' && <Coffee size={10} className={isDarkMode ? "text-[#d4af37]" : "text-[#d4af37]"} />}
                             {exp.type === 'transport' && <Navigation size={10} className={isDarkMode ? "text-blue-500" : "text-blue-600"} />}
-                            <span className="text-[10px] font-medium text-gray-700 dark:text-white capitalize">{exp.type}</span>
-                            {exp.note && <span className="text-[8px] text-gray-500 dark:text-white/50">- {exp.note}</span>}
+                            <span className="text-[10px] font-bold text-gray-700 dark:text-white capitalize">{exp.type}</span>
+                            {exp.note && <span className="text-[8px] text-gray-500 dark:text-white/50 font-medium">- {exp.note}</span>}
                           </div>
                           <div className="flex items-center gap-2">
                             <span className="text-xs font-bold text-gray-900 dark:text-white">Rs.{exp.amount.toLocaleString()}</span>
@@ -2194,7 +2007,7 @@ export default function App() {
                 ) : (
                   <div className="text-center py-6">
                     <CreditCard size={30} className="mx-auto text-gray-300 dark:text-white/20 mb-2" />
-                    <p className="text-xs text-gray-500 dark:text-white/30 italic">No expenses today</p>
+                    <p className="text-xs text-gray-500 dark:text-white/30 italic font-medium">No expenses today</p>
                   </div>
                 )}
               </div>
@@ -2254,7 +2067,7 @@ export default function App() {
                         </div>
                       </div>
                       <div className="flex justify-between items-center text-[8px] mb-1">
-                        <span className="text-gray-600 dark:text-white/60">Progress:</span>
+                        <span className="text-gray-600 dark:text-white/60 font-medium">Progress:</span>
                         <span className="font-bold text-gray-900 dark:text-white">{target.achieved.toLocaleString()} / {target.amount.toLocaleString()}</span>
                       </div>
                       <div className="w-full h-1.5 bg-gray-200 dark:bg-white/10 rounded-full overflow-hidden">
@@ -2300,11 +2113,11 @@ export default function App() {
 
               <div className="grid grid-cols-2 gap-2 mb-3">
                 <div className="bg-gray-50 dark:bg-white/5 p-2 rounded-lg border border-gray-200 dark:border-white/10">
-                  <p className="text-[8px] text-gray-600 dark:text-white/60">Total Sales</p>
+                  <p className="text-[8px] text-gray-600 dark:text-white/60 font-medium">Total Sales</p>
                   <p className="text-base font-black text-[#d4af37]">Rs.{stats.monthlySales.toLocaleString()}</p>
                 </div>
                 <div className="bg-gray-50 dark:bg-white/5 p-2 rounded-lg border border-gray-200 dark:border-white/10">
-                  <p className="text-[8px] text-gray-600 dark:text-white/60">Total Units</p>
+                  <p className="text-[8px] text-gray-600 dark:text-white/60 font-medium">Total Units</p>
                   <p className="text-base font-black text-[#d4af37]">{stats.monthly.totalUnits}</p>
                 </div>
               </div>
@@ -2328,13 +2141,13 @@ export default function App() {
                           <span className="text-xs font-bold text-gray-900 dark:text-white">{brand.name}</span>
                         </div>
                         <div className="flex items-center gap-3 mt-1">
-                          <span className="text-[8px] text-gray-600 dark:text-white/70 border-r border-gray-300 dark:border-white/20 pr-2">{brand.units} units</span>
-                          <span className="text-[8px] text-gray-600 dark:text-white/70">@ Rs.{brand.avgPrice.toFixed(0)}</span>
+                          <span className="text-[8px] text-gray-600 dark:text-white/70 font-medium border-r border-gray-300 dark:border-white/20 pr-2">{brand.units} units</span>
+                          <span className="text-[8px] text-gray-600 dark:text-white/70 font-medium">@ Rs.{brand.avgPrice.toFixed(0)}</span>
                         </div>
                       </div>
                       <div className="text-right border-l border-gray-300 dark:border-white/10 pl-3">
                         <p className="text-sm font-black text-[#d4af37]">Rs.{brand.revenue.toLocaleString()}</p>
-                        <p className="text-[7px] text-gray-600 dark:text-white/60 mt-0.5">
+                        <p className="text-[7px] text-gray-600 dark:text-white/60 mt-0.5 font-medium">
                           {stats.monthly.totalSales > 0 ? ((brand.revenue / stats.monthly.totalSales) * 100).toFixed(1) : 0}%
                         </p>
                       </div>
@@ -2345,7 +2158,7 @@ export default function App() {
                 {stats.monthly.summary.length === 0 && (
                   <div className="text-center py-6">
                     <Package2 size={30} className="mx-auto text-gray-300 dark:text-white/20 mb-2" />
-                    <p className="text-xs text-gray-500 dark:text-white/30 italic">No monthly sales data</p>
+                    <p className="text-xs text-gray-500 dark:text-white/30 italic font-medium">No monthly sales data</p>
                   </div>
                 )}
               </div>
@@ -2430,7 +2243,7 @@ export default function App() {
                     <div className="flex justify-between items-start mb-2">
                       <div>
                         <h4 className="text-sm font-black uppercase text-gray-900 dark:text-white">{s.name}</h4>
-                        <p className="text-[10px] text-gray-600 dark:text-white/60 mt-0.5">{s.area}</p>
+                        <p className="text-[10px] text-gray-600 dark:text-white/60 mt-0.5 font-medium">{s.area}</p>
                       </div>
                       <div className="relative">
                         <button
@@ -2499,8 +2312,8 @@ export default function App() {
                     </div>
 
                     <div className="flex items-center gap-3 text-[9px] mb-2">
-                      <span className="text-gray-700 dark:text-white/80">Total: <span className="font-bold text-[#d4af37]">Rs.{shopStats.totalSales.toLocaleString()}</span></span>
-                      <span className="text-gray-700 dark:text-white/80">Orders: <span className="font-bold text-[#d4af37]">{shopStats.orderCount}</span></span>
+                      <span className="text-gray-700 dark:text-white/80 font-medium">Total: <span className="font-black text-[#d4af37]">Rs.{shopStats.totalSales.toLocaleString()}</span></span>
+                      <span className="text-gray-700 dark:text-white/80 font-medium">Orders: <span className="font-black text-[#d4af37]">{shopStats.orderCount}</span></span>
                     </div>
 
                     {/* Compact GOLD BILL BUTTON */}
@@ -2556,7 +2369,7 @@ export default function App() {
                 <div className="flex justify-between items-start mb-2">
                   <div>
                     <h4 className="text-xs font-black uppercase text-[#d4af37]">{o.shopName}</h4>
-                    <p className="text-[8px] text-gray-600 dark:text-white/60">{o.companyName}</p>
+                    <p className="text-[8px] text-gray-600 dark:text-white/60 font-medium">{o.companyName}</p>
                   </div>
                   <div className="flex gap-1">
                     <button onClick={() => printBill(o)} className="p-1 text-blue-600 dark:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded transition-all">
@@ -2577,14 +2390,14 @@ export default function App() {
                 <div className="space-y-1 text-[9px] mb-2">
                   {o.items?.map((i, k) => (
                     <div key={k} className="flex justify-between text-gray-700 dark:text-white">
-                      <span>{i.name} x{i.qty}</span>
-                      <span className="font-bold">Rs.{i.subtotal.toLocaleString()}</span>
+                      <span className="font-medium">{i.name} x{i.qty}</span>
+                      <span className="font-black">Rs.{i.subtotal.toLocaleString()}</span>
                     </div>
                   ))}
                 </div>
 
                 <div className="flex justify-between items-center border-t border-gray-200 dark:border-white/10 pt-2">
-                  <span className="text-[9px] text-gray-600 dark:text-white/60">Total</span>
+                  <span className="text-[9px] text-gray-600 dark:text-white/60 font-medium">Total</span>
                   <span className="text-sm font-black text-[#d4af37]">Rs.{o.total.toLocaleString()}</span>
                 </div>
               </div>
@@ -2602,7 +2415,7 @@ export default function App() {
                 <div className="flex justify-between items-start mb-2">
                   <div>
                     <h4 className="text-xs font-black uppercase text-purple-600 dark:text-purple-500">{o.shopName}</h4>
-                    <p className="text-[8px] text-gray-600 dark:text-white/60">{o.companyName}</p>
+                    <p className="text-[8px] text-gray-600 dark:text-white/60 font-medium">{o.companyName}</p>
                   </div>
                   <div className="flex gap-1">
                     <button onClick={() => printBill(o)} className="p-1 text-blue-600 dark:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded transition-all">
@@ -2620,14 +2433,14 @@ export default function App() {
                 <div className="space-y-1 text-[9px] mb-2">
                   {o.items?.map((i, k) => (
                     <div key={k} className="flex justify-between text-gray-700 dark:text-white">
-                      <span>{i.name} x{i.qty}</span>
-                      <span className="font-bold">Rs.{i.subtotal.toLocaleString()}</span>
+                      <span className="font-medium">{i.name} x{i.qty}</span>
+                      <span className="font-black">Rs.{i.subtotal.toLocaleString()}</span>
                     </div>
                   ))}
                 </div>
 
                 <div className="flex justify-between items-center border-t border-gray-200 dark:border-white/10 pt-2">
-                  <span className="text-[9px] text-gray-600 dark:text-white/60">Manual Order Total</span>
+                  <span className="text-[9px] text-gray-600 dark:text-white/60 font-medium">Manual Order Total</span>
                   <span className="text-sm font-black text-purple-600 dark:text-purple-500">Rs.{o.total.toLocaleString()}</span>
                 </div>
               </div>
@@ -2667,7 +2480,7 @@ export default function App() {
                 <div className="flex justify-between items-start mb-2">
                   <div className="flex items-center gap-1">
                     <Clock size={10} className="text-gray-400 dark:text-white/50"/>
-                    <span className="text-[8px] text-gray-600 dark:text-white/60">
+                    <span className="text-[8px] text-gray-600 dark:text-white/60 font-medium">
                       {new Date(note.timestamp).toLocaleTimeString()}
                     </span>
                   </div>
@@ -2678,7 +2491,7 @@ export default function App() {
                     <Trash2 size={10}/>
                   </button>
                 </div>
-                <p className="text-[10px] text-gray-900 dark:text-white">{note.text}</p>
+                <p className="text-[10px] text-gray-900 dark:text-white font-medium">{note.text}</p>
               </div>
             ))}
           </div>
@@ -2795,20 +2608,20 @@ export default function App() {
                           value={editingBrandData.name}
                           onChange={(e) => setEditingBrandData({...editingBrandData, name: e.target.value})}
                           placeholder="NAME"
-                          className="flex-1 min-w-[80px] p-1.5 text-[10px] bg-white dark:bg-black/40 border border-gray-200 dark:border-white/10 rounded text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/30"
+                          className="flex-1 min-w-[80px] p-1.5 text-[10px] bg-white dark:bg-black/40 border border-gray-200 dark:border-white/10 rounded text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/30 font-medium"
                         />
                         <input
                           value={editingBrandData.size}
                           onChange={(e) => setEditingBrandData({...editingBrandData, size: e.target.value})}
                           placeholder="SIZE"
-                          className="w-16 p-1.5 text-[10px] bg-white dark:bg-black/40 border border-gray-200 dark:border-white/10 rounded text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/30"
+                          className="w-16 p-1.5 text-[10px] bg-white dark:bg-black/40 border border-gray-200 dark:border-white/10 rounded text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/30 font-medium"
                         />
                         <input
                           value={editingBrandData.price}
                           onChange={(e) => setEditingBrandData({...editingBrandData, price: e.target.value})}
                           type="number"
                           placeholder="PRICE"
-                          className="w-20 p-1.5 text-[10px] bg-white dark:bg-black/40 border border-gray-200 dark:border-white/10 rounded text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/30"
+                          className="w-20 p-1.5 text-[10px] bg-white dark:bg-black/40 border border-gray-200 dark:border-white/10 rounded text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/30 font-medium"
                         />
                       </div>
                       <div className="flex gap-1">
@@ -2841,10 +2654,10 @@ export default function App() {
                         </div>
                         <div className="flex-1">
                           <div className="flex items-center flex-wrap gap-1">
-                            <span className="text-xs font-bold text-gray-900 dark:text-white">{b.name}</span>
-                            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-white border border-gray-200 dark:border-white/20">{b.size}</span>
+                            <span className="text-xs font-black text-gray-900 dark:text-white">{b.name}</span>
+                            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-white border border-gray-200 dark:border-white/20 font-bold">{b.size}</span>
                           </div>
-                          <div className="text-[9px] font-bold text-[#d4af37]">Rs.{b.price}</div>
+                          <div className="text-[9px] font-black text-[#d4af37]">Rs.{b.price}</div>
                         </div>
                       </div>
                       <div className="flex gap-1">
@@ -2987,7 +2800,7 @@ export default function App() {
       {/* TARGET MODAL */}
       {showTargetModal && (
         <div className="fixed inset-0 bg-black/50 dark:bg-black/95 z-[100] flex items-center justify-center p-3">
-          <div className="w-full max-w-xs p-4 rounded-xl border border-[#d4af37]/30 bg-white dark:bg-gradient-to-br dark:from-[#0f0f0f] dark:to-[#1a1a1a]">
+          <div className="w-full max-w-xs p-4 rounded-xl border border-[#d4af37]/30 bg-white dark:bg-gradient-to-br dark:from-[#0f0f0f] dark:to-[#1a1a1a] shadow-xl">
             <div className="flex justify-between items-center mb-3">
               <h3 className="font-black text-sm text-[#d4af37]">{editingTarget ? 'EDIT TARGET' : 'NEW TARGET'}</h3>
               <button onClick={() => { setShowTargetModal(false); setEditingTarget(null); }} className="text-gray-400 dark:text-white/40 hover:text-gray-600 dark:hover:text-white/60 p-1 transition-all">
@@ -2999,7 +2812,7 @@ export default function App() {
                 type="month"
                 value={targetMonth}
                 onChange={(e) => setTargetMonth(e.target.value)}
-                className="w-full p-2 rounded-lg border text-xs bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all"
+                className="w-full p-2 rounded-lg border text-xs bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all font-medium"
                 required
               />
 
@@ -3057,7 +2870,7 @@ export default function App() {
                 <select
                   value={targetBrand}
                   onChange={(e) => setTargetBrand(e.target.value)}
-                  className="w-full p-2 rounded-lg border text-xs bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all"
+                  className="w-full p-2 rounded-lg border text-xs bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all font-medium"
                   required
                 >
                   <option value="">SELECT BRAND</option>
@@ -3072,7 +2885,7 @@ export default function App() {
                 value={targetAmount}
                 onChange={(e) => setTargetAmount(e.target.value)}
                 placeholder="AMOUNT"
-                className="w-full p-2 rounded-lg border text-xs bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all"
+                className="w-full p-2 rounded-lg border text-xs bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all font-medium"
                 required
               />
 
@@ -3094,7 +2907,7 @@ export default function App() {
             isDarkMode 
               ? 'bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/30' 
               : 'bg-white border-gray-200'
-          }`}>
+          } shadow-xl`}>
             <div className="flex justify-between items-center mb-3">
               <h3 className="font-black text-sm text-[#d4af37]">CALCULATOR</h3>
               <button onClick={() => { setShowCalculator(false); resetCalculator(); }} className="text-gray-400 dark:text-white/40 hover:text-gray-600 dark:hover:text-white/60 p-1 transition-all">
@@ -3107,7 +2920,7 @@ export default function App() {
               value={totalCalculation.subtotal || ''}
               onChange={(e) => setTotalCalculation({...totalCalculation, subtotal: parseFloat(e.target.value) || 0})}
               placeholder="SUBTOTAL"
-              className="w-full p-2 rounded-lg border text-sm mb-2 bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all"
+              className="w-full p-2 rounded-lg border text-sm mb-2 bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all font-medium"
             />
 
             <div className="flex gap-1 mb-2">
@@ -3139,7 +2952,7 @@ export default function App() {
                 value={totalCalculation.discountPercent || ''}
                 onChange={(e) => setTotalCalculation({...totalCalculation, discountPercent: parseFloat(e.target.value) || 0})}
                 placeholder="DISCOUNT %"
-                className="w-full p-2 rounded-lg border text-sm mb-2 bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all"
+                className="w-full p-2 rounded-lg border text-sm mb-2 bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all font-medium"
               />
             ) : (
               <input
@@ -3147,7 +2960,7 @@ export default function App() {
                 value={totalCalculation.discount || ''}
                 onChange={(e) => setTotalCalculation({...totalCalculation, discount: parseFloat(e.target.value) || 0})}
                 placeholder="DISCOUNT"
-                className="w-full p-2 rounded-lg border text-sm mb-2 bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all"
+                className="w-full p-2 rounded-lg border text-sm mb-2 bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all font-medium"
               />
             )}
 
@@ -3156,11 +2969,11 @@ export default function App() {
               value={totalCalculation.tax || ''}
               onChange={(e) => setTotalCalculation({...totalCalculation, tax: parseFloat(e.target.value) || 0})}
               placeholder="TAX"
-              className="w-full p-2 rounded-lg border text-sm mb-3 bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all"
+              className="w-full p-2 rounded-lg border text-sm mb-3 bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all font-medium"
             />
 
             <div className="bg-gray-100 dark:bg-[#1a1a1a] p-2 rounded-lg mb-3 text-center border border-gray-200 dark:border-white/10">
-              <p className="text-[9px] text-gray-600 dark:text-white/60 mb-1">GRAND TOTAL</p>
+              <p className="text-[9px] text-gray-600 dark:text-white/60 mb-1 font-medium">GRAND TOTAL</p>
               <p className="text-base font-black text-[#d4af37]">
                 Rs.{(
                   (totalCalculation.subtotal || 0) -
@@ -3204,12 +3017,12 @@ export default function App() {
                 <div key={b.id} className="bg-[#0f0f0f] p-2 rounded-xl border border-white/5 flex items-center justify-between hover:border-[#d4af37]/30 transition-all">
                   <div>
                     <span className="text-xs font-bold text-white">{b.name} ({b.size})</span>
-                    <p className="text-[10px] text-[#d4af37]">Rs.{b.price}</p>
+                    <p className="text-[10px] text-[#d4af37] font-black">Rs.{b.price}</p>
                   </div>
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => setCart({...cart, [b.id]: Math.max(0, (Number(cart[b.id])||0)-1)})}
-                      className="w-6 h-6 bg-white/5 rounded-lg text-xs text-white hover:bg-white/10 transition-all"
+                      className="w-6 h-6 bg-white/5 rounded-lg text-xs text-white hover:bg-white/10 transition-all font-black"
                     >
                       -
                     </button>
@@ -3217,12 +3030,12 @@ export default function App() {
                       type="number"
                       value={cart[b.id] || ''}
                       onChange={(e) => setCart({...cart, [b.id]: e.target.value})}
-                      className="w-8 bg-transparent text-center text-[#d4af37] text-xs outline-none"
+                      className="w-8 bg-transparent text-center text-[#d4af37] text-xs outline-none font-black"
                       placeholder="0"
                     />
                     <button
                       onClick={() => setCart({...cart, [b.id]: (Number(cart[b.id])||0) + 1})}
-                      className="w-6 h-6 bg-white/5 rounded-lg text-xs text-white hover:bg-white/10 transition-all"
+                      className="w-6 h-6 bg-white/5 rounded-lg text-xs text-white hover:bg-white/10 transition-all font-black"
                     >
                       +
                     </button>
@@ -3233,7 +3046,7 @@ export default function App() {
 
             <div className="fixed bottom-0 inset-x-0 p-2 bg-black border-t border-white/10">
               <div className="flex justify-between items-center mb-2">
-                <span className="text-xs text-white">Total:</span>
+                <span className="text-xs text-white font-bold">Total:</span>
                 <span className="text-base font-black text-[#d4af37]">Rs.{calculateCartTotal().toLocaleString()}</span>
               </div>
               <button
@@ -3265,7 +3078,7 @@ export default function App() {
             </div>
 
             <select
-              className="w-full bg-[#0f0f0f] p-2 rounded-lg border border-white/5 text-white text-xs mb-3 outline-none focus:border-[#d4af37] transition-all"
+              className="w-full bg-[#0f0f0f] p-2 rounded-lg border border-white/5 text-white text-xs mb-3 outline-none focus:border-[#d4af37] transition-all font-bold"
               onChange={(e) => {
                 const shopId = e.target.value;
                 setSelectedShop(data.shops.find(s => s.id === shopId));
@@ -3284,33 +3097,33 @@ export default function App() {
                     value={item.name}
                     onChange={(e) => updateManualItem(index, 'name', e.target.value)}
                     placeholder="ITEM"
-                    className="bg-black/40 p-1 rounded text-[10px] border-white/5 text-white outline-none focus:border-[#d4af37] transition-all"
+                    className="bg-black/40 p-1 rounded text-[10px] border-white/5 text-white outline-none focus:border-[#d4af37] transition-all font-medium"
                   />
                   <input
                     type="number"
                     value={item.qty}
                     onChange={(e) => updateManualItem(index, 'qty', e.target.value)}
                     placeholder="QTY"
-                    className="bg-black/40 p-1 rounded text-[10px] border-white/5 text-white outline-none focus:border-[#d4af37] transition-all"
+                    className="bg-black/40 p-1 rounded text-[10px] border-white/5 text-white outline-none focus:border-[#d4af37] transition-all font-medium"
                   />
                   <input
                     type="number"
                     value={item.price}
                     onChange={(e) => updateManualItem(index, 'price', e.target.value)}
                     placeholder="PRICE"
-                    className="bg-black/40 p-1 rounded text-[10px] border-white/5 text-white outline-none focus:border-[#d4af37] transition-all"
+                    className="bg-black/40 p-1 rounded text-[10px] border-white/5 text-white outline-none focus:border-[#d4af37] transition-all font-medium"
                   />
                   <div className="bg-black/40 p-1 rounded text-center border border-white/5">
-                    <span className="text-[#d4af37] text-[10px]">Rs.{item.subtotal}</span>
+                    <span className="text-[#d4af37] text-[10px] font-black">Rs.{item.subtotal}</span>
                   </div>
                 </div>
                 {manualItems.length > 1 && (
-                  <button onClick={() => removeManualItem(index)} className="mt-1 text-red-500 text-[8px] hover:text-red-400 transition-all">Remove</button>
+                  <button onClick={() => removeManualItem(index)} className="mt-1 text-red-500 text-[8px] font-black hover:text-red-400 transition-all">Remove</button>
                 )}
               </div>
             ))}
 
-            <button onClick={addManualItem} className="w-full py-1.5 bg-white/5 rounded-lg text-[#d4af37] text-xs mb-3 hover:bg-white/10 transition-all">+ ADD ITEM</button>
+            <button onClick={addManualItem} className="w-full py-1.5 bg-white/5 rounded-lg text-[#d4af37] text-xs font-black mb-3 hover:bg-white/10 transition-all">+ ADD ITEM</button>
 
             <div className="fixed bottom-0 inset-x-0 p-2 bg-black border-t border-white/10">
               <button
@@ -3340,13 +3153,13 @@ export default function App() {
               <div className="space-y-1 max-h-24 overflow-y-auto text-[9px]">
                 {lastOrder.items?.map((it, idx) => (
                   <div key={idx} className="flex justify-between">
-                    <span className="text-white">{it.name} x{it.qty}</span>
-                    <span className="font-bold text-white">Rs.{it.subtotal}</span>
+                    <span className="text-white font-medium">{it.name} x{it.qty}</span>
+                    <span className="font-black text-white">Rs.{it.subtotal}</span>
                   </div>
                 ))}
               </div>
               <div className="border-t border-white/10 mt-2 pt-2 flex justify-between">
-                <span className="text-[10px] text-white/60">Total</span>
+                <span className="text-[10px] text-white/60 font-medium">Total</span>
                 <span className="text-sm font-black text-[#d4af37]">Rs.{lastOrder.total}</span>
               </div>
             </div>
@@ -3368,7 +3181,7 @@ export default function App() {
             isDarkMode 
               ? 'bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/30' 
               : 'bg-white border-gray-200'
-          }`}>
+          } shadow-xl`}>
             <div className="flex justify-between items-center mb-3">
               <h3 className="font-black text-sm text-[#d4af37]">NEW SHOP</h3>
               <button onClick={() => setShowModal(null)} className="text-gray-400 dark:text-white/40 hover:text-gray-600 dark:hover:text-white/60 p-1 transition-all">
@@ -3387,8 +3200,8 @@ export default function App() {
               showToast("Shop added!");
               setShowModal(null);
             }} className="space-y-2">
-              <input name="name" placeholder="SHOP NAME" className="w-full p-2 rounded-lg border text-xs bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all" required />
-              <select name="area" className="w-full p-2 rounded-lg border text-xs bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all" required>
+              <input name="name" placeholder="SHOP NAME" className="w-full p-2 rounded-lg border text-xs bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all font-bold" required />
+              <select name="area" className="w-full p-2 rounded-lg border text-xs bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all font-bold" required>
                 <option value="">SELECT ROUTE</option>
                 {data.routes.map(r => (
                   <option key={r.id} value={r.name}>{r.name}</option>
@@ -3407,7 +3220,7 @@ export default function App() {
             isDarkMode 
               ? 'bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/30' 
               : 'bg-white border-gray-200'
-          }`}>
+          } shadow-xl`}>
             <div className="flex justify-between items-center mb-3">
               <h3 className="font-black text-sm text-[#d4af37]">NEW ROUTE</h3>
               <button onClick={() => setShowModal(null)} className="text-gray-400 dark:text-white/40 hover:text-gray-600 dark:hover:text-white/60 p-1 transition-all">
@@ -3424,7 +3237,7 @@ export default function App() {
               showToast("Route added!");
               setShowModal(null);
             }} className="space-y-2">
-              <input name="name" placeholder="ROUTE NAME" className="w-full p-2 rounded-lg border text-xs bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all" required />
+              <input name="name" placeholder="ROUTE NAME" className="w-full p-2 rounded-lg border text-xs bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all font-bold" required />
               <button type="submit" className="w-full py-2 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg text-xs hover:opacity-90 transition-all">SAVE</button>
             </form>
           </div>
@@ -3438,7 +3251,7 @@ export default function App() {
             isDarkMode 
               ? 'bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/30' 
               : 'bg-white border-gray-200'
-          }`}>
+          } shadow-xl`}>
             <div className="flex justify-between items-center mb-3">
               <h3 className="font-black text-sm text-[#d4af37]">NEW BRAND</h3>
               <button onClick={() => setShowModal(null)} className="text-gray-400 dark:text-white/40 hover:text-gray-600 dark:hover:text-white/60 p-1 transition-all">
@@ -3446,9 +3259,9 @@ export default function App() {
               </button>
             </div>
             <form onSubmit={addBrandWithSequence} className="space-y-2">
-              <input name="name" placeholder="BRAND NAME" className="w-full p-2 rounded-lg border text-xs bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all" required />
-              <input name="size" placeholder="SIZE" className="w-full p-2 rounded-lg border text-xs bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all" required />
-              <input name="price" type="number" placeholder="PRICE" className="w-full p-2 rounded-lg border text-xs bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all" required />
+              <input name="name" placeholder="BRAND NAME" className="w-full p-2 rounded-lg border text-xs bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all font-bold" required />
+              <input name="size" placeholder="SIZE" className="w-full p-2 rounded-lg border text-xs bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all font-bold" required />
+              <input name="price" type="number" placeholder="PRICE" className="w-full p-2 rounded-lg border text-xs bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all font-bold" required />
               <button type="submit" className="w-full py-2 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg text-xs hover:opacity-90 transition-all">SAVE</button>
             </form>
           </div>
@@ -3458,7 +3271,7 @@ export default function App() {
       {/* SHOP PROFILE MODAL */}
       {showModal === 'shopProfile' && selectedShop && (
         <div className="fixed inset-0 bg-black/50 dark:bg-black/95 z-[100] flex items-center justify-center p-3">
-          <div className="w-full max-w-xs p-4 rounded-xl border border-[#d4af37]/30 bg-white dark:bg-gradient-to-br dark:from-[#0f0f0f] dark:to-[#1a1a1a]">
+          <div className="w-full max-w-xs p-4 rounded-xl border border-[#d4af37]/30 bg-white dark:bg-gradient-to-br dark:from-[#0f0f0f] dark:to-[#1a1a1a] shadow-xl">
             <div className="flex justify-between items-center mb-3">
               <h3 className="font-black text-sm text-[#d4af37]">SHOP PROFILE</h3>
               <button onClick={() => { setShowModal(null); setEditingProfile(null); }} className="text-gray-400 dark:text-white/40 hover:text-gray-600 dark:hover:text-white/60 p-1 transition-all">
@@ -3470,19 +3283,19 @@ export default function App() {
                 placeholder="OWNER NAME"
                 value={shopProfileForm.ownerName}
                 onChange={(e) => setShopProfileForm({...shopProfileForm, ownerName: e.target.value})}
-                className="w-full p-2 rounded-lg border text-xs bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all"
+                className="w-full p-2 rounded-lg border text-xs bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all font-bold"
               />
               <input
                 placeholder="PHONE"
                 value={shopProfileForm.phone}
                 onChange={(e) => setShopProfileForm({...shopProfileForm, phone: e.target.value})}
-                className="w-full p-2 rounded-lg border text-xs bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all"
+                className="w-full p-2 rounded-lg border text-xs bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all font-bold"
               />
               <input
                 placeholder="ADDRESS"
                 value={shopProfileForm.address}
                 onChange={(e) => setShopProfileForm({...shopProfileForm, address: e.target.value})}
-                className="w-full p-2 rounded-lg border text-xs bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all"
+                className="w-full p-2 rounded-lg border text-xs bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all font-bold"
               />
               <button type="submit" className="w-full py-2 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg text-xs hover:opacity-90 transition-all">SAVE</button>
             </form>
@@ -3497,7 +3310,7 @@ export default function App() {
             isDarkMode 
               ? 'bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/30' 
               : 'bg-white border-gray-200'
-          }`}>
+          } shadow-xl`}>
             <div className="flex justify-between items-center mb-3">
               <h3 className="font-black text-sm text-[#d4af37]">ADD EXPENSE</h3>
               <button onClick={() => setShowModal(null)} className="text-gray-400 dark:text-white/40 hover:text-gray-600 dark:hover:text-white/60 p-1 transition-all">
@@ -3526,13 +3339,13 @@ export default function App() {
               value={expenseAmount}
               onChange={(e) => setExpenseAmount(e.target.value)}
               placeholder="AMOUNT"
-              className="w-full p-2 rounded-lg border text-sm mb-2 bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all"
+              className="w-full p-2 rounded-lg border text-sm mb-2 bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all font-bold"
             />
             <textarea
               value={expenseNote}
               onChange={(e) => setExpenseNote(e.target.value)}
               placeholder="NOTE"
-              className="w-full p-2 rounded-lg border text-xs mb-3 bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all h-16"
+              className="w-full p-2 rounded-lg border text-xs mb-3 bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all font-medium h-16"
             />
             <button
               onClick={saveExpense}
@@ -3551,7 +3364,7 @@ export default function App() {
             isDarkMode 
               ? 'bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/30' 
               : 'bg-white border-gray-200'
-          }`}>
+          } shadow-xl`}>
             <div className="flex justify-between items-center mb-3">
               <h3 className="font-black text-sm text-[#d4af37]">ADD NOTE</h3>
               <button onClick={() => setShowModal(null)} className="text-gray-400 dark:text-white/40 hover:text-gray-600 dark:hover:text-white/60 p-1 transition-all">
@@ -3562,7 +3375,7 @@ export default function App() {
               value={repNote}
               onChange={(e) => setRepNote(e.target.value)}
               placeholder="TYPE NOTE HERE..."
-              className="w-full p-2 rounded-lg border text-xs mb-3 bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all h-24"
+              className="w-full p-2 rounded-lg border text-xs mb-3 bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all font-medium h-24"
             />
             <button
               onClick={saveNote}
@@ -3587,16 +3400,16 @@ export default function App() {
 
             <div className="bg-white p-3 rounded-lg mb-3 text-black text-[9px] border border-gray-200">
               <div className="text-center border-b border-gray-300 pb-2 mb-2">
-                <div className="font-bold text-[#d4af37]">{printOrder.companyName}</div>
-                <div className="font-bold">{printOrder.shopName}</div>
+                <div className="font-black text-[#d4af37]">{printOrder.companyName}</div>
+                <div className="font-black">{printOrder.shopName}</div>
               </div>
               {printOrder.items?.map((item, idx) => (
                 <div key={idx} className="flex justify-between text-[8px]">
-                  <span>{item.name} x{item.qty}</span>
-                  <span>Rs.{item.subtotal}</span>
+                  <span className="font-medium">{item.name} x{item.qty}</span>
+                  <span className="font-bold">Rs.{item.subtotal}</span>
                 </div>
               ))}
-              <div className="border-t border-gray-300 mt-2 pt-2 text-right font-bold">
+              <div className="border-t border-gray-300 mt-2 pt-2 text-right font-black">
                 Total: Rs.{printOrder.total}
               </div>
             </div>
@@ -3616,13 +3429,55 @@ export default function App() {
           0% { width: 0%; }
           100% { width: 100%; }
         }
-        @keyframes float {
-          0% { transform: translateY(0px) translateX(0px); }
-          50% { transform: translateY(-5px) translateX(2px); }
-          100% { transform: translateY(0px) translateX(0px); }
-        }
         .animate-progress { animation: progress 1.2s ease-in-out; }
-        .animate-float { animation: float 3s ease-in-out infinite; }
+        
+        /* Light mode text visibility improvements */
+        body:not(.dark) .text-gray-900 {
+          color: #111827 !important;
+          font-weight: 500;
+        }
+        
+        body:not(.dark) .text-gray-700 {
+          color: #374151 !important;
+          font-weight: 500;
+        }
+        
+        body:not(.dark) .text-gray-600 {
+          color: #4B5563 !important;
+          font-weight: 500;
+        }
+        
+        body:not(.dark) .bg-white {
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+        
+        body:not(.dark) input,
+        body:not(.dark) select,
+        body:not(.dark) textarea {
+          color: #111827 !important;
+          font-weight: 500;
+          background-color: #F9FAFB;
+        }
+        
+        body:not(.dark) .font-medium {
+          color: #1F2937;
+        }
+        
+        body:not(.dark) .font-bold,
+        body:not(.dark) .font-black {
+          color: #111827;
+        }
+        
+        body:not(.dark) .text-\\[\\#d4af37\\] {
+          color: #B8860B !important;
+          text-shadow: 0 1px 2px rgba(184, 134, 11, 0.1);
+        }
+        
+        /* Dark mode stays the same */
+        .dark body {
+          color-scheme: dark;
+        }
+        
         input, select, textarea { font-size: 16px !important; }
         * { -webkit-text-size-adjust: 100%; -webkit-tap-highlight-color: transparent; }
         button { min-height: 36px; min-width: 36px; }
