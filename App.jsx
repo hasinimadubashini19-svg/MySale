@@ -2593,63 +2593,64 @@ export default function App() {
         </div>
       )}
 
-      {/* INVOICE MODAL */}
-      {showModal === 'invoice' && selectedShop && (
-        <div className="fixed inset-0 bg-black z-[100] overflow-y-auto">
-          <div className="min-h-screen p-3 max-w-lg mx-auto pb-20">
-            <div className="flex justify-between items-center mb-3 sticky top-0 bg-black py-2 border-b border-white/10">
-              <h2 className="text-sm font-black text-white">{selectedShop.name}</h2>
-              <button onClick={() => { setShowModal(null); setCart({}); }} className="p-1 bg-white/10 rounded-full">
-                <X size={16}/>
-              </button>
-            </div>
+{/* INVOICE MODAL - FIXED */}
+{showModal === 'invoice' && selectedShop && (
+  <div className="fixed inset-0 bg-black z-[100] overflow-y-auto">
+    <div className="min-h-screen p-3 max-w-lg mx-auto pb-20">
+      <div className="flex justify-between items-center mb-3 sticky top-0 bg-black py-2 border-b border-white/10">
+        <h2 className="text-sm font-black text-white">{selectedShop.name}</h2>
+        <button onClick={() => { setShowModal(null); setCart({}); }} className="p-1 bg-white/10 rounded-full">
+          <X size={16}/>
+        </button>
+      </div>
 
-            <div className="space-y-2">
-              {data.brands.map((b, index) => (
-                <div key={b.id} className="bg-[#0f0f0f] p-2 rounded-xl border border-white/5 flex items-center justify-between">
-                  <div>
-                    <span className="text-xs font-bold">{b.name} ({b.size})</span>
-                    <p className="text-[10px] text-[#d4af37]">Rs.{b.price}</p>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <button 
-                      onClick={() => setCart({...cart, [b.id]: Math.max(0, (Number(cart[b.id])||0)-1)}} 
-                      className="w-6 h-6 bg-white/5 rounded-lg text-xs"
-                    >
-                      -
-                    </button>
-                    <input 
-                      type="number" 
-                      value={cart[b.id] || ''} 
-                      onChange={(e) => setCart({...cart, [b.id]: e.target.value})} 
-                      className="w-8 bg-transparent text-center text-[#d4af37] text-xs" 
-                    />
-                    <button 
-                      onClick={() => setCart({...cart, [b.id]: (Number(cart[b.id])||0)+1})} 
-                      className="w-6 h-6 bg-white/5 rounded-lg text-xs"
-                    >
-                      +
-                    </button>
-                  </div>
-                </div>
-              ))}
+      <div className="space-y-2">
+        {data.brands.map((b, index) => (
+          <div key={b.id} className="bg-[#0f0f0f] p-2 rounded-xl border border-white/5 flex items-center justify-between">
+            <div>
+              <span className="text-xs font-bold">{b.name} ({b.size})</span>
+              <p className="text-[10px] text-[#d4af37]">Rs.{b.price}</p>
             </div>
-
-            <div className="fixed bottom-0 inset-x-0 p-2 bg-black border-t border-white/10">
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-xs">Total:</span>
-                <span className="text-base font-black text-[#d4af37]">Rs.{calculateCartTotal().toLocaleString()}</span>
-              </div>
+            <div className="flex items-center gap-1">
               <button 
-                onClick={handleCreateOrder} 
-                className="w-full py-2 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg text-xs"
+                onClick={() => setCart({...cart, [b.id]: Math.max(0, (Number(cart[b.id])||0)-1)})} 
+                className="w-6 h-6 bg-white/5 rounded-lg text-xs"
               >
-                CONFIRM ORDER
+                -
+              </button>
+              <input 
+                type="number" 
+                value={cart[b.id] || ''} 
+                onChange={(e) => setCart({...cart, [b.id]: e.target.value})} 
+                className="w-8 bg-transparent text-center text-[#d4af37] text-xs outline-none" 
+                placeholder="0"
+              />
+              <button 
+                onClick={() => setCart({...cart, [b.id]: (Number(cart[b.id])||0) + 1})} 
+                className="w-6 h-6 bg-white/5 rounded-lg text-xs"
+              >
+                +
               </button>
             </div>
           </div>
+        ))}
+      </div>
+
+      <div className="fixed bottom-0 inset-x-0 p-2 bg-black border-t border-white/10">
+        <div className="flex justify-between items-center mb-2">
+          <span className="text-xs">Total:</span>
+          <span className="text-base font-black text-[#d4af37]">Rs.{calculateCartTotal().toLocaleString()}</span>
         </div>
-      )}
+        <button 
+          onClick={handleCreateOrder} 
+          className="w-full py-2 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg text-xs"
+        >
+          CONFIRM ORDER
+        </button>
+      </div>
+    </div>
+  </div>
+)}
 
       {/* MANUAL ORDER MODAL */}
       {showModal === 'manual' && (
