@@ -21,7 +21,8 @@ import {
   Receipt, Wallet, BadgePercent, Box, Circle, Square, Triangle,
   RotateCcw, Volume2, VolumeX, Trophy, Timer, Users, Shield, Heart,
   Sparkles, Flame, Star as StarIcon, Menu, MoreVertical, Home,
-  ArrowUpDown, ArrowUp, ArrowDown, RefreshCw, Play, Pause, Volume2 as Volume
+  ArrowUpDown, ArrowUp, ArrowDown, RefreshCw, Play, Pause, Volume2 as Volume,
+  Map, MapPin as MapPinIcon
 } from 'lucide-react';
 
 // --- FIREBASE CONFIG ---
@@ -82,6 +83,8 @@ export default function App() {
   const [selectedRouteFilter, setSelectedRouteFilter] = useState('ALL');
   const [manualItems, setManualItems] = useState([{ name: '', qty: 1, price: 0, subtotal: 0 }]);
   const [editingBrand, setEditingBrand] = useState(null);
+  const [movingBrandId, setMovingBrandId] = useState(null);
+  const [targetPosition, setTargetPosition] = useState(null);
 
   // Calculator State
   const [totalCalculation, setTotalCalculation] = useState({
@@ -116,6 +119,7 @@ export default function App() {
   const [isFabOpen, setIsFabOpen] = useState(false);
   const [showShopMenu, setShowShopMenu] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [shareWithLocation, setShareWithLocation] = useState(false);
 
   // Target States
   const [targetAmount, setTargetAmount] = useState('');
@@ -141,17 +145,6 @@ export default function App() {
     location: ''
   });
   const [editingProfile, setEditingProfile] = useState(null);
-
-  // Enhanced Game State
-  const [showGame, setShowGame] = useState(false);
-  const [gameScore, setGameScore] = useState(0);
-  const [gameHighScore, setGameHighScore] = useState(0);
-  const [gameActive, setGameActive] = useState(false);
-  const [gameTimeLeft, setGameTimeLeft] = useState(30);
-  const [gameTargets, setGameTargets] = useState([]);
-  const [gameLevel, setGameLevel] = useState(1);
-  const [gameSound, setGameSound] = useState(true);
-  const [gameCombo, setGameCombo] = useState(0);
 
   // View States
   const [viewingShopProfile, setViewingShopProfile] = useState(null);
@@ -201,16 +194,6 @@ export default function App() {
       clearTimeout(timer);
       unsubAuth();
     };
-  }, []);
-
-  // ========== LOAD HIGH SCORE ==========
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem('monarchGameHighScore');
-      if (saved) setGameHighScore(parseInt(saved));
-    } catch (err) {
-      console.error("Error loading game data:", err);
-    }
   }, []);
 
   // ========== REAL-TIME DATA FETCHING ==========
@@ -435,7 +418,7 @@ export default function App() {
       setExpenseAmount('');
       setExpenseNote('');
       setShowModal(null);
-      
+
       // Force refresh dashboard
       setRefreshKey(prev => prev + 1);
     } catch (err) {
@@ -466,7 +449,7 @@ export default function App() {
 
       showToast(`✅ ${type} deleted!`, 'success');
       setShowDeleteConfirm({ show: false, id: null, type: '', name: '' });
-      
+
       // Force refresh
       setRefreshKey(prev => prev + 1);
     } catch (err) {
@@ -535,7 +518,7 @@ export default function App() {
     const orderData = {
       shopName: selectedShop.name,
       shopId: selectedShop.id,
-      companyName: data.settings.company || "MONARCH",
+      companyName: data.settings.company || "SALES MONARCH",
       items: validItems.map(item => ({
         name: item.name,
         qty: Number(item.qty),
@@ -565,7 +548,7 @@ export default function App() {
         setManualItems([{ name: '', qty: 1, price: 0, subtotal: 0 }]);
         showToast("✅ Order saved!", "success");
       }
-      
+
       setRefreshKey(prev => prev + 1);
     } catch (err) {
       showToast("Error saving order: " + err.message, "error");
@@ -821,11 +804,11 @@ export default function App() {
           o.items.forEach(i => {
             const qty = i.qty || 0;
             const subtotal = i.subtotal || 0;
-            const itemName = i.name.split('(')[0].trim();
+            const itemName = i.name; // Keep full name including size
             totalUnits += qty;
 
             if (!summary[itemName]) {
-              summary[itemName] = { units: 0, revenue: 0 };
+              summary[itemName] = { units: 0, revenue: 0, name: itemName };
             }
             summary[itemName].units += qty;
             summary[itemName].revenue += subtotal;
@@ -881,10 +864,10 @@ export default function App() {
     const todayNotes = data.notes.filter(n => n.date === todayStr);
 
     const monthTargets = data.targets?.filter(t => t.month === currentMonthStr) || [];
-    
+
     const targetProgress = monthTargets.map(target => {
       let achieved = 0;
-      
+
       if (target.specific === 'brand' && target.brand) {
         achieved = monthlyOrders.reduce((sum, o) => {
           if (o.items) {
@@ -901,12 +884,12 @@ export default function App() {
           return sum;
         }, 0);
       } else {
-        achieved = target.type === 'units' ? 
+        achieved = target.type === 'units' ?
           monthlyOrders.reduce((sum, o) => {
             let units = 0;
             if (o.items) o.items.forEach(i => units += i.qty || 0);
             return sum + units;
-          }, 0) : 
+          }, 0) :
           monthlyOrders.reduce((sum, o) => sum + (o.total || 0), 0);
       }
 
@@ -924,10 +907,17 @@ export default function App() {
       return sum + units;
     }, 0);
 
+    // Calculate expenses by type
+    const expensesByType = todayExpenses.reduce((acc, exp) => {
+      acc[exp.type] = (acc[exp.type] || 0) + exp.amount;
+      return acc;
+    }, {});
+
     return {
       daily: getStats(dailyOrders),
       monthly: getStats(monthlyOrders),
       expenses: totalExpenses,
+      expensesByType,
       monthlyExpenses: monthlyExpenses,
       notes: todayNotes.length,
       todayExpenses: todayExpenses,
@@ -982,17 +972,20 @@ export default function App() {
   };
 
   // ========== WHATSAPP SHARE ==========
-  const shareToWhatsApp = (order) => {
+  const shareToWhatsApp = (order, includeLocation = false) => {
     if (!order) return;
 
-    let msg = `*${order.companyName || "MONARCH"} - INVOICE*\n`;
+    let msg = `*${order.companyName || "SALES MONARCH"} - INVOICE*\n`;
     msg += `⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯\n`;
     msg += `🏪 *Shop:* ${order.shopName || "Unknown Shop"}\n`;
     msg += `📅 *Date:* ${order.timestamp ? new Date(order.timestamp).toLocaleString() : new Date().toLocaleString()}\n`;
 
-    if (currentLocation) {
+    if (includeLocation && currentLocation) {
       const mapsUrl = `https://www.google.com/maps?q=${currentLocation.lat},${currentLocation.lng}`;
       msg += `📍 *Location:* ${mapsUrl}\n`;
+    } else if (order.location) {
+      const mapsUrl = `https://www.google.com/maps?q=${order.location.lat},${order.location.lng}`;
+      msg += `📍 *Saved Location:* ${mapsUrl}\n`;
     }
 
     msg += `\n*ITEMS:*\n`;
@@ -1004,33 +997,7 @@ export default function App() {
     msg += `\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯\n`;
     msg += `💰 *TOTAL: Rs.${(order.total || 0).toLocaleString()}*\n`;
     msg += `⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯\n`;
-    msg += `_Generated by Monarch Pro_`;
-    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
-  };
-
-  const shareBillWithLocation = (order) => {
-    if (!order) return;
-
-    let msg = `*${order.companyName || "MONARCH"} - INVOICE*\n`;
-    msg += `⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯\n`;
-    msg += `🏪 *Shop:* ${order.shopName || "Unknown Shop"}\n`;
-    msg += `📅 *Date:* ${order.timestamp ? new Date(order.timestamp).toLocaleString() : new Date().toLocaleString()}\n`;
-
-    if (currentLocation) {
-      const mapsUrl = `https://www.google.com/maps?q=${currentLocation.lat},${currentLocation.lng}`;
-      msg += `📍 *Delivery Location:* ${mapsUrl}\n`;
-    }
-
-    msg += `\n*ITEMS:*\n`;
-    if (order.items && Array.isArray(order.items)) {
-      order.items.forEach(i => {
-        msg += `• ${i.name || "Item"} (${i.qty || 0} x Rs.${i.price || 0}) = *Rs.${(i.subtotal || 0).toLocaleString()}*\n`;
-      });
-    }
-    msg += `\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯\n`;
-    msg += `💰 *TOTAL: Rs.${(order.total || 0).toLocaleString()}*\n`;
-    msg += `⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯\n`;
-    msg += `_Generated by Monarch Pro_`;
+    msg += `_Generated by Sales Monarch Pro_`;
     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
   };
 
@@ -1041,7 +1008,7 @@ export default function App() {
   };
 
   const generateBillHTML = (order) => {
-    const companyName = order.companyName || data.settings.company || "MONARCH";
+    const companyName = order.companyName || data.settings.company || "SALES MONARCH";
     const shopName = order.shopName || "Unknown Shop";
     const date = order.timestamp ? new Date(order.timestamp).toLocaleString() : new Date().toLocaleString();
     const billNumber = order.id ? order.id.slice(-6) : Math.floor(Math.random() * 1000000);
@@ -1102,7 +1069,7 @@ export default function App() {
           </div>
           <div class="footer">
             Thank you for your business!<br>
-            Generated by Monarch Pro
+            Generated by Sales Monarch Pro
           </div>
         </div>
         <script>
@@ -1140,7 +1107,7 @@ export default function App() {
         try {
           await setDoc(doc(db, "settings", userCredential.user.uid), {
             name: email.split('@')[0].toUpperCase(),
-            company: "MONARCH",
+            company: "SALES MONARCH",
             userId: userCredential.user.uid,
             createdAt: Date.now()
           });
@@ -1209,7 +1176,7 @@ export default function App() {
     const orderData = {
       shopName: selectedShop.name,
       shopId: selectedShop.id,
-      companyName: data.settings.company || "MONARCH",
+      companyName: data.settings.company || "SALES MONARCH",
       items,
       total: items.reduce((s, i) => s + i.subtotal, 0),
       userId: user.uid,
@@ -1234,7 +1201,7 @@ export default function App() {
         setShowModal('preview');
         showToast("✅ Order saved!", "success");
       }
-      
+
       setRefreshKey(prev => prev + 1);
     } catch (err) {
       showToast("Error saving order: " + err.message, "error");
@@ -1321,104 +1288,47 @@ export default function App() {
     }
   };
 
-  // ========== REORDER BRANDS ==========
-  const reorderBrands = async (brandId, direction) => {
-    if (!user || isOffline) {
-      showToast("Cannot reorder in offline mode", "error");
+  // ========== DRAG AND DROP BRAND REORDER ==========
+  const startMoveBrand = (brandId, e) => {
+    e.preventDefault();
+    setMovingBrandId(brandId);
+  };
+
+  const moveBrandToPosition = (targetBrandId) => {
+    if (!movingBrandId || movingBrandId === targetBrandId) {
+      setMovingBrandId(null);
       return;
     }
 
-    try {
-      const currentBrands = [...data.brands];
-      const index = currentBrands.findIndex(b => b.id === brandId);
-      if (index === -1) return;
+    const currentBrands = [...data.brands];
+    const sourceIndex = currentBrands.findIndex(b => b.id === movingBrandId);
+    const targetIndex = currentBrands.findIndex(b => b.id === targetBrandId);
 
-      const newIndex = direction === 'up' ? index - 1 : index + 1;
-      if (newIndex < 0 || newIndex >= currentBrands.length) return;
+    if (sourceIndex === -1 || targetIndex === -1) {
+      setMovingBrandId(null);
+      return;
+    }
 
-      const brand1 = currentBrands[index];
-      const brand2 = currentBrands[newIndex];
+    // Reorder sequences
+    const sourceBrand = currentBrands[sourceIndex];
+    const targetBrand = currentBrands[targetIndex];
 
-      await updateDoc(doc(db, 'brands', brand1.id), { sequence: brand2.sequence });
-      await updateDoc(doc(db, 'brands', brand2.id), { sequence: brand1.sequence });
-
+    // Update in Firebase
+    Promise.all([
+      updateDoc(doc(db, 'brands', sourceBrand.id), { sequence: targetBrand.sequence }),
+      updateDoc(doc(db, 'brands', targetBrand.id), { sequence: sourceBrand.sequence })
+    ]).then(() => {
       showToast("✅ Brand reordered!", "success");
       setRefreshKey(prev => prev + 1);
-    } catch (err) {
-      showToast("Error reordering brands: " + err.message, "error");
-    }
+    }).catch(err => {
+      showToast("Error reordering: " + err.message, "error");
+    }).finally(() => {
+      setMovingBrandId(null);
+    });
   };
 
-  // ========== ENHANCED GAME FUNCTIONS ==========
-  const startGame = () => {
-    setGameActive(true);
-    setGameScore(0);
-    setGameTimeLeft(30);
-    setGameLevel(1);
-    setGameCombo(0);
-
-    const newTargets = [];
-    for (let i = 0; i < 5; i++) {
-      newTargets.push({
-        id: i,
-        x: Math.random() * 80 + 10,
-        y: Math.random() * 80 + 10,
-        value: 10,
-        type: Math.random() > 0.3 ? 'coin' : 'bonus'
-      });
-    }
-    setGameTargets(newTargets);
-  };
-
-  useEffect(() => {
-    let timer;
-    if (gameActive && gameTimeLeft > 0) {
-      timer = setTimeout(() => {
-        setGameTimeLeft(prev => prev - 1);
-      }, 1000);
-    } else if (gameTimeLeft === 0) {
-      endGame();
-    }
-    return () => clearTimeout(timer);
-  }, [gameActive, gameTimeLeft]);
-
-  const endGame = () => {
-    setGameActive(false);
-    if (gameScore > gameHighScore) {
-      setGameHighScore(gameScore);
-      localStorage.setItem('monarchGameHighScore', gameScore);
-    }
-    showToast(`🎮 Game Over! Score: ${gameScore}`, "info");
-  };
-
-  const handleTargetClick = (id, type) => {
-    if (!gameActive) return;
-
-    let points = type === 'bonus' ? 20 : 10;
-    setGameScore(prev => prev + points);
-    setGameCombo(prev => prev + 1);
-
-    if (gameSound && navigator.vibrate) {
-      navigator.vibrate(50);
-    }
-
-    setGameTargets(prev => prev.filter(t => t.id !== id));
-
-    // Add new target
-    const newTarget = {
-      id: Date.now() + Math.random(),
-      x: Math.random() * 80 + 10,
-      y: Math.random() * 80 + 10,
-      value: 10,
-      type: Math.random() > 0.3 ? 'coin' : 'bonus'
-    };
-    setGameTargets(prev => [...prev, newTarget]);
-
-    // Level up
-    if (gameScore > 100 * gameLevel) {
-      setGameLevel(prev => prev + 1);
-      showToast(`🎯 Level ${gameLevel + 1}!`, "success");
-    }
+  const cancelMove = () => {
+    setMovingBrandId(null);
   };
 
   // ========== RENDER ==========
@@ -1435,137 +1345,21 @@ export default function App() {
             </div>
             <Heart size={30} className="text-[#d4af37] absolute -top-2 -right-2 animate-bounce" fill="#d4af37" />
           </div>
-          
-          <h1 className="text-[#d4af37] text-4xl font-black tracking-[0.2em] mb-3">MONARCH</h1>
+
+          <h1 className="text-[#d4af37] text-4xl font-black tracking-[0.2em] mb-3">SALES MONARCH</h1>
           <p className="text-white/70 text-lg font-light tracking-wider mb-8">for my soul</p>
-          
+
           <div className="w-64 h-1.5 bg-white/10 rounded-full mx-auto overflow-hidden">
             <div className="h-full bg-gradient-to-r from-[#d4af37] via-[#f5e7a3] to-[#b8860b] animate-progress"></div>
           </div>
-          
+
           <p className="text-white/30 text-xs mt-6 tracking-widest">version 2.0</p>
         </div>
       </div>
     );
   }
 
-  // ========== ENHANCED GAME SCREEN ==========
-  if (showGame) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-black via-[#1a1a1a] to-[#2d2d2d] flex flex-col items-center justify-center p-4 relative overflow-hidden">
-        <div className="absolute inset-0">
-          <div className="absolute top-0 left-0 w-96 h-96 bg-[#d4af37]/5 rounded-full filter blur-3xl"></div>
-          <div className="absolute bottom-0 right-0 w-96 h-96 bg-[#b8860b]/5 rounded-full filter blur-3xl"></div>
-        </div>
-
-        <div className="relative z-10 w-full max-w-md">
-          <div className="flex justify-between items-center mb-4">
-            <div>
-              <h2 className="text-[#d4af37] text-2xl font-black uppercase flex items-center gap-2">
-                <Gamepad2 size={24} />
-                TAP HUNT
-              </h2>
-            </div>
-            <button
-              onClick={() => setGameSound(!gameSound)}
-              className="p-2 bg-white/10 rounded-lg"
-            >
-              {gameSound ? <Volume size={18} className="text-[#d4af37]"/> : <VolumeX size={18} className="text-white/40"/>}
-            </button>
-          </div>
-
-          <div className="grid grid-cols-4 gap-2 mb-4">
-            <div className="bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] p-2 rounded-xl text-center">
-              <p className="text-[#d4af37] text-xs uppercase">Score</p>
-              <p className="text-white text-lg font-black">{gameScore}</p>
-            </div>
-            <div className="bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] p-2 rounded-xl text-center">
-              <p className="text-[#d4af37] text-xs uppercase">Level</p>
-              <p className="text-white text-lg font-black">{gameLevel}</p>
-            </div>
-            <div className="bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] p-2 rounded-xl text-center">
-              <p className="text-[#d4af37] text-xs uppercase">Combo</p>
-              <p className="text-white text-lg font-black">{gameCombo}</p>
-            </div>
-            <div className="bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] p-2 rounded-xl text-center">
-              <p className="text-[#d4af37] text-xs uppercase">Time</p>
-              <p className="text-white text-lg font-black">{gameTimeLeft}s</p>
-            </div>
-          </div>
-
-          <div className="bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] rounded-2xl border border-[#d4af37]/30 p-4 mb-4 relative h-[400px]">
-            {!gameActive ? (
-              <div className="h-full flex flex-col items-center justify-center">
-                <Trophy size={60} className="text-[#d4af37] mb-4 opacity-50" />
-                <p className="text-white/60 text-center mb-2 text-sm">
-                  Tap the coins as fast as you can!<br/>
-                  <span className="text-[#d4af37]">30 seconds challenge</span>
-                </p>
-                <div className="flex gap-8 mb-4">
-                  <div className="text-center">
-                    <p className="text-white/40 text-xs">Best Score</p>
-                    <p className="text-[#d4af37] text-xl font-black">{gameHighScore}</p>
-                  </div>
-                </div>
-                <button
-                  onClick={startGame}
-                  className="px-8 py-3 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-xl uppercase text-sm tracking-widest hover:opacity-90 transition-all"
-                >
-                  START GAME
-                </button>
-              </div>
-            ) : (
-              <div className="relative h-full">
-                {gameTargets.map(target => (
-                  <button
-                    key={target.id}
-                    onClick={() => handleTargetClick(target.id, target.type)}
-                    className={`absolute w-12 h-12 rounded-full flex items-center justify-center animate-pulse shadow-lg transform hover:scale-110 transition-all ${
-                      target.type === 'bonus'
-                        ? 'bg-gradient-to-r from-purple-500 to-pink-500'
-                        : 'bg-gradient-to-r from-[#d4af37] to-[#b8860b]'
-                    }`}
-                    style={{
-                      left: `${target.x}%`,
-                      top: `${target.y}%`,
-                      transform: 'translate(-50%, -50%)'
-                    }}
-                  >
-                    {target.type === 'bonus' ? (
-                      <Gift size={16} className="text-white" />
-                    ) : (
-                      <DollarSign size={16} className="text-black" />
-                    )}
-                  </button>
-                ))}
-                <div className="absolute bottom-0 left-0 right-0">
-                  <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-[#d4af37] to-[#b8860b]"
-                      style={{ width: `${(gameTimeLeft / 30) * 100}%` }}
-                    ></div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <button
-            onClick={() => {
-              setShowGame(false);
-              setGameActive(false);
-              setGameScore(0);
-            }}
-            className="w-full py-2.5 bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] text-white/60 font-black rounded-xl uppercase text-xs border border-white/5 hover:border-white/10 transition-all"
-          >
-            ← BACK TO APP
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // ========== ENHANCED LOGIN SCREEN ==========
+  // ========== LOGIN SCREEN ==========
   if (!user && showForgotPassword) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-black to-[#1a1a1a] flex items-center justify-center p-4">
@@ -1801,11 +1595,20 @@ export default function App() {
                     <button
                       onClick={() => {
                         setViewingShopOrders(null);
-                        shareToWhatsApp(order);
+                        shareToWhatsApp(order, false);
                       }}
                       className="text-[8px] bg-[#d4af37]/20 text-[#d4af37] px-2 py-1 rounded"
                     >
                       Share
+                    </button>
+                    <button
+                      onClick={() => {
+                        setViewingShopOrders(null);
+                        shareToWhatsApp(order, true);
+                      }}
+                      className="text-[8px] bg-green-500/20 text-green-500 px-2 py-1 rounded"
+                    >
+                      <MapPin size={8}/> Loc
                     </button>
                   </div>
                 </div>
@@ -1865,7 +1668,7 @@ export default function App() {
       <header className={`p-3 flex justify-between items-center sticky top-0 z-50 backdrop-blur-xl border-b ${
         isDarkMode ? "bg-black/90 border-[#d4af37]/20" : "bg-white/95 border-[#d4af37]/30"
       }`}>
-        <button onClick={() => setShowGame(true)} className="flex items-center gap-2">
+        <button className="flex items-center gap-2">
           <div className="relative">
             <div className="p-1.5 bg-gradient-to-br from-[#d4af37] to-[#b8860b] rounded-lg text-black">
               <Crown size={18} />
@@ -1874,7 +1677,7 @@ export default function App() {
           </div>
           <div>
             <h1 className="font-black text-sm tracking-tight uppercase text-[#d4af37]">
-              {data.settings.company || "MONARCH"}
+              {data.settings.company || "SALES MONARCH"}
             </h1>
             <p className={`text-[9px] font-bold uppercase ${isDarkMode ? 'text-white/60' : 'text-gray-600'}`}>
               {data.settings.name || "Rep"}
@@ -1938,7 +1741,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* Today's Expenses */}
+            {/* Today's Expenses - ENHANCED */}
             <div className={`p-3 rounded-xl border ${
               isDarkMode ? "bg-[#0f0f0f] border-white/10" : "bg-white border-gray-200"
             }`}>
@@ -1950,21 +1753,37 @@ export default function App() {
                 <span className="text-xs font-black text-red-500">Rs.{stats.expenses.toLocaleString()}</span>
               </div>
 
-              <div className="space-y-1">
+              <div className="space-y-2">
                 {stats.todayExpenses.length > 0 ? (
-                  stats.todayExpenses.slice(0, 3).map((exp, idx) => (
-                    <div key={idx} className="flex justify-between items-center text-[10px]">
-                      <div className="flex items-center gap-1">
-                        {exp.type === 'fuel' && <Fuel size={10} className="text-red-500" />}
-                        {exp.type === 'food' && <Coffee size={10} className="text-amber-500" />}
-                        {exp.type === 'transport' && <Navigation size={10} className="text-blue-500" />}
-                        <span className="capitalize">{exp.type}</span>
-                      </div>
-                      <span className="font-bold">Rs.{exp.amount.toLocaleString()}</span>
+                  <>
+                    {/* Expense Summary by Type */}
+                    <div className="grid grid-cols-2 gap-1 mb-2">
+                      {Object.entries(stats.expensesByType).map(([type, amount]) => (
+                        <div key={type} className="bg-white/5 p-1.5 rounded-lg text-center">
+                          <p className="text-[8px] opacity-60 uppercase">{type}</p>
+                          <p className="text-[10px] font-bold text-red-400">Rs.{amount.toLocaleString()}</p>
+                        </div>
+                      ))}
                     </div>
-                  ))
+
+                    {/* Individual Expenses */}
+                    <div className="space-y-1 max-h-24 overflow-y-auto">
+                      {stats.todayExpenses.map((exp, idx) => (
+                        <div key={idx} className="flex justify-between items-center text-[10px] py-0.5 border-b border-white/5 last:border-0">
+                          <div className="flex items-center gap-1">
+                            {exp.type === 'fuel' && <Fuel size={10} className="text-red-500" />}
+                            {exp.type === 'food' && <Coffee size={10} className="text-amber-500" />}
+                            {exp.type === 'transport' && <Navigation size={10} className="text-blue-500" />}
+                            <span className="capitalize">{exp.type}</span>
+                            {exp.note && <span className="text-[8px] opacity-50">- {exp.note}</span>}
+                          </div>
+                          <span className="font-bold">Rs.{exp.amount.toLocaleString()}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
                 ) : (
-                  <p className="text-[10px] opacity-50 italic text-center py-1">No expenses today</p>
+                  <p className="text-[10px] opacity-50 italic text-center py-2">No expenses today</p>
                 )}
               </div>
             </div>
@@ -1992,7 +1811,7 @@ export default function App() {
                     <div key={idx} className="bg-white/5 p-2 rounded-lg">
                       <div className="flex justify-between items-center mb-1">
                         <span className="text-[9px] font-bold">
-                          {target.specific === 'brand' ? target.brand : 'Total'} 
+                          {target.specific === 'brand' ? target.brand : 'Total'}
                           ({target.type === 'revenue' ? 'Rs' : 'Units'})
                         </span>
                         <div className="flex gap-1">
@@ -2026,7 +1845,7 @@ export default function App() {
               </div>
             )}
 
-            {/* Monthly Performance - Enhanced */}
+            {/* Monthly Performance - ENHANCED */}
             <div className={`p-3 rounded-xl border ${
               isDarkMode ? "bg-[#0f0f0f] border-white/10" : "bg-white border-gray-200"
             }`}>
@@ -2054,51 +1873,42 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Top Brands - Like original code */}
+              {/* Brand-wise Performance */}
               <div className="space-y-2">
-                <p className="text-[9px] font-black uppercase opacity-60 mb-1">Top Brands</p>
-                
-                {/* Top Brand - Highlighted */}
-                {stats.monthly.summary.length > 0 && (
-                  <div className={`p-2 rounded-lg border mb-2 ${
-                    isDarkMode ? 'bg-[#d4af37]/10 border-[#d4af37]/30' : 'bg-[#d4af37]/5 border-[#d4af37]/20'
+                <p className="text-[9px] font-black uppercase opacity-60 mb-1">Brand Performance</p>
+
+                {stats.monthly.summary.slice(0, showAllMonthlyBrands ? undefined : 5).map((brand, idx) => (
+                  <div key={idx} className={`p-2 rounded-lg border mb-1 ${
+                    idx === 0 ? (isDarkMode ? 'bg-[#d4af37]/10 border-[#d4af37]/30' : 'bg-[#d4af37]/5 border-[#d4af37]/20') : ''
                   }`}>
                     <div className="flex justify-between items-center">
-                      <div>
+                      <div className="flex-1">
                         <div className="flex items-center gap-1">
-                          <Trophy size={12} className="text-[#d4af37]" />
-                          <span className="text-xs font-black uppercase">{stats.monthly.summary[0].name}</span>
+                          {idx === 0 && <Trophy size={12} className="text-[#d4af37]" />}
+                          <span className="text-xs font-bold">{brand.name}</span>
                         </div>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-[8px] opacity-60">{stats.monthly.summary[0].units} units</span>
-                          <span className="text-[8px] opacity-60">Avg: Rs.{stats.monthly.summary[0].avgPrice.toFixed(0)}</span>
+                        <div className="flex items-center gap-3 mt-0.5">
+                          <span className="text-[9px] opacity-70">{brand.units} units</span>
+                          <span className="text-[9px] opacity-70">@ Rs.{brand.avgPrice.toFixed(0)}</span>
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="text-sm font-black text-[#d4af37]">Rs.{stats.monthly.summary[0].revenue.toLocaleString()}</p>
+                        <p className="text-sm font-black text-[#d4af37]">Rs.{brand.revenue.toLocaleString()}</p>
                         <p className="text-[8px] opacity-60">
-                          {stats.monthly.totalSales > 0 ? ((stats.monthly.summary[0].revenue / stats.monthly.totalSales) * 100).toFixed(1) : 0}%
+                          {stats.monthly.totalSales > 0 ? ((brand.revenue / stats.monthly.totalSales) * 100).toFixed(1) : 0}%
                         </p>
                       </div>
                     </div>
                   </div>
-                )}
-
-                {/* All Brands */}
-                {showAllMonthlyBrands && stats.monthly.summary.slice(1, 5).map((brand, idx) => (
-                  <div key={idx} className="flex justify-between items-center text-[9px] py-1 border-b border-white/5 last:border-0">
-                    <span>{brand.name} ({brand.units})</span>
-                    <span className="font-bold text-[#d4af37]">Rs.{brand.revenue.toLocaleString()}</span>
-                  </div>
                 ))}
-              </div>
 
-              {stats.monthly.summary.length === 0 && (
-                <p className="text-[10px] opacity-30 italic text-center py-2">No monthly sales data</p>
-              )}
+                {stats.monthly.summary.length === 0 && (
+                  <p className="text-[10px] opacity-30 italic text-center py-2">No monthly sales data</p>
+                )}
+              </div>
             </div>
 
-            {/* Today's Sales - Like original code */}
+            {/* Today's Sales */}
             <div className={`p-3 rounded-xl border ${
               isDarkMode ? "bg-[#0f0f0f] border-white/10" : "bg-white border-gray-200"
             }`}>
@@ -2106,9 +1916,9 @@ export default function App() {
               {stats.daily.summary.length > 0 ? (
                 stats.daily.summary.map((item, idx) => (
                   <div key={idx} className="flex justify-between items-center text-[10px] py-1 border-b border-white/5 last:border-0">
-                    <div className="flex items-center gap-1">
-                      <Hash size={9} className="opacity-50" />
-                      <span>{item.name} x{item.units}</span>
+                    <div className="flex-1">
+                      <span>{item.name}</span>
+                      <span className="text-[9px] opacity-60 ml-1">x{item.units}</span>
                     </div>
                     <span className="font-bold text-[#d4af37]">Rs.{item.revenue.toLocaleString()}</span>
                   </div>
@@ -2196,7 +2006,7 @@ export default function App() {
                         >
                           <MoreVertical size={16} />
                         </button>
-                        
+
                         {showShopMenu === s.id && (
                           <div className="absolute right-0 top-full mt-1 w-32 bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] rounded-lg border border-[#d4af37]/30 shadow-xl z-50">
                             <div className="p-1">
@@ -2292,6 +2102,7 @@ export default function App() {
               />
             </div>
 
+            {/* Regular Orders */}
             {data.orders
               .filter(o => {
                 try {
@@ -2314,8 +2125,11 @@ export default function App() {
                     <button onClick={() => printBill(o)} className="p-1 text-blue-500 hover:bg-blue-500/10 rounded">
                       <Printer size={12}/>
                     </button>
-                    <button onClick={() => shareToWhatsApp(o)} className="p-1 text-[#d4af37] hover:bg-[#d4af37]/10 rounded">
+                    <button onClick={() => shareToWhatsApp(o, false)} className="p-1 text-[#d4af37] hover:bg-[#d4af37]/10 rounded">
                       <Share2 size={12}/>
+                    </button>
+                    <button onClick={() => shareToWhatsApp(o, true)} className="p-1 text-green-500 hover:bg-green-500/10 rounded">
+                      <MapPin size={12}/>
                     </button>
                     <button onClick={() => confirmDelete(o.id, 'order', '')} className="p-1 text-red-500 hover:bg-red-500/10 rounded">
                       <Trash2 size={12}/>
@@ -2335,6 +2149,44 @@ export default function App() {
                 <div className="flex justify-between items-center border-t border-white/10 pt-2">
                   <span className="text-[9px] opacity-60">Total</span>
                   <span className="text-sm font-black text-[#d4af37]">Rs.{o.total.toLocaleString()}</span>
+                </div>
+              </div>
+            ))}
+
+            {/* Manual Orders in History */}
+            {data.orders
+              .filter(o => o.isManual && new Date(o.timestamp).toISOString().split('T')[0] === searchDate)
+              .map((o) => (
+              <div key={o.id} className={`p-3 rounded-xl border border-purple-500/30 ${
+                isDarkMode ? "bg-[#0f0f0f] border-purple-500/30" : "bg-white border-purple-300"
+              }`}>
+                <div className="flex justify-between items-start mb-2">
+                  <div>
+                    <h4 className="text-xs font-black uppercase text-purple-500">{o.shopName}</h4>
+                    <p className="text-[8px] opacity-60">{o.companyName}</p>
+                  </div>
+                  <div className="flex gap-1">
+                    <button onClick={() => printBill(o)} className="p-1 text-blue-500 hover:bg-blue-500/10 rounded">
+                      <Printer size={12}/>
+                    </button>
+                    <button onClick={() => shareToWhatsApp(o, false)} className="p-1 text-purple-500 hover:bg-purple-500/10 rounded">
+                      <Share2 size={12}/>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-1 text-[9px] mb-2">
+                  {o.items?.map((i, k) => (
+                    <div key={k} className="flex justify-between">
+                      <span>{i.name} x{i.qty}</span>
+                      <span className="font-bold">Rs.{i.subtotal.toLocaleString()}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex justify-between items-center border-t border-white/10 pt-2">
+                  <span className="text-[9px] opacity-60">Manual Order Total</span>
+                  <span className="text-sm font-black text-purple-500">Rs.{o.total.toLocaleString()}</span>
                 </div>
               </div>
             ))}
@@ -2386,7 +2238,7 @@ export default function App() {
           </div>
         )}
 
-        {/* SETTINGS TAB - WITH BRAND REORDER */}
+        {/* SETTINGS TAB - WITH DRAG & DROP BRAND REORDER */}
         {activeTab === 'settings' && (
           <div className="space-y-3 pb-16">
             {/* Profile Form */}
@@ -2434,12 +2286,12 @@ export default function App() {
                 <Package size={14}/> BRAND
               </button>
               <button
-                onClick={() => setShowTargetModal(true)}
+                onClick={() => setShowModal('manual')}
                 className={`py-2 rounded-xl border text-[#d4af37] font-black text-[9px] flex flex-col items-center ${
                   isDarkMode ? 'bg-[#1a1a1a] border-white/5' : 'bg-gray-50 border-gray-200'
                 }`}
               >
-                <Target size={14}/> TARGET
+                <ShoppingBag size={14}/> MANUAL
               </button>
             </div>
 
@@ -2458,31 +2310,36 @@ export default function App() {
               ))}
             </div>
 
-            {/* Brands List with Reorder */}
+            {/* Brands List with Drag & Drop Style Reorder */}
             <div>
               <h4 className="text-xs font-black text-[#d4af37] uppercase mb-2">Brands</h4>
               {data.brands.map((b, idx) => (
-                <div key={b.id} className={`p-2 rounded-lg border mb-1 ${
-                  isDarkMode ? 'bg-[#1a1a1a] border-white/5' : 'bg-gray-50 border-gray-200'
-                }`}>
+                <div
+                  key={b.id}
+                  className={`p-2 rounded-lg border mb-1 transition-all ${
+                    movingBrandId === b.id ? 'border-[#d4af37] bg-[#d4af37]/10 scale-105' : ''
+                  } ${
+                    isDarkMode ? 'bg-[#1a1a1a] border-white/5' : 'bg-gray-50 border-gray-200'
+                  }`}
+                >
                   {editingBrand === b.id ? (
                     <div className="space-y-2">
-                      <div className="flex gap-1">
+                      <div className="flex flex-wrap gap-1">
                         <input
                           defaultValue={b.name}
-                          className="flex-1 p-1 text-[9px] bg-black/40 border border-white/10 rounded text-white"
+                          className="flex-1 min-w-[100px] p-1.5 text-[10px] bg-black/40 border border-white/10 rounded text-white"
                           onBlur={(e) => saveBrandEdit(b.id, 'name', e.target.value)}
                           autoFocus
                         />
                         <input
                           defaultValue={b.size}
-                          className="w-16 p-1 text-[9px] bg-black/40 border border-white/10 rounded text-white"
+                          className="w-16 p-1.5 text-[10px] bg-black/40 border border-white/10 rounded text-white"
                           onBlur={(e) => saveBrandEdit(b.id, 'size', e.target.value)}
                         />
                         <input
                           defaultValue={b.price}
                           type="number"
-                          className="w-20 p-1 text-[9px] bg-black/40 border border-white/10 rounded text-white"
+                          className="w-20 p-1.5 text-[10px] bg-black/40 border border-white/10 rounded text-white"
                           onBlur={(e) => saveBrandEdit(b.id, 'price', e.target.value)}
                         />
                       </div>
@@ -2495,48 +2352,52 @@ export default function App() {
                     </div>
                   ) : (
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-1">
                         <div className={`w-6 h-6 rounded flex items-center justify-center font-black text-xs ${
                           isDarkMode ? 'bg-[#d4af37]/20 text-[#d4af37]' : 'bg-[#d4af37]/10 text-[#d4af37]'
                         }`}>
                           {b.sequence || idx + 1}
                         </div>
-                        <div>
-                          <span className="text-xs font-bold">{b.name}</span>
-                          <span className="text-[9px] ml-1 opacity-60">{b.size}</span>
-                          <span className="text-[9px] ml-2 text-[#d4af37]">Rs.{b.price}</span>
+                        <div className="flex-1">
+                          <div className="flex items-center flex-wrap gap-1">
+                            <span className="text-xs font-bold">{b.name}</span>
+                            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-white/10">{b.size}</span>
+                          </div>
+                          <div className="text-[9px] text-[#d4af37] font-bold">Rs.{b.price}</div>
                         </div>
                       </div>
                       <div className="flex gap-1">
                         {!isOffline && (
                           <>
-                            {idx > 0 && (
+                            <button
+                              onClick={() => startMoveBrand(b.id, event)}
+                              className={`p-1.5 rounded-lg ${
+                                movingBrandId ? 'text-green-500 hover:bg-green-500/10' : 'text-white/40 hover:text-white hover:bg-white/10'
+                              }`}
+                              title="Move to position"
+                            >
+                              <ArrowUpDown size={12} />
+                            </button>
+                            {movingBrandId && movingBrandId !== b.id && (
                               <button
-                                onClick={() => reorderBrands(b.id, 'up')}
-                                className="p-1 text-white/40 hover:text-white hover:bg-white/10 rounded"
+                                onClick={() => moveBrandToPosition(b.id)}
+                                className="p-1.5 bg-green-500/20 text-green-500 rounded-lg"
+                                title="Drop here"
                               >
-                                <ArrowUp size={12} />
-                              </button>
-                            )}
-                            {idx < data.brands.length - 1 && (
-                              <button
-                                onClick={() => reorderBrands(b.id, 'down')}
-                                className="p-1 text-white/40 hover:text-white hover:bg-white/10 rounded"
-                              >
-                                <ArrowDown size={12} />
+                                <CheckCircle2 size={12} />
                               </button>
                             )}
                           </>
                         )}
                         <button
                           onClick={() => setEditingBrand(b.id)}
-                          className="p-1 text-blue-500 hover:bg-blue-500/10 rounded"
+                          className="p-1.5 text-blue-500 hover:bg-blue-500/10 rounded-lg"
                         >
                           <Edit2 size={12} />
                         </button>
                         <button
                           onClick={() => confirmDelete(b.id, 'brand', b.name)}
-                          className="p-1 text-red-500 hover:bg-red-500/10 rounded"
+                          className="p-1.5 text-red-500 hover:bg-red-500/10 rounded-lg"
                         >
                           <Trash2 size={12} />
                         </button>
@@ -2545,6 +2406,15 @@ export default function App() {
                   )}
                 </div>
               ))}
+
+              {movingBrandId && (
+                <button
+                  onClick={cancelMove}
+                  className="w-full mt-2 py-1.5 bg-red-500/20 text-red-500 rounded-lg text-[9px] font-black"
+                >
+                  Cancel Move
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -2636,25 +2506,25 @@ export default function App() {
               </button>
             </div>
             <form onSubmit={saveTarget} className="space-y-2">
-              <input 
-                type="month" 
-                value={targetMonth} 
-                onChange={(e) => setTargetMonth(e.target.value)} 
-                className="w-full p-2 rounded-lg border text-xs bg-black/40 border-white/10 text-white" 
-                required 
+              <input
+                type="month"
+                value={targetMonth}
+                onChange={(e) => setTargetMonth(e.target.value)}
+                className="w-full p-2 rounded-lg border text-xs bg-black/40 border-white/10 text-white"
+                required
               />
-              
+
               <div className="grid grid-cols-2 gap-1">
-                <button 
-                  type="button" 
-                  onClick={() => setTargetType('revenue')} 
+                <button
+                  type="button"
+                  onClick={() => setTargetType('revenue')}
                   className={`p-1 rounded-lg border text-[9px] font-bold ${targetType === 'revenue' ? 'bg-[#d4af37] text-black' : 'border-white/10'}`}
                 >
                   REVENUE
                 </button>
-                <button 
-                  type="button" 
-                  onClick={() => setTargetType('units')} 
+                <button
+                  type="button"
+                  onClick={() => setTargetType('units')}
                   className={`p-1 rounded-lg border text-[9px] font-bold ${targetType === 'units' ? 'bg-[#d4af37] text-black' : 'border-white/10'}`}
                 >
                   UNITS
@@ -2662,16 +2532,16 @@ export default function App() {
               </div>
 
               <div className="grid grid-cols-2 gap-1">
-                <button 
-                  type="button" 
-                  onClick={() => setTargetSpecific('total')} 
+                <button
+                  type="button"
+                  onClick={() => setTargetSpecific('total')}
                   className={`p-1 rounded-lg border text-[8px] font-bold ${targetSpecific === 'total' ? 'bg-[#d4af37] text-black' : 'border-white/10'}`}
                 >
                   TOTAL
                 </button>
-                <button 
-                  type="button" 
-                  onClick={() => setTargetSpecific('brand')} 
+                <button
+                  type="button"
+                  onClick={() => setTargetSpecific('brand')}
                   className={`p-1 rounded-lg border text-[8px] font-bold ${targetSpecific === 'brand' ? 'bg-[#d4af37] text-black' : 'border-white/10'}`}
                 >
                   BRAND
@@ -2679,10 +2549,10 @@ export default function App() {
               </div>
 
               {targetSpecific === 'brand' && (
-                <select 
-                  value={targetBrand} 
-                  onChange={(e) => setTargetBrand(e.target.value)} 
-                  className="w-full p-2 rounded-lg border text-xs bg-black/40 border-white/10 text-white" 
+                <select
+                  value={targetBrand}
+                  onChange={(e) => setTargetBrand(e.target.value)}
+                  className="w-full p-2 rounded-lg border text-xs bg-black/40 border-white/10 text-white"
                   required
                 >
                   <option value="">SELECT BRAND</option>
@@ -2692,17 +2562,17 @@ export default function App() {
                 </select>
               )}
 
-              <input 
-                type="number" 
-                value={targetAmount} 
-                onChange={(e) => setTargetAmount(e.target.value)} 
-                placeholder="AMOUNT" 
-                className="w-full p-2 rounded-lg border text-xs bg-black/40 border-white/10 text-white" 
-                required 
+              <input
+                type="number"
+                value={targetAmount}
+                onChange={(e) => setTargetAmount(e.target.value)}
+                placeholder="AMOUNT"
+                className="w-full p-2 rounded-lg border text-xs bg-black/40 border-white/10 text-white"
+                required
               />
-              
-              <button 
-                type="submit" 
+
+              <button
+                type="submit"
                 className="w-full py-2 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg text-xs"
               >
                 {editingTarget ? 'UPDATE' : 'SAVE'}
@@ -2732,14 +2602,14 @@ export default function App() {
             />
 
             <div className="flex gap-1 mb-2">
-              <button 
-                onClick={() => setTotalCalculation({...totalCalculation, usePercentage: false})} 
+              <button
+                onClick={() => setTotalCalculation({...totalCalculation, usePercentage: false})}
                 className={`flex-1 p-1 rounded-lg text-[9px] font-bold ${!totalCalculation.usePercentage ? 'bg-[#d4af37] text-black' : 'bg-white/10'}`}
               >
                 Rs.
               </button>
-              <button 
-                onClick={() => setTotalCalculation({...totalCalculation, usePercentage: true})} 
+              <button
+                onClick={() => setTotalCalculation({...totalCalculation, usePercentage: true})}
                 className={`flex-1 p-1 rounded-lg text-[9px] font-bold ${totalCalculation.usePercentage ? 'bg-[#d4af37] text-black' : 'bg-white/10'}`}
               >
                 %
@@ -2785,14 +2655,14 @@ export default function App() {
               </p>
             </div>
 
-            <button 
-              onClick={calculateTotal} 
+            <button
+              onClick={calculateTotal}
               className="w-full py-2 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg text-xs mb-1"
             >
               CALCULATE
             </button>
-            <button 
-              onClick={resetCalculator} 
+            <button
+              onClick={resetCalculator}
               className="w-full py-1.5 bg-[#1a1a1a] text-white/60 font-black rounded-lg text-[10px]"
             >
               RESET
@@ -2820,21 +2690,21 @@ export default function App() {
                     <p className="text-[10px] text-[#d4af37]">Rs.{b.price}</p>
                   </div>
                   <div className="flex items-center gap-1">
-                    <button 
-                      onClick={() => setCart({...cart, [b.id]: Math.max(0, (Number(cart[b.id])||0)-1)})} 
+                    <button
+                      onClick={() => setCart({...cart, [b.id]: Math.max(0, (Number(cart[b.id])||0)-1)})}
                       className="w-6 h-6 bg-white/5 rounded-lg text-xs"
                     >
                       -
                     </button>
-                    <input 
-                      type="number" 
-                      value={cart[b.id] || ''} 
-                      onChange={(e) => setCart({...cart, [b.id]: e.target.value})} 
-                      className="w-8 bg-transparent text-center text-[#d4af37] text-xs outline-none" 
+                    <input
+                      type="number"
+                      value={cart[b.id] || ''}
+                      onChange={(e) => setCart({...cart, [b.id]: e.target.value})}
+                      className="w-8 bg-transparent text-center text-[#d4af37] text-xs outline-none"
                       placeholder="0"
                     />
-                    <button 
-                      onClick={() => setCart({...cart, [b.id]: (Number(cart[b.id])||0) + 1})} 
+                    <button
+                      onClick={() => setCart({...cart, [b.id]: (Number(cart[b.id])||0) + 1})}
                       className="w-6 h-6 bg-white/5 rounded-lg text-xs"
                     >
                       +
@@ -2849,8 +2719,8 @@ export default function App() {
                 <span className="text-xs">Total:</span>
                 <span className="text-base font-black text-[#d4af37]">Rs.{calculateCartTotal().toLocaleString()}</span>
               </div>
-              <button 
-                onClick={handleCreateOrder} 
+              <button
+                onClick={handleCreateOrder}
                 className="w-full py-2 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg text-xs"
               >
                 CONFIRM ORDER
@@ -2866,11 +2736,11 @@ export default function App() {
           <div className="min-h-screen p-3 max-w-lg mx-auto pb-28">
             <div className="flex justify-between items-center mb-3 sticky top-0 bg-black py-2 border-b border-white/10">
               <h2 className="text-sm font-black text-white">MANUAL ORDER</h2>
-              <button 
-                onClick={() => { 
-                  setShowModal(null); 
-                  setManualItems([{ name: '', qty: 1, price: 0, subtotal: 0 }]); 
-                }} 
+              <button
+                onClick={() => {
+                  setShowModal(null);
+                  setManualItems([{ name: '', qty: 1, price: 0, subtotal: 0 }]);
+                }}
                 className="p-1 bg-white/10 rounded-full"
               >
                 <X size={16}/>
@@ -2964,7 +2834,8 @@ export default function App() {
 
             <div className="space-y-1">
               <button onClick={() => { printBill(lastOrder); setShowModal(null); }} className="w-full py-1.5 bg-blue-500 text-white font-black rounded-lg text-[10px]">PRINT</button>
-              <button onClick={() => { shareToWhatsApp(lastOrder); setShowModal(null); }} className="w-full py-1.5 bg-[#d4af37] text-black font-black rounded-lg text-[10px]">SHARE</button>
+              <button onClick={() => { shareToWhatsApp(lastOrder, false); setShowModal(null); }} className="w-full py-1.5 bg-[#d4af37] text-black font-black rounded-lg text-[10px]">SHARE</button>
+              <button onClick={() => { shareToWhatsApp(lastOrder, true); setShowModal(null); }} className="w-full py-1.5 bg-green-500 text-white font-black rounded-lg text-[10px]">SHARE + LOC</button>
               <button onClick={() => { setShowModal(null); setLastOrder(null); }} className="w-full py-1.5 bg-[#1a1a1a] text-white/60 font-black rounded-lg text-[10px]">CLOSE</button>
             </div>
           </div>
@@ -3187,8 +3058,8 @@ export default function App() {
               </div>
             </div>
 
-            <button 
-              onClick={() => { handlePrint(printOrder); setShowPrintPreview(false); }} 
+            <button
+              onClick={() => { handlePrint(printOrder); setShowPrintPreview(false); }}
               className="w-full py-2 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg text-xs"
             >
               PRINT
