@@ -1901,13 +1901,13 @@ export default function App() {
             <div className={`p-4 rounded-xl border shadow-lg ${
               isDarkMode 
                 ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/10" 
-                : "bg-white border-gray-200"
+                : "bg-black text-white border-gray-800"
             }`}>
               <div className="flex items-center gap-2 mb-3">
                 <div className={`p-1.5 rounded-lg border ${
                   isDarkMode 
                     ? "bg-[#d4af37]/10 border-[#d4af37]/20" 
-                    : "bg-[#d4af37]/10 border-[#d4af37]/20"
+                    : "bg-[#d4af37]/20 border-[#d4af37]/30"
                 }`}>
                   <TrendingUp size={14} className="text-[#d4af37]" />
                 </div>
@@ -1917,13 +1917,13 @@ export default function App() {
               {stats.daily.summary.length > 0 ? (
                 <div className="space-y-2">
                   {stats.daily.summary.map((item, idx) => (
-                    <div key={idx} className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-white/10 last:border-0">
+                    <div key={idx} className="flex justify-between items-center py-2 border-b border-gray-700 last:border-0">
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-gray-900 dark:text-white">{item.name}</span>
-                          <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-white border border-gray-200 dark:border-white/20 font-medium">x{item.units}</span>
+                          <span className="text-xs font-bold text-white">{item.name}</span>
+                          <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-gray-800 text-gray-300 border border-gray-700 font-medium">x{item.units}</span>
                         </div>
-                        <div className="text-[9px] text-gray-600 dark:text-white/60 mt-0.5 font-medium">
+                        <div className="text-[9px] text-gray-400 mt-0.5 font-medium">
                           @ Rs.{item.avgPrice.toFixed(0)} per unit
                         </div>
                       </div>
@@ -1935,8 +1935,8 @@ export default function App() {
                 </div>
               ) : (
                 <div className="text-center py-6">
-                  <ShoppingBag size={30} className="mx-auto text-gray-300 dark:text-white/20 mb-2" />
-                  <p className="text-xs text-gray-500 dark:text-white/30 italic font-medium">No sales today</p>
+                  <ShoppingBag size={30} className="mx-auto text-gray-600 mb-2" />
+                  <p className="text-xs text-gray-400 italic font-medium">No sales today</p>
                 </div>
               )}
             </div>
@@ -1945,23 +1945,23 @@ export default function App() {
             <div className={`p-4 rounded-xl border shadow-lg ${
               isDarkMode 
                 ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/10" 
-                : "bg-white border-gray-200"
+                : "bg-black text-white border-gray-800"
             }`}>
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <div className={`p-1.5 rounded-lg border ${
                     isDarkMode 
                       ? "bg-red-500/10 border-red-500/20" 
-                      : "bg-red-50 border-red-200"
+                      : "bg-red-500/20 border-red-500/30"
                   }`}>
-                    <Wallet size={14} className={isDarkMode ? "text-red-500" : "text-red-600"} />
+                    <Wallet size={14} className={isDarkMode ? "text-red-500" : "text-red-400"} />
                   </div>
                   <h3 className={`text-sm font-black uppercase tracking-wider ${
-                    isDarkMode ? "text-red-500" : "text-red-600"
+                    isDarkMode ? "text-red-500" : "text-red-400"
                   }`}>Today's Expenses</h3>
                 </div>
                 <span className={`text-base font-black ${
-                  isDarkMode ? "text-red-500" : "text-red-600"
+                  isDarkMode ? "text-red-500" : "text-red-400"
                 }`}>Rs.{stats.expenses.toLocaleString()}</span>
               </div>
 
@@ -1971,10 +1971,10 @@ export default function App() {
                     {/* Expense Summary by Type */}
                     <div className="grid grid-cols-2 gap-2">
                       {Object.entries(stats.expensesByType).map(([type, amount]) => (
-                        <div key={type} className="bg-gray-50 dark:bg-white/5 p-2 rounded-lg text-center border border-gray-200 dark:border-white/10">
-                          <p className="text-[8px] text-gray-600 dark:text-white/60 uppercase font-bold mb-1">{type}</p>
+                        <div key={type} className="bg-gray-900 p-2 rounded-lg text-center border border-gray-800">
+                          <p className="text-[8px] text-gray-400 uppercase font-bold mb-1">{type}</p>
                           <p className={`text-xs font-bold ${
-                            isDarkMode ? "text-red-400" : "text-red-600"
+                            isDarkMode ? "text-red-400" : "text-red-400"
                           }`}>Rs.{amount.toLocaleString()}</p>
                         </div>
                       ))}
@@ -1983,16 +1983,16 @@ export default function App() {
                     {/* Individual Expenses */}
                     <div className="space-y-1 max-h-32 overflow-y-auto">
                       {stats.todayExpenses.map((exp, idx) => (
-                        <div key={idx} className="flex justify-between items-center py-1.5 border-b border-gray-200 dark:border-white/5 last:border-0">
+                        <div key={idx} className="flex justify-between items-center py-1.5 border-b border-gray-800 last:border-0">
                           <div className="flex items-center gap-2">
-                            {exp.type === 'fuel' && <Fuel size={10} className={isDarkMode ? "text-red-500" : "text-red-600"} />}
-                            {exp.type === 'food' && <Coffee size={10} className={isDarkMode ? "text-[#d4af37]" : "text-[#d4af37]"} />}
-                            {exp.type === 'transport' && <Navigation size={10} className={isDarkMode ? "text-blue-500" : "text-blue-600"} />}
-                            <span className="text-[10px] font-bold text-gray-700 dark:text-white capitalize">{exp.type}</span>
-                            {exp.note && <span className="text-[8px] text-gray-500 dark:text-white/50 font-medium">- {exp.note}</span>}
+                            {exp.type === 'fuel' && <Fuel size={10} className={isDarkMode ? "text-red-500" : "text-red-400"} />}
+                            {exp.type === 'food' && <Coffee size={10} className="text-[#d4af37]"} />}
+                            {exp.type === 'transport' && <Navigation size={10} className={isDarkMode ? "text-blue-500" : "text-blue-400"} />}
+                            <span className="text-[10px] font-bold text-white capitalize">{exp.type}</span>
+                            {exp.note && <span className="text-[8px] text-gray-400 font-medium">- {exp.note}</span>}
                           </div>
                           <div className="flex items-center gap-2">
-                            <span className="text-xs font-bold text-gray-900 dark:text-white">Rs.{exp.amount.toLocaleString()}</span>
+                            <span className="text-xs font-bold text-white">Rs.{exp.amount.toLocaleString()}</span>
                             <button
                               onClick={() => confirmDelete(exp.id, 'expense', `${exp.type} expense`)}
                               className="text-red-500 hover:text-red-600 p-0.5"
@@ -2006,8 +2006,8 @@ export default function App() {
                   </>
                 ) : (
                   <div className="text-center py-6">
-                    <CreditCard size={30} className="mx-auto text-gray-300 dark:text-white/20 mb-2" />
-                    <p className="text-xs text-gray-500 dark:text-white/30 italic font-medium">No expenses today</p>
+                    <CreditCard size={30} className="mx-auto text-gray-600 mb-2" />
+                    <p className="text-xs text-gray-400 italic font-medium">No expenses today</p>
                   </div>
                 )}
               </div>
@@ -2018,14 +2018,14 @@ export default function App() {
               <div className={`p-4 rounded-xl border shadow-lg ${
                 isDarkMode 
                   ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/30" 
-                  : "bg-white border-[#d4af37]/30"
+                  : "bg-black border-[#d4af37]/30"
               }`}>
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
                     <div className={`p-1.5 rounded-lg border ${
                       isDarkMode 
                         ? "bg-[#d4af37]/10 border-[#d4af37]/20" 
-                        : "bg-[#d4af37]/10 border-[#d4af37]/20"
+                        : "bg-[#d4af37]/20 border-[#d4af37]/30"
                     }`}>
                       <Target size={14} className="text-[#d4af37]" />
                     </div>
@@ -2036,7 +2036,7 @@ export default function App() {
                     className={`px-2 py-1 rounded-lg text-[8px] font-black transition-all ${
                       isDarkMode 
                         ? "bg-[#d4af37]/20 text-[#d4af37] hover:bg-[#d4af37]/30" 
-                        : "bg-[#d4af37]/10 text-[#d4af37] hover:bg-[#d4af37]/20"
+                        : "bg-[#d4af37]/20 text-[#d4af37] hover:bg-[#d4af37]/30"
                     }`}
                   >
                     + ADD
@@ -2045,32 +2045,32 @@ export default function App() {
 
                 <div className="space-y-3 max-h-40 overflow-y-auto">
                   {stats.targets.map((target, idx) => (
-                    <div key={idx} className="bg-gray-50 dark:bg-white/5 p-2 rounded-lg border border-gray-200 dark:border-white/10">
+                    <div key={idx} className="bg-gray-900 p-2 rounded-lg border border-gray-800">
                       <div className="flex justify-between items-center mb-1">
-                        <span className="text-[9px] font-bold text-gray-900 dark:text-white">
+                        <span className="text-[9px] font-bold text-white">
                           {target.specific === 'brand' ? target.brand : 'Total'}
                           ({target.type === 'revenue' ? 'Rs' : 'Units'})
                         </span>
                         <div className="flex gap-1">
                           <button
                             onClick={() => editTarget(target)}
-                            className="p-0.5 text-blue-600 dark:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded"
+                            className="p-0.5 text-blue-500 hover:bg-blue-500/10 rounded"
                           >
                             <Edit2 size={8} />
                           </button>
                           <button
                             onClick={() => confirmDelete(target.id, 'target', target.brand || 'Target')}
-                            className="p-0.5 text-red-600 dark:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded"
+                            className="p-0.5 text-red-500 hover:bg-red-500/10 rounded"
                           >
                             <Trash2 size={8} />
                           </button>
                         </div>
                       </div>
                       <div className="flex justify-between items-center text-[8px] mb-1">
-                        <span className="text-gray-600 dark:text-white/60 font-medium">Progress:</span>
-                        <span className="font-bold text-gray-900 dark:text-white">{target.achieved.toLocaleString()} / {target.amount.toLocaleString()}</span>
+                        <span className="text-gray-400 font-medium">Progress:</span>
+                        <span className="font-bold text-white">{target.achieved.toLocaleString()} / {target.amount.toLocaleString()}</span>
                       </div>
-                      <div className="w-full h-1.5 bg-gray-200 dark:bg-white/10 rounded-full overflow-hidden">
+                      <div className="w-full h-1.5 bg-gray-800 rounded-full overflow-hidden">
                         <div
                           className="h-full bg-gradient-to-r from-[#d4af37] to-[#b8860b]"
                           style={{ width: `${Math.min(target.progress, 100)}%` }}
@@ -2086,14 +2086,14 @@ export default function App() {
             <div className={`p-4 rounded-xl border shadow-lg ${
               isDarkMode 
                 ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/10" 
-                : "bg-white border-gray-200"
+                : "bg-black text-white border-gray-800"
             }`}>
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <div className={`p-1.5 rounded-lg border ${
                     isDarkMode 
                       ? "bg-[#d4af37]/10 border-[#d4af37]/20" 
-                      : "bg-[#d4af37]/10 border-[#d4af37]/20"
+                      : "bg-[#d4af37]/20 border-[#d4af37]/30"
                   }`}>
                     <BarChart3 size={14} className="text-[#d4af37]" />
                   </div>
@@ -2104,7 +2104,7 @@ export default function App() {
                   className={`px-2 py-1 rounded-lg text-[8px] font-black transition-all ${
                     isDarkMode 
                       ? "bg-white/10 text-white hover:bg-white/20" 
-                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      : "bg-gray-800 text-white hover:bg-gray-700"
                   }`}
                 >
                   {showAllMonthlyBrands ? 'Show Less' : 'Show All'}
@@ -2112,42 +2112,42 @@ export default function App() {
               </div>
 
               <div className="grid grid-cols-2 gap-2 mb-3">
-                <div className="bg-gray-50 dark:bg-white/5 p-2 rounded-lg border border-gray-200 dark:border-white/10">
-                  <p className="text-[8px] text-gray-600 dark:text-white/60 font-medium">Total Sales</p>
+                <div className="bg-gray-900 p-2 rounded-lg border border-gray-800">
+                  <p className="text-[8px] text-gray-400 font-medium">Total Sales</p>
                   <p className="text-base font-black text-[#d4af37]">Rs.{stats.monthlySales.toLocaleString()}</p>
                 </div>
-                <div className="bg-gray-50 dark:bg-white/5 p-2 rounded-lg border border-gray-200 dark:border-white/10">
-                  <p className="text-[8px] text-gray-600 dark:text-white/60 font-medium">Total Units</p>
+                <div className="bg-gray-900 p-2 rounded-lg border border-gray-800">
+                  <p className="text-[8px] text-gray-400 font-medium">Total Units</p>
                   <p className="text-base font-black text-[#d4af37]">{stats.monthly.totalUnits}</p>
                 </div>
               </div>
 
               {/* Brand-wise Performance */}
               <div className="space-y-2">
-                <p className="text-[9px] font-black text-gray-700 dark:text-white/60 uppercase mb-2">Brand Performance</p>
+                <p className="text-[9px] font-black text-gray-400 uppercase mb-2">Brand Performance</p>
 
                 {stats.monthly.summary.slice(0, showAllMonthlyBrands ? undefined : 5).map((brand, idx) => (
                   <div key={idx} className={`p-3 rounded-lg border ${
                     idx === 0
                       ? (isDarkMode 
                           ? 'bg-[#d4af37]/10 border-[#d4af37]/40' 
-                          : 'bg-[#d4af37]/10 border-[#d4af37]/30')
-                      : 'bg-gray-50 dark:bg-white/5 border-gray-200 dark:border-white/10'
+                          : 'bg-[#d4af37]/10 border-[#d4af37]/40')
+                      : 'bg-gray-900 border-gray-800'
                   }`}>
                     <div className="flex justify-between items-center">
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
                           {idx === 0 && <Trophy size={12} className="text-[#d4af37]" />}
-                          <span className="text-xs font-bold text-gray-900 dark:text-white">{brand.name}</span>
+                          <span className="text-xs font-bold text-white">{brand.name}</span>
                         </div>
                         <div className="flex items-center gap-3 mt-1">
-                          <span className="text-[8px] text-gray-600 dark:text-white/70 font-medium border-r border-gray-300 dark:border-white/20 pr-2">{brand.units} units</span>
-                          <span className="text-[8px] text-gray-600 dark:text-white/70 font-medium">@ Rs.{brand.avgPrice.toFixed(0)}</span>
+                          <span className="text-[8px] text-gray-400 font-medium border-r border-gray-700 pr-2">{brand.units} units</span>
+                          <span className="text-[8px] text-gray-400 font-medium">@ Rs.{brand.avgPrice.toFixed(0)}</span>
                         </div>
                       </div>
-                      <div className="text-right border-l border-gray-300 dark:border-white/10 pl-3">
+                      <div className="text-right border-l border-gray-700 pl-3">
                         <p className="text-sm font-black text-[#d4af37]">Rs.{brand.revenue.toLocaleString()}</p>
-                        <p className="text-[7px] text-gray-600 dark:text-white/60 mt-0.5 font-medium">
+                        <p className="text-[7px] text-gray-400 mt-0.5 font-medium">
                           {stats.monthly.totalSales > 0 ? ((brand.revenue / stats.monthly.totalSales) * 100).toFixed(1) : 0}%
                         </p>
                       </div>
@@ -2157,8 +2157,8 @@ export default function App() {
 
                 {stats.monthly.summary.length === 0 && (
                   <div className="text-center py-6">
-                    <Package2 size={30} className="mx-auto text-gray-300 dark:text-white/20 mb-2" />
-                    <p className="text-xs text-gray-500 dark:text-white/30 italic font-medium">No monthly sales data</p>
+                    <Package2 size={30} className="mx-auto text-gray-600 mb-2" />
+                    <p className="text-xs text-gray-400 italic font-medium">No monthly sales data</p>
                   </div>
                 )}
               </div>
@@ -2174,14 +2174,14 @@ export default function App() {
               <div className={`flex-1 p-2 rounded-xl border flex items-center gap-2 ${
                 isDarkMode 
                   ? "bg-[#0f0f0f] border-white/10" 
-                  : "bg-white border-gray-200"
+                  : "bg-black border-gray-800"
               }`}>
-                <Search size={14} className={isDarkMode ? "text-white/30" : "text-gray-400"}/>
+                <Search size={14} className={isDarkMode ? "text-white/30" : "text-gray-500"}/>
                 <input
                   value={shopSearch}
                   onChange={(e) => setShopSearch(e.target.value)}
                   placeholder="SEARCH SHOPS..."
-                  className="bg-transparent text-[10px] font-bold uppercase outline-none w-full text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/30"
+                  className="bg-transparent text-[10px] font-bold uppercase outline-none w-full text-white placeholder-gray-500"
                 />
               </div>
               <button
@@ -2189,7 +2189,7 @@ export default function App() {
                 className={`px-3 py-2 rounded-xl border font-black text-xs flex items-center gap-1 transition-all ${
                   isDarkMode 
                     ? 'bg-[#1a1a1a] border-white/10 text-[#d4af37] hover:bg-[#d4af37]/10' 
-                    : 'bg-gray-100 border-gray-200 text-[#d4af37] hover:bg-[#d4af37]/10'
+                    : 'bg-black border-gray-800 text-[#d4af37] hover:bg-[#d4af37]/10'
                 }`}
               >
                 <Plus size={14} /> ADD
@@ -2205,7 +2205,7 @@ export default function App() {
                     ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black border-[#d4af37]'
                     : isDarkMode 
                       ? 'bg-[#1a1a1a] border-white/10 text-white/60 hover:bg-white/10' 
-                      : 'bg-gray-100 border-gray-200 text-gray-600 hover:bg-gray-200'
+                      : 'bg-gray-900 border-gray-800 text-gray-400 hover:bg-gray-800'
                 }`}>
                 ALL
               </button>
@@ -2218,7 +2218,7 @@ export default function App() {
                       ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black border-[#d4af37]'
                       : isDarkMode 
                         ? 'bg-[#1a1a1a] border-white/10 text-white/60 hover:bg-white/10' 
-                        : 'bg-gray-100 border-gray-200 text-gray-600 hover:bg-gray-200'
+                        : 'bg-gray-900 border-gray-800 text-gray-400 hover:bg-gray-800'
                   }`}>
                   {r.name}
                 </button>
@@ -2237,42 +2237,42 @@ export default function App() {
                     className={`p-3 rounded-xl border ${
                       isDarkMode 
                         ? "bg-[#0f0f0f] border-white/5" 
-                        : "bg-white border-gray-200"
+                        : "bg-black border-gray-800"
                     }`}
                   >
                     <div className="flex justify-between items-start mb-2">
                       <div>
-                        <h4 className="text-sm font-black uppercase text-gray-900 dark:text-white">{s.name}</h4>
-                        <p className="text-[10px] text-gray-600 dark:text-white/60 mt-0.5 font-medium">{s.area}</p>
+                        <h4 className="text-sm font-black uppercase text-white">{s.name}</h4>
+                        <p className="text-[10px] text-gray-400 mt-0.5 font-medium">{s.area}</p>
                       </div>
                       <div className="relative">
                         <button
                           onClick={() => setShowShopMenu(showShopMenu === s.id ? null : s.id)}
-                          className="p-1.5 text-gray-600 dark:text-white/60 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-all"
+                          className="p-1.5 text-gray-500 hover:text-white hover:bg-gray-800 rounded-lg transition-all"
                         >
                           <MoreVertical size={16} />
                         </button>
 
                         {showShopMenu === s.id && (
-                          <div className="absolute right-0 top-full mt-1 w-32 bg-white dark:bg-gradient-to-br dark:from-[#1a1a1a] dark:to-[#000000] rounded-lg border border-[#d4af37]/30 shadow-xl z-50">
+                          <div className="absolute right-0 top-full mt-1 w-32 bg-black border border-[#d4af37]/30 rounded-lg shadow-xl z-50">
                             <div className="p-1">
                               <button
                                 onClick={() => {
                                   setShowShopMenu(null);
                                   viewShopOrders(s);
                                 }}
-                                className="w-full px-3 py-1.5 text-left text-[9px] font-black uppercase text-gray-700 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 rounded flex items-center gap-1 transition-all"
+                                className="w-full px-3 py-1.5 text-left text-[9px] font-black uppercase text-white hover:bg-gray-800 rounded flex items-center gap-1 transition-all"
                               >
-                                <History size={10} className="text-blue-600 dark:text-blue-500"/> Orders
+                                <History size={10} className="text-blue-500"/> Orders
                               </button>
                               <button
                                 onClick={() => {
                                   setShowShopMenu(null);
                                   viewShopProfile(s);
                                 }}
-                                className="w-full px-3 py-1.5 text-left text-[9px] font-black uppercase text-gray-700 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 rounded flex items-center gap-1 transition-all"
+                                className="w-full px-3 py-1.5 text-left text-[9px] font-black uppercase text-white hover:bg-gray-800 rounded flex items-center gap-1 transition-all"
                               >
-                                <Eye size={10} className="text-green-600 dark:text-green-500"/> Profile
+                                <Eye size={10} className="text-green-500"/> Profile
                               </button>
                               {shopProfile ? (
                                 <button
@@ -2280,9 +2280,9 @@ export default function App() {
                                     setShowShopMenu(null);
                                     editShopProfile(shopProfile);
                                   }}
-                                  className="w-full px-3 py-1.5 text-left text-[9px] font-black uppercase text-gray-700 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 rounded flex items-center gap-1 transition-all"
+                                  className="w-full px-3 py-1.5 text-left text-[9px] font-black uppercase text-white hover:bg-gray-800 rounded flex items-center gap-1 transition-all"
                                 >
-                                  <Edit2 size={10} className="text-blue-600 dark:text-blue-500"/> Edit
+                                  <Edit2 size={10} className="text-blue-500"/> Edit
                                 </button>
                               ) : (
                                 <button
@@ -2291,7 +2291,7 @@ export default function App() {
                                     setSelectedShop(s);
                                     setShowModal('shopProfile');
                                   }}
-                                  className="w-full px-3 py-1.5 text-left text-[9px] font-black uppercase text-gray-700 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 rounded flex items-center gap-1 transition-all"
+                                  className="w-full px-3 py-1.5 text-left text-[9px] font-black uppercase text-white hover:bg-gray-800 rounded flex items-center gap-1 transition-all"
                                 >
                                   <Plus size={10} className="text-[#d4af37]"/> Add Profile
                                 </button>
@@ -2301,7 +2301,7 @@ export default function App() {
                                   setShowShopMenu(null);
                                   confirmDelete(s.id, 'shop', s.name);
                                 }}
-                                className="w-full px-3 py-1.5 text-left text-[9px] font-black uppercase text-red-600 dark:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded flex items-center gap-1 transition-all"
+                                className="w-full px-3 py-1.5 text-left text-[9px] font-black uppercase text-red-500 hover:bg-red-500/10 rounded flex items-center gap-1 transition-all"
                               >
                                 <Trash2 size={10}/> Delete
                               </button>
@@ -2312,8 +2312,8 @@ export default function App() {
                     </div>
 
                     <div className="flex items-center gap-3 text-[9px] mb-2">
-                      <span className="text-gray-700 dark:text-white/80 font-medium">Total: <span className="font-black text-[#d4af37]">Rs.{shopStats.totalSales.toLocaleString()}</span></span>
-                      <span className="text-gray-700 dark:text-white/80 font-medium">Orders: <span className="font-black text-[#d4af37]">{shopStats.orderCount}</span></span>
+                      <span className="text-gray-400 font-medium">Total: <span className="font-black text-[#d4af37]">Rs.{shopStats.totalSales.toLocaleString()}</span></span>
+                      <span className="text-gray-400 font-medium">Orders: <span className="font-black text-[#d4af37]">{shopStats.orderCount}</span></span>
                     </div>
 
                     {/* Compact GOLD BILL BUTTON */}
@@ -2339,12 +2339,12 @@ export default function App() {
             <div className={`p-2 rounded-xl border flex items-center gap-2 ${
               isDarkMode 
                 ? "bg-[#0f0f0f] border-white/10" 
-                : "bg-white border-gray-200"
+                : "bg-black border-gray-800"
             }`}>
               <Calendar size={14} className="text-[#d4af37]"/>
               <input
                 type="date"
-                className="bg-transparent text-[10px] font-bold uppercase outline-none w-full text-gray-900 dark:text-white"
+                className="bg-transparent text-[10px] font-bold uppercase outline-none w-full text-white"
                 onChange={(e) => setSearchDate(e.target.value)}
                 value={searchDate}
               />
@@ -2364,24 +2364,24 @@ export default function App() {
               <div key={o.id} className={`p-3 rounded-xl border ${
                 isDarkMode 
                   ? "bg-[#0f0f0f] border-white/5" 
-                  : "bg-white border-gray-200"
+                  : "bg-black border-gray-800"
               }`}>
                 <div className="flex justify-between items-start mb-2">
                   <div>
                     <h4 className="text-xs font-black uppercase text-[#d4af37]">{o.shopName}</h4>
-                    <p className="text-[8px] text-gray-600 dark:text-white/60 font-medium">{o.companyName}</p>
+                    <p className="text-[8px] text-gray-400 font-medium">{o.companyName}</p>
                   </div>
                   <div className="flex gap-1">
-                    <button onClick={() => printBill(o)} className="p-1 text-blue-600 dark:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded transition-all">
+                    <button onClick={() => printBill(o)} className="p-1 text-blue-500 hover:bg-blue-500/10 rounded transition-all">
                       <Printer size={12}/>
                     </button>
                     <button onClick={() => shareToWhatsApp(o, false)} className="p-1 text-[#d4af37] hover:bg-[#d4af37]/10 rounded transition-all">
                       <Share2 size={12}/>
                     </button>
-                    <button onClick={() => shareToWhatsApp(o, true)} className="p-1 text-green-600 dark:text-green-500 hover:bg-green-50 dark:hover:bg-green-500/10 rounded transition-all">
+                    <button onClick={() => shareToWhatsApp(o, true)} className="p-1 text-green-500 hover:bg-green-500/10 rounded transition-all">
                       <MapPin size={12}/>
                     </button>
-                    <button onClick={() => confirmDelete(o.id, 'order', '')} className="p-1 text-red-600 dark:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded transition-all">
+                    <button onClick={() => confirmDelete(o.id, 'order', '')} className="p-1 text-red-500 hover:bg-red-500/10 rounded transition-all">
                       <Trash2 size={12}/>
                     </button>
                   </div>
@@ -2389,15 +2389,15 @@ export default function App() {
 
                 <div className="space-y-1 text-[9px] mb-2">
                   {o.items?.map((i, k) => (
-                    <div key={k} className="flex justify-between text-gray-700 dark:text-white">
+                    <div key={k} className="flex justify-between text-gray-300">
                       <span className="font-medium">{i.name} x{i.qty}</span>
                       <span className="font-black">Rs.{i.subtotal.toLocaleString()}</span>
                     </div>
                   ))}
                 </div>
 
-                <div className="flex justify-between items-center border-t border-gray-200 dark:border-white/10 pt-2">
-                  <span className="text-[9px] text-gray-600 dark:text-white/60 font-medium">Total</span>
+                <div className="flex justify-between items-center border-t border-gray-800 pt-2">
+                  <span className="text-[9px] text-gray-400 font-medium">Total</span>
                   <span className="text-sm font-black text-[#d4af37]">Rs.{o.total.toLocaleString()}</span>
                 </div>
               </div>
@@ -2410,21 +2410,21 @@ export default function App() {
               <div key={o.id} className={`p-3 rounded-xl border ${
                 isDarkMode 
                   ? "bg-[#0f0f0f] border-purple-500/30" 
-                  : "bg-white border-purple-300"
+                  : "bg-black border-purple-500/30"
               }`}>
                 <div className="flex justify-between items-start mb-2">
                   <div>
-                    <h4 className="text-xs font-black uppercase text-purple-600 dark:text-purple-500">{o.shopName}</h4>
-                    <p className="text-[8px] text-gray-600 dark:text-white/60 font-medium">{o.companyName}</p>
+                    <h4 className="text-xs font-black uppercase text-purple-500">{o.shopName}</h4>
+                    <p className="text-[8px] text-gray-400 font-medium">{o.companyName}</p>
                   </div>
                   <div className="flex gap-1">
-                    <button onClick={() => printBill(o)} className="p-1 text-blue-600 dark:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded transition-all">
+                    <button onClick={() => printBill(o)} className="p-1 text-blue-500 hover:bg-blue-500/10 rounded transition-all">
                       <Printer size={12}/>
                     </button>
-                    <button onClick={() => shareToWhatsApp(o, false)} className="p-1 text-purple-600 dark:text-purple-500 hover:bg-purple-50 dark:hover:bg-purple-500/10 rounded transition-all">
+                    <button onClick={() => shareToWhatsApp(o, false)} className="p-1 text-purple-500 hover:bg-purple-500/10 rounded transition-all">
                       <Share2 size={12}/>
                     </button>
-                    <button onClick={() => confirmDelete(o.id, 'order', '')} className="p-1 text-red-600 dark:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded transition-all">
+                    <button onClick={() => confirmDelete(o.id, 'order', '')} className="p-1 text-red-500 hover:bg-red-500/10 rounded transition-all">
                       <Trash2 size={12}/>
                     </button>
                   </div>
@@ -2432,16 +2432,16 @@ export default function App() {
 
                 <div className="space-y-1 text-[9px] mb-2">
                   {o.items?.map((i, k) => (
-                    <div key={k} className="flex justify-between text-gray-700 dark:text-white">
+                    <div key={k} className="flex justify-between text-gray-300">
                       <span className="font-medium">{i.name} x{i.qty}</span>
                       <span className="font-black">Rs.{i.subtotal.toLocaleString()}</span>
                     </div>
                   ))}
                 </div>
 
-                <div className="flex justify-between items-center border-t border-gray-200 dark:border-white/10 pt-2">
-                  <span className="text-[9px] text-gray-600 dark:text-white/60 font-medium">Manual Order Total</span>
-                  <span className="text-sm font-black text-purple-600 dark:text-purple-500">Rs.{o.total.toLocaleString()}</span>
+                <div className="flex justify-between items-center border-t border-gray-800 pt-2">
+                  <span className="text-[9px] text-gray-400 font-medium">Manual Order Total</span>
+                  <span className="text-sm font-black text-purple-500">Rs.{o.total.toLocaleString()}</span>
                 </div>
               </div>
             ))}
@@ -2454,12 +2454,12 @@ export default function App() {
             <div className={`p-2 rounded-xl border flex items-center gap-2 ${
               isDarkMode 
                 ? "bg-[#0f0f0f] border-white/10" 
-                : "bg-white border-gray-200"
+                : "bg-black border-gray-800"
             }`}>
               <Calendar size={14} className="text-[#d4af37]"/>
               <input
                 type="date"
-                className="bg-transparent text-[10px] font-bold uppercase outline-none w-full text-gray-900 dark:text-white"
+                className="bg-transparent text-[10px] font-bold uppercase outline-none w-full text-white"
                 onChange={(e) => setNoteSearchDate(e.target.value)}
                 value={noteSearchDate}
               />
@@ -2475,23 +2475,23 @@ export default function App() {
               <div key={note.id} className={`p-3 rounded-xl border ${
                 isDarkMode 
                   ? "bg-[#0f0f0f] border-white/5" 
-                  : "bg-white border-gray-200"
+                  : "bg-black border-gray-800"
               }`}>
                 <div className="flex justify-between items-start mb-2">
                   <div className="flex items-center gap-1">
-                    <Clock size={10} className="text-gray-400 dark:text-white/50"/>
-                    <span className="text-[8px] text-gray-600 dark:text-white/60 font-medium">
+                    <Clock size={10} className="text-gray-500"/>
+                    <span className="text-[8px] text-gray-400 font-medium">
                       {new Date(note.timestamp).toLocaleTimeString()}
                     </span>
                   </div>
                   <button
                     onClick={() => confirmDelete(note.id, 'note', '')}
-                    className="p-1 text-red-600 dark:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded transition-all"
+                    className="p-1 text-red-500 hover:bg-red-500/10 rounded transition-all"
                   >
                     <Trash2 size={10}/>
                   </button>
                 </div>
-                <p className="text-[10px] text-gray-900 dark:text-white font-medium">{note.text}</p>
+                <p className="text-[10px] text-white font-medium">{note.text}</p>
               </div>
             ))}
           </div>
@@ -2504,7 +2504,7 @@ export default function App() {
             <form onSubmit={handleSaveProfile} className={`p-3 rounded-xl border ${
               isDarkMode 
                 ? "bg-[#0f0f0f] border-white/10" 
-                : "bg-white border-gray-200"
+                : "bg-black border-gray-800"
             }`}>
               <h3 className="text-xs font-black uppercase mb-2 text-[#d4af37]">Profile</h3>
               <div className="space-y-2">
@@ -2515,7 +2515,7 @@ export default function App() {
                   className={`w-full p-2 rounded-lg border text-[10px] font-bold uppercase outline-none ${
                     isDarkMode 
                       ? 'bg-[#1a1a1a] border-white/5 text-white placeholder-white/30' 
-                      : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400'
+                      : 'bg-gray-900 border-gray-700 text-white placeholder-gray-500'
                   }`}
                 />
                 <input
@@ -2525,7 +2525,7 @@ export default function App() {
                   className={`w-full p-2 rounded-lg border text-[10px] font-bold uppercase outline-none ${
                     isDarkMode 
                       ? 'bg-[#1a1a1a] border-white/5 text-white placeholder-white/30' 
-                      : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400'
+                      : 'bg-gray-900 border-gray-700 text-white placeholder-gray-500'
                   }`}
                 />
                 <button type="submit" className="w-full py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-black rounded-lg text-[10px] flex items-center justify-center gap-1 hover:opacity-90 transition-all">
@@ -2541,7 +2541,7 @@ export default function App() {
                 className={`py-2 rounded-xl border font-black text-[9px] flex flex-col items-center transition-all ${
                   isDarkMode 
                     ? 'bg-[#1a1a1a] border-white/5 text-[#d4af37] hover:bg-[#d4af37]/10' 
-                    : 'bg-gray-50 border-gray-200 text-[#d4af37] hover:bg-[#d4af37]/10'
+                    : 'bg-black border-gray-800 text-[#d4af37] hover:bg-[#d4af37]/10'
                 }`}
               >
                 <MapPin size={14}/> ROUTE
@@ -2551,7 +2551,7 @@ export default function App() {
                 className={`py-2 rounded-xl border font-black text-[9px] flex flex-col items-center transition-all ${
                   isDarkMode 
                     ? 'bg-[#1a1a1a] border-white/5 text-[#d4af37] hover:bg-[#d4af37]/10' 
-                    : 'bg-gray-50 border-gray-200 text-[#d4af37] hover:bg-[#d4af37]/10'
+                    : 'bg-black border-gray-800 text-[#d4af37] hover:bg-[#d4af37]/10'
                 }`}
               >
                 <Package size={14}/> BRAND
@@ -2561,7 +2561,7 @@ export default function App() {
                 className={`py-2 rounded-xl border font-black text-[9px] flex flex-col items-center transition-all ${
                   isDarkMode 
                     ? 'bg-[#1a1a1a] border-white/5 text-[#d4af37] hover:bg-[#d4af37]/10' 
-                    : 'bg-gray-50 border-gray-200 text-[#d4af37] hover:bg-[#d4af37]/10'
+                    : 'bg-black border-gray-800 text-[#d4af37] hover:bg-[#d4af37]/10'
                 }`}
               >
                 <ShoppingBag size={14}/> MANUAL
@@ -2575,10 +2575,10 @@ export default function App() {
                 <div key={r.id} className={`p-2 rounded-lg border mb-1 flex justify-between items-center ${
                   isDarkMode 
                     ? 'bg-[#1a1a1a] border-white/5' 
-                    : 'bg-gray-50 border-gray-200'
+                    : 'bg-gray-900 border-gray-800'
                 }`}>
-                  <span className="text-[10px] font-bold text-gray-900 dark:text-white">{r.name}</span>
-                  <button onClick={() => confirmDelete(r.id, 'route', r.name)} className="text-red-600 dark:text-red-500 p-1 hover:bg-red-50 dark:hover:bg-red-500/10 rounded transition-all">
+                  <span className="text-[10px] font-bold text-white">{r.name}</span>
+                  <button onClick={() => confirmDelete(r.id, 'route', r.name)} className="text-red-500 p-1 hover:bg-red-500/10 rounded transition-all">
                     <Trash2 size={12}/>
                   </button>
                 </div>
@@ -2598,7 +2598,7 @@ export default function App() {
                   } ${
                     isDarkMode 
                       ? 'bg-[#1a1a1a] border-white/5' 
-                      : 'bg-gray-50 border-gray-200'
+                      : 'bg-gray-900 border-gray-800'
                   }`}
                 >
                   {editingBrand === b.id ? (
@@ -2608,20 +2608,20 @@ export default function App() {
                           value={editingBrandData.name}
                           onChange={(e) => setEditingBrandData({...editingBrandData, name: e.target.value})}
                           placeholder="NAME"
-                          className="flex-1 min-w-[80px] p-1.5 text-[10px] bg-white dark:bg-black/40 border border-gray-200 dark:border-white/10 rounded text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/30 font-medium"
+                          className="flex-1 min-w-[80px] p-1.5 text-[10px] bg-gray-900 border border-gray-700 rounded text-white placeholder-gray-500 font-medium"
                         />
                         <input
                           value={editingBrandData.size}
                           onChange={(e) => setEditingBrandData({...editingBrandData, size: e.target.value})}
                           placeholder="SIZE"
-                          className="w-16 p-1.5 text-[10px] bg-white dark:bg-black/40 border border-gray-200 dark:border-white/10 rounded text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/30 font-medium"
+                          className="w-16 p-1.5 text-[10px] bg-gray-900 border border-gray-700 rounded text-white placeholder-gray-500 font-medium"
                         />
                         <input
                           value={editingBrandData.price}
                           onChange={(e) => setEditingBrandData({...editingBrandData, price: e.target.value})}
                           type="number"
                           placeholder="PRICE"
-                          className="w-20 p-1.5 text-[10px] bg-white dark:bg-black/40 border border-gray-200 dark:border-white/10 rounded text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/30 font-medium"
+                          className="w-20 p-1.5 text-[10px] bg-gray-900 border border-gray-700 rounded text-white placeholder-gray-500 font-medium"
                         />
                       </div>
                       <div className="flex gap-1">
@@ -2636,7 +2636,7 @@ export default function App() {
                             setEditingBrand(null);
                             setEditingBrandData({ name: '', size: '', price: '' });
                           }}
-                          className="flex-1 py-1 bg-gray-200 dark:bg-gradient-to-br dark:from-[#333] dark:to-[#444] text-gray-700 dark:text-white text-[8px] font-black rounded hover:opacity-90 transition-all"
+                          className="flex-1 py-1 bg-gray-800 text-white text-[8px] font-black rounded hover:bg-gray-700 transition-all"
                         >
                           CANCEL
                         </button>
@@ -2648,14 +2648,14 @@ export default function App() {
                         <div className={`w-6 h-6 rounded flex items-center justify-center font-black text-xs ${
                           isDarkMode 
                             ? 'bg-[#d4af37]/20 text-[#d4af37]' 
-                            : 'bg-[#d4af37]/10 text-[#d4af37]'
+                            : 'bg-[#d4af37]/20 text-[#d4af37]'
                         }`}>
                           {b.sequence || idx + 1}
                         </div>
                         <div className="flex-1">
                           <div className="flex items-center flex-wrap gap-1">
-                            <span className="text-xs font-black text-gray-900 dark:text-white">{b.name}</span>
-                            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-white border border-gray-200 dark:border-white/20 font-bold">{b.size}</span>
+                            <span className="text-xs font-black text-white">{b.name}</span>
+                            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-gray-800 text-gray-300 border border-gray-700 font-bold">{b.size}</span>
                           </div>
                           <div className="text-[9px] font-black text-[#d4af37]">Rs.{b.price}</div>
                         </div>
@@ -2667,8 +2667,8 @@ export default function App() {
                               onClick={() => startMoveBrand(b.id, event)}
                               className={`p-1.5 rounded-lg transition-all ${
                                 movingBrandId 
-                                  ? 'text-green-600 dark:text-green-500 hover:bg-green-50 dark:hover:bg-green-500/10' 
-                                  : 'text-gray-400 dark:text-white/40 hover:text-gray-600 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10'
+                                  ? 'text-green-500 hover:bg-green-500/10' 
+                                  : 'text-gray-500 hover:text-white hover:bg-gray-800'
                               }`}
                               title="Move to position"
                             >
@@ -2677,7 +2677,7 @@ export default function App() {
                             {movingBrandId && movingBrandId !== b.id && (
                               <button
                                 onClick={() => moveBrandToPosition(b.id)}
-                                className="p-1.5 bg-green-50 dark:bg-green-500/20 text-green-700 dark:text-green-500 rounded-lg hover:bg-green-100 dark:hover:bg-green-500/30 transition-all"
+                                className="p-1.5 bg-green-500/20 text-green-500 rounded-lg hover:bg-green-500/30 transition-all"
                                 title="Drop here"
                               >
                                 <CheckCircle2 size={12} />
@@ -2687,13 +2687,13 @@ export default function App() {
                         )}
                         <button
                           onClick={() => startEditBrand(b)}
-                          className="p-1.5 text-blue-600 dark:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-lg transition-all"
+                          className="p-1.5 text-blue-500 hover:bg-blue-500/10 rounded-lg transition-all"
                         >
                           <Edit2 size={12} />
                         </button>
                         <button
                           onClick={() => confirmDelete(b.id, 'brand', b.name)}
-                          className="p-1.5 text-red-600 dark:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-all"
+                          className="p-1.5 text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
                         >
                           <Trash2 size={12} />
                         </button>
@@ -2706,7 +2706,7 @@ export default function App() {
               {movingBrandId && (
                 <button
                   onClick={cancelMove}
-                  className="w-full mt-2 py-1.5 bg-red-50 dark:bg-red-500/20 text-red-700 dark:text-red-500 rounded-lg text-[9px] font-black hover:bg-red-100 dark:hover:bg-red-500/30 transition-all"
+                  className="w-full mt-2 py-1.5 bg-red-500/20 text-red-500 rounded-lg text-[9px] font-black hover:bg-red-500/30 transition-all"
                 >
                   Cancel Move
                 </button>
@@ -2720,7 +2720,7 @@ export default function App() {
       <nav className={`fixed bottom-2 inset-x-2 h-12 rounded-xl border flex items-center justify-around ${
         isDarkMode 
           ? "bg-black/95 border-white/10" 
-          : "bg-white/95 border-gray-200"
+          : "bg-black border-gray-800"
       }`}>
         {[
           {id: 'dashboard', icon: Home, label: 'Home'},
@@ -2735,9 +2735,7 @@ export default function App() {
             className={`p-1 flex flex-col items-center transition-all ${
               activeTab === t.id 
                 ? 'text-[#d4af37]'
-                : isDarkMode 
-                  ? 'text-white/40 hover:text-white/60' 
-                  : 'text-gray-400 hover:text-gray-600'
+                : 'text-gray-500 hover:text-gray-400'
             }`}
           >
             <t.icon size={18} />
@@ -2800,10 +2798,10 @@ export default function App() {
       {/* TARGET MODAL */}
       {showTargetModal && (
         <div className="fixed inset-0 bg-black/50 dark:bg-black/95 z-[100] flex items-center justify-center p-3">
-          <div className="w-full max-w-xs p-4 rounded-xl border border-[#d4af37]/30 bg-white dark:bg-gradient-to-br dark:from-[#0f0f0f] dark:to-[#1a1a1a] shadow-xl">
+          <div className="w-full max-w-xs p-4 rounded-xl border border-[#d4af37]/30 bg-black shadow-xl">
             <div className="flex justify-between items-center mb-3">
               <h3 className="font-black text-sm text-[#d4af37]">{editingTarget ? 'EDIT TARGET' : 'NEW TARGET'}</h3>
-              <button onClick={() => { setShowTargetModal(false); setEditingTarget(null); }} className="text-gray-400 dark:text-white/40 hover:text-gray-600 dark:hover:text-white/60 p-1 transition-all">
+              <button onClick={() => { setShowTargetModal(false); setEditingTarget(null); }} className="text-gray-500 hover:text-white p-1 transition-all">
                 <X size={16}/>
               </button>
             </div>
@@ -2812,7 +2810,7 @@ export default function App() {
                 type="month"
                 value={targetMonth}
                 onChange={(e) => setTargetMonth(e.target.value)}
-                className="w-full p-2 rounded-lg border text-xs bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all font-medium"
+                className="w-full p-2 rounded-lg border text-xs bg-gray-900 border-gray-700 text-white outline-none focus:border-[#d4af37] transition-all font-medium"
                 required
               />
 
@@ -2823,7 +2821,7 @@ export default function App() {
                   className={`p-1 rounded-lg border text-[9px] font-bold transition-all ${
                     targetType === 'revenue' 
                       ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black border-[#d4af37]' 
-                      : 'border-gray-200 dark:border-white/10 text-gray-700 dark:text-white hover:border-[#d4af37]/50'
+                      : 'border-gray-700 text-gray-300 hover:border-[#d4af37]/50'
                   }`}
                 >
                   REVENUE
@@ -2834,7 +2832,7 @@ export default function App() {
                   className={`p-1 rounded-lg border text-[9px] font-bold transition-all ${
                     targetType === 'units' 
                       ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black border-[#d4af37]' 
-                      : 'border-gray-200 dark:border-white/10 text-gray-700 dark:text-white hover:border-[#d4af37]/50'
+                      : 'border-gray-700 text-gray-300 hover:border-[#d4af37]/50'
                   }`}
                 >
                   UNITS
@@ -2848,7 +2846,7 @@ export default function App() {
                   className={`p-1 rounded-lg border text-[8px] font-bold transition-all ${
                     targetSpecific === 'total' 
                       ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black border-[#d4af37]' 
-                      : 'border-gray-200 dark:border-white/10 text-gray-700 dark:text-white hover:border-[#d4af37]/50'
+                      : 'border-gray-700 text-gray-300 hover:border-[#d4af37]/50'
                   }`}
                 >
                   TOTAL
@@ -2859,7 +2857,7 @@ export default function App() {
                   className={`p-1 rounded-lg border text-[8px] font-bold transition-all ${
                     targetSpecific === 'brand' 
                       ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black border-[#d4af37]' 
-                      : 'border-gray-200 dark:border-white/10 text-gray-700 dark:text-white hover:border-[#d4af37]/50'
+                      : 'border-gray-700 text-gray-300 hover:border-[#d4af37]/50'
                   }`}
                 >
                   BRAND
@@ -2870,7 +2868,7 @@ export default function App() {
                 <select
                   value={targetBrand}
                   onChange={(e) => setTargetBrand(e.target.value)}
-                  className="w-full p-2 rounded-lg border text-xs bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all font-medium"
+                  className="w-full p-2 rounded-lg border text-xs bg-gray-900 border-gray-700 text-white outline-none focus:border-[#d4af37] transition-all font-medium"
                   required
                 >
                   <option value="">SELECT BRAND</option>
@@ -2885,7 +2883,7 @@ export default function App() {
                 value={targetAmount}
                 onChange={(e) => setTargetAmount(e.target.value)}
                 placeholder="AMOUNT"
-                className="w-full p-2 rounded-lg border text-xs bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all font-medium"
+                className="w-full p-2 rounded-lg border text-xs bg-gray-900 border-gray-700 text-white outline-none focus:border-[#d4af37] transition-all font-medium"
                 required
               />
 
@@ -2906,11 +2904,11 @@ export default function App() {
           <div className={`w-full max-w-xs p-4 rounded-xl border ${
             isDarkMode 
               ? 'bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/30' 
-              : 'bg-white border-gray-200'
+              : 'bg-black border-gray-800'
           } shadow-xl`}>
             <div className="flex justify-between items-center mb-3">
               <h3 className="font-black text-sm text-[#d4af37]">CALCULATOR</h3>
-              <button onClick={() => { setShowCalculator(false); resetCalculator(); }} className="text-gray-400 dark:text-white/40 hover:text-gray-600 dark:hover:text-white/60 p-1 transition-all">
+              <button onClick={() => { setShowCalculator(false); resetCalculator(); }} className="text-gray-500 hover:text-white p-1 transition-all">
                 <X size={16}/>
               </button>
             </div>
@@ -2920,7 +2918,7 @@ export default function App() {
               value={totalCalculation.subtotal || ''}
               onChange={(e) => setTotalCalculation({...totalCalculation, subtotal: parseFloat(e.target.value) || 0})}
               placeholder="SUBTOTAL"
-              className="w-full p-2 rounded-lg border text-sm mb-2 bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all font-medium"
+              className="w-full p-2 rounded-lg border text-sm mb-2 bg-gray-900 border-gray-700 text-white outline-none focus:border-[#d4af37] transition-all font-medium"
             />
 
             <div className="flex gap-1 mb-2">
@@ -2929,7 +2927,7 @@ export default function App() {
                 className={`flex-1 p-1 rounded-lg text-[9px] font-bold transition-all ${
                   !totalCalculation.usePercentage 
                     ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black' 
-                    : 'bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-white hover:bg-gray-200 dark:hover:bg-white/20'
+                    : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
                 }`}
               >
                 Rs.
@@ -2939,7 +2937,7 @@ export default function App() {
                 className={`flex-1 p-1 rounded-lg text-[9px] font-bold transition-all ${
                   totalCalculation.usePercentage 
                     ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black' 
-                    : 'bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-white hover:bg-gray-200 dark:hover:bg-white/20'
+                    : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
                 }`}
               >
                 %
@@ -2952,7 +2950,7 @@ export default function App() {
                 value={totalCalculation.discountPercent || ''}
                 onChange={(e) => setTotalCalculation({...totalCalculation, discountPercent: parseFloat(e.target.value) || 0})}
                 placeholder="DISCOUNT %"
-                className="w-full p-2 rounded-lg border text-sm mb-2 bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all font-medium"
+                className="w-full p-2 rounded-lg border text-sm mb-2 bg-gray-900 border-gray-700 text-white outline-none focus:border-[#d4af37] transition-all font-medium"
               />
             ) : (
               <input
@@ -2960,7 +2958,7 @@ export default function App() {
                 value={totalCalculation.discount || ''}
                 onChange={(e) => setTotalCalculation({...totalCalculation, discount: parseFloat(e.target.value) || 0})}
                 placeholder="DISCOUNT"
-                className="w-full p-2 rounded-lg border text-sm mb-2 bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all font-medium"
+                className="w-full p-2 rounded-lg border text-sm mb-2 bg-gray-900 border-gray-700 text-white outline-none focus:border-[#d4af37] transition-all font-medium"
               />
             )}
 
@@ -2969,11 +2967,11 @@ export default function App() {
               value={totalCalculation.tax || ''}
               onChange={(e) => setTotalCalculation({...totalCalculation, tax: parseFloat(e.target.value) || 0})}
               placeholder="TAX"
-              className="w-full p-2 rounded-lg border text-sm mb-3 bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all font-medium"
+              className="w-full p-2 rounded-lg border text-sm mb-3 bg-gray-900 border-gray-700 text-white outline-none focus:border-[#d4af37] transition-all font-medium"
             />
 
-            <div className="bg-gray-100 dark:bg-[#1a1a1a] p-2 rounded-lg mb-3 text-center border border-gray-200 dark:border-white/10">
-              <p className="text-[9px] text-gray-600 dark:text-white/60 mb-1 font-medium">GRAND TOTAL</p>
+            <div className="bg-gray-900 p-2 rounded-lg mb-3 text-center border border-gray-800">
+              <p className="text-[9px] text-gray-400 mb-1 font-medium">GRAND TOTAL</p>
               <p className="text-base font-black text-[#d4af37]">
                 Rs.{(
                   (totalCalculation.subtotal || 0) -
@@ -2993,7 +2991,7 @@ export default function App() {
             </button>
             <button
               onClick={resetCalculator}
-              className="w-full py-1.5 bg-gray-200 dark:bg-[#1a1a1a] text-gray-700 dark:text-white/60 font-black rounded-lg text-[10px] hover:bg-gray-300 dark:hover:bg-[#2a2a2a] transition-all"
+              className="w-full py-1.5 bg-gray-800 text-gray-300 font-black rounded-lg text-[10px] hover:bg-gray-700 transition-all"
             >
               RESET
             </button>
@@ -3005,16 +3003,16 @@ export default function App() {
       {showModal === 'invoice' && selectedShop && (
         <div className="fixed inset-0 bg-black z-[100] overflow-y-auto">
           <div className="min-h-screen p-3 max-w-lg mx-auto pb-20">
-            <div className="flex justify-between items-center mb-3 sticky top-0 bg-black py-2 border-b border-white/10">
+            <div className="flex justify-between items-center mb-3 sticky top-0 bg-black py-2 border-b border-gray-800">
               <h2 className="text-sm font-black text-white">{selectedShop.name}</h2>
-              <button onClick={() => { setShowModal(null); setCart({}); }} className="p-1 bg-white/10 rounded-full hover:bg-white/20 transition-all">
+              <button onClick={() => { setShowModal(null); setCart({}); }} className="p-1 bg-gray-900 rounded-full hover:bg-gray-800 transition-all">
                 <X size={16}/>
               </button>
             </div>
 
             <div className="space-y-2">
               {data.brands.map((b, index) => (
-                <div key={b.id} className="bg-[#0f0f0f] p-2 rounded-xl border border-white/5 flex items-center justify-between hover:border-[#d4af37]/30 transition-all">
+                <div key={b.id} className="bg-gray-900 p-2 rounded-xl border border-gray-800 flex items-center justify-between hover:border-[#d4af37]/30 transition-all">
                   <div>
                     <span className="text-xs font-bold text-white">{b.name} ({b.size})</span>
                     <p className="text-[10px] text-[#d4af37] font-black">Rs.{b.price}</p>
@@ -3022,7 +3020,7 @@ export default function App() {
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => setCart({...cart, [b.id]: Math.max(0, (Number(cart[b.id])||0)-1)})}
-                      className="w-6 h-6 bg-white/5 rounded-lg text-xs text-white hover:bg-white/10 transition-all font-black"
+                      className="w-6 h-6 bg-gray-800 rounded-lg text-xs text-white hover:bg-gray-700 transition-all font-black"
                     >
                       -
                     </button>
@@ -3035,7 +3033,7 @@ export default function App() {
                     />
                     <button
                       onClick={() => setCart({...cart, [b.id]: (Number(cart[b.id])||0) + 1})}
-                      className="w-6 h-6 bg-white/5 rounded-lg text-xs text-white hover:bg-white/10 transition-all font-black"
+                      className="w-6 h-6 bg-gray-800 rounded-lg text-xs text-white hover:bg-gray-700 transition-all font-black"
                     >
                       +
                     </button>
@@ -3044,7 +3042,7 @@ export default function App() {
               ))}
             </div>
 
-            <div className="fixed bottom-0 inset-x-0 p-2 bg-black border-t border-white/10">
+            <div className="fixed bottom-0 inset-x-0 p-2 bg-black border-t border-gray-800">
               <div className="flex justify-between items-center mb-2">
                 <span className="text-xs text-white font-bold">Total:</span>
                 <span className="text-base font-black text-[#d4af37]">Rs.{calculateCartTotal().toLocaleString()}</span>
@@ -3064,21 +3062,21 @@ export default function App() {
       {showModal === 'manual' && (
         <div className="fixed inset-0 bg-black z-[100] overflow-y-auto">
           <div className="min-h-screen p-3 max-w-lg mx-auto pb-28">
-            <div className="flex justify-between items-center mb-3 sticky top-0 bg-black py-2 border-b border-white/10">
+            <div className="flex justify-between items-center mb-3 sticky top-0 bg-black py-2 border-b border-gray-800">
               <h2 className="text-sm font-black text-white">MANUAL ORDER</h2>
               <button
                 onClick={() => {
                   setShowModal(null);
                   setManualItems([{ name: '', qty: 1, price: 0, subtotal: 0 }]);
                 }}
-                className="p-1 bg-white/10 rounded-full hover:bg-white/20 transition-all"
+                className="p-1 bg-gray-900 rounded-full hover:bg-gray-800 transition-all"
               >
                 <X size={16}/>
               </button>
             </div>
 
             <select
-              className="w-full bg-[#0f0f0f] p-2 rounded-lg border border-white/5 text-white text-xs mb-3 outline-none focus:border-[#d4af37] transition-all font-bold"
+              className="w-full bg-gray-900 p-2 rounded-lg border border-gray-800 text-white text-xs mb-3 outline-none focus:border-[#d4af37] transition-all font-bold"
               onChange={(e) => {
                 const shopId = e.target.value;
                 setSelectedShop(data.shops.find(s => s.id === shopId));
@@ -3091,29 +3089,29 @@ export default function App() {
             </select>
 
             {manualItems.map((item, index) => (
-              <div key={index} className="bg-[#0f0f0f] p-2 rounded-lg border border-white/5 mb-2">
+              <div key={index} className="bg-gray-900 p-2 rounded-lg border border-gray-800 mb-2">
                 <div className="grid grid-cols-2 gap-1">
                   <input
                     value={item.name}
                     onChange={(e) => updateManualItem(index, 'name', e.target.value)}
                     placeholder="ITEM"
-                    className="bg-black/40 p-1 rounded text-[10px] border-white/5 text-white outline-none focus:border-[#d4af37] transition-all font-medium"
+                    className="bg-black p-1 rounded text-[10px] border-gray-700 text-white outline-none focus:border-[#d4af37] transition-all font-medium"
                   />
                   <input
                     type="number"
                     value={item.qty}
                     onChange={(e) => updateManualItem(index, 'qty', e.target.value)}
                     placeholder="QTY"
-                    className="bg-black/40 p-1 rounded text-[10px] border-white/5 text-white outline-none focus:border-[#d4af37] transition-all font-medium"
+                    className="bg-black p-1 rounded text-[10px] border-gray-700 text-white outline-none focus:border-[#d4af37] transition-all font-medium"
                   />
                   <input
                     type="number"
                     value={item.price}
                     onChange={(e) => updateManualItem(index, 'price', e.target.value)}
                     placeholder="PRICE"
-                    className="bg-black/40 p-1 rounded text-[10px] border-white/5 text-white outline-none focus:border-[#d4af37] transition-all font-medium"
+                    className="bg-black p-1 rounded text-[10px] border-gray-700 text-white outline-none focus:border-[#d4af37] transition-all font-medium"
                   />
-                  <div className="bg-black/40 p-1 rounded text-center border border-white/5">
+                  <div className="bg-black p-1 rounded text-center border border-gray-700">
                     <span className="text-[#d4af37] text-[10px] font-black">Rs.{item.subtotal}</span>
                   </div>
                 </div>
@@ -3123,13 +3121,13 @@ export default function App() {
               </div>
             ))}
 
-            <button onClick={addManualItem} className="w-full py-1.5 bg-white/5 rounded-lg text-[#d4af37] text-xs font-black mb-3 hover:bg-white/10 transition-all">+ ADD ITEM</button>
+            <button onClick={addManualItem} className="w-full py-1.5 bg-gray-800 rounded-lg text-[#d4af37] text-xs font-black mb-3 hover:bg-gray-700 transition-all">+ ADD ITEM</button>
 
-            <div className="fixed bottom-0 inset-x-0 p-2 bg-black border-t border-white/10">
+            <div className="fixed bottom-0 inset-x-0 p-2 bg-black border-t border-gray-800">
               <button
                 onClick={saveManualOrder}
                 disabled={!selectedShop}
-                className={`w-full py-2 font-black rounded-lg text-xs transition-all ${selectedShop ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black hover:opacity-90' : 'bg-gray-700 text-gray-400'}`}
+                className={`w-full py-2 font-black rounded-lg text-xs transition-all ${selectedShop ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black hover:opacity-90' : 'bg-gray-800 text-gray-500'}`}
               >
                 {selectedShop ? 'SAVE ORDER' : 'SELECT SHOP FIRST'}
               </button>
@@ -3141,7 +3139,7 @@ export default function App() {
       {/* PREVIEW MODAL */}
       {showModal === 'preview' && lastOrder && (
         <div className="fixed inset-0 bg-black/95 z-[110] flex items-center justify-center p-3">
-          <div className="bg-[#0f0f0f] w-full max-w-xs p-4 rounded-xl border border-[#d4af37]/30">
+          <div className="bg-gray-900 w-full max-w-xs p-4 rounded-xl border border-[#d4af37]/30">
             <div className="text-center mb-3">
               <div className="w-12 h-12 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-2 border border-green-500/30">
                 <CheckCircle2 size={24} className="text-green-500" />
@@ -3149,7 +3147,7 @@ export default function App() {
               <h3 className="text-sm font-black text-white">ORDER CONFIRMED</h3>
             </div>
 
-            <div className="bg-[#1a1a1a] rounded-lg p-2 mb-3 border border-white/10">
+            <div className="bg-black rounded-lg p-2 mb-3 border border-gray-800">
               <div className="space-y-1 max-h-24 overflow-y-auto text-[9px]">
                 {lastOrder.items?.map((it, idx) => (
                   <div key={idx} className="flex justify-between">
@@ -3158,8 +3156,8 @@ export default function App() {
                   </div>
                 ))}
               </div>
-              <div className="border-t border-white/10 mt-2 pt-2 flex justify-between">
-                <span className="text-[10px] text-white/60 font-medium">Total</span>
+              <div className="border-t border-gray-800 mt-2 pt-2 flex justify-between">
+                <span className="text-[10px] text-gray-400 font-medium">Total</span>
                 <span className="text-sm font-black text-[#d4af37]">Rs.{lastOrder.total}</span>
               </div>
             </div>
@@ -3168,7 +3166,7 @@ export default function App() {
               <button onClick={() => { printBill(lastOrder); setShowModal(null); }} className="w-full py-1.5 bg-blue-600 text-white font-black rounded-lg text-[10px] hover:bg-blue-700 transition-all">PRINT</button>
               <button onClick={() => { shareToWhatsApp(lastOrder, false); setShowModal(null); }} className="w-full py-1.5 bg-[#d4af37] text-black font-black rounded-lg text-[10px] hover:bg-[#b8860b] transition-all">SHARE</button>
               <button onClick={() => { shareToWhatsApp(lastOrder, true); setShowModal(null); }} className="w-full py-1.5 bg-green-600 text-white font-black rounded-lg text-[10px] hover:bg-green-700 transition-all">SHARE + LOC</button>
-              <button onClick={() => { setShowModal(null); setLastOrder(null); }} className="w-full py-1.5 bg-[#1a1a1a] text-white/60 font-black rounded-lg text-[10px] hover:bg-[#2a2a2a] transition-all">CLOSE</button>
+              <button onClick={() => { setShowModal(null); setLastOrder(null); }} className="w-full py-1.5 bg-gray-800 text-gray-300 font-black rounded-lg text-[10px] hover:bg-gray-700 transition-all">CLOSE</button>
             </div>
           </div>
         </div>
@@ -3180,11 +3178,11 @@ export default function App() {
           <div className={`w-full max-w-xs p-4 rounded-xl border ${
             isDarkMode 
               ? 'bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/30' 
-              : 'bg-white border-gray-200'
+              : 'bg-black border-gray-800'
           } shadow-xl`}>
             <div className="flex justify-between items-center mb-3">
               <h3 className="font-black text-sm text-[#d4af37]">NEW SHOP</h3>
-              <button onClick={() => setShowModal(null)} className="text-gray-400 dark:text-white/40 hover:text-gray-600 dark:hover:text-white/60 p-1 transition-all">
+              <button onClick={() => setShowModal(null)} className="text-gray-500 hover:text-white p-1 transition-all">
                 <X size={16}/>
               </button>
             </div>
@@ -3200,8 +3198,8 @@ export default function App() {
               showToast("Shop added!");
               setShowModal(null);
             }} className="space-y-2">
-              <input name="name" placeholder="SHOP NAME" className="w-full p-2 rounded-lg border text-xs bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all font-bold" required />
-              <select name="area" className="w-full p-2 rounded-lg border text-xs bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all font-bold" required>
+              <input name="name" placeholder="SHOP NAME" className="w-full p-2 rounded-lg border text-xs bg-gray-900 border-gray-700 text-white outline-none focus:border-[#d4af37] transition-all font-bold" required />
+              <select name="area" className="w-full p-2 rounded-lg border text-xs bg-gray-900 border-gray-700 text-white outline-none focus:border-[#d4af37] transition-all font-bold" required>
                 <option value="">SELECT ROUTE</option>
                 {data.routes.map(r => (
                   <option key={r.id} value={r.name}>{r.name}</option>
@@ -3219,11 +3217,11 @@ export default function App() {
           <div className={`w-full max-w-xs p-4 rounded-xl border ${
             isDarkMode 
               ? 'bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/30' 
-              : 'bg-white border-gray-200'
+              : 'bg-black border-gray-800'
           } shadow-xl`}>
             <div className="flex justify-between items-center mb-3">
               <h3 className="font-black text-sm text-[#d4af37]">NEW ROUTE</h3>
-              <button onClick={() => setShowModal(null)} className="text-gray-400 dark:text-white/40 hover:text-gray-600 dark:hover:text-white/60 p-1 transition-all">
+              <button onClick={() => setShowModal(null)} className="text-gray-500 hover:text-white p-1 transition-all">
                 <X size={16}/>
               </button>
             </div>
@@ -3237,7 +3235,7 @@ export default function App() {
               showToast("Route added!");
               setShowModal(null);
             }} className="space-y-2">
-              <input name="name" placeholder="ROUTE NAME" className="w-full p-2 rounded-lg border text-xs bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all font-bold" required />
+              <input name="name" placeholder="ROUTE NAME" className="w-full p-2 rounded-lg border text-xs bg-gray-900 border-gray-700 text-white outline-none focus:border-[#d4af37] transition-all font-bold" required />
               <button type="submit" className="w-full py-2 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg text-xs hover:opacity-90 transition-all">SAVE</button>
             </form>
           </div>
@@ -3250,18 +3248,18 @@ export default function App() {
           <div className={`w-full max-w-xs p-4 rounded-xl border ${
             isDarkMode 
               ? 'bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/30' 
-              : 'bg-white border-gray-200'
+              : 'bg-black border-gray-800'
           } shadow-xl`}>
             <div className="flex justify-between items-center mb-3">
               <h3 className="font-black text-sm text-[#d4af37]">NEW BRAND</h3>
-              <button onClick={() => setShowModal(null)} className="text-gray-400 dark:text-white/40 hover:text-gray-600 dark:hover:text-white/60 p-1 transition-all">
+              <button onClick={() => setShowModal(null)} className="text-gray-500 hover:text-white p-1 transition-all">
                 <X size={16}/>
               </button>
             </div>
             <form onSubmit={addBrandWithSequence} className="space-y-2">
-              <input name="name" placeholder="BRAND NAME" className="w-full p-2 rounded-lg border text-xs bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all font-bold" required />
-              <input name="size" placeholder="SIZE" className="w-full p-2 rounded-lg border text-xs bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all font-bold" required />
-              <input name="price" type="number" placeholder="PRICE" className="w-full p-2 rounded-lg border text-xs bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all font-bold" required />
+              <input name="name" placeholder="BRAND NAME" className="w-full p-2 rounded-lg border text-xs bg-gray-900 border-gray-700 text-white outline-none focus:border-[#d4af37] transition-all font-bold" required />
+              <input name="size" placeholder="SIZE" className="w-full p-2 rounded-lg border text-xs bg-gray-900 border-gray-700 text-white outline-none focus:border-[#d4af37] transition-all font-bold" required />
+              <input name="price" type="number" placeholder="PRICE" className="w-full p-2 rounded-lg border text-xs bg-gray-900 border-gray-700 text-white outline-none focus:border-[#d4af37] transition-all font-bold" required />
               <button type="submit" className="w-full py-2 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg text-xs hover:opacity-90 transition-all">SAVE</button>
             </form>
           </div>
@@ -3271,10 +3269,10 @@ export default function App() {
       {/* SHOP PROFILE MODAL */}
       {showModal === 'shopProfile' && selectedShop && (
         <div className="fixed inset-0 bg-black/50 dark:bg-black/95 z-[100] flex items-center justify-center p-3">
-          <div className="w-full max-w-xs p-4 rounded-xl border border-[#d4af37]/30 bg-white dark:bg-gradient-to-br dark:from-[#0f0f0f] dark:to-[#1a1a1a] shadow-xl">
+          <div className="w-full max-w-xs p-4 rounded-xl border border-[#d4af37]/30 bg-black shadow-xl">
             <div className="flex justify-between items-center mb-3">
               <h3 className="font-black text-sm text-[#d4af37]">SHOP PROFILE</h3>
-              <button onClick={() => { setShowModal(null); setEditingProfile(null); }} className="text-gray-400 dark:text-white/40 hover:text-gray-600 dark:hover:text-white/60 p-1 transition-all">
+              <button onClick={() => { setShowModal(null); setEditingProfile(null); }} className="text-gray-500 hover:text-white p-1 transition-all">
                 <X size={16}/>
               </button>
             </div>
@@ -3283,19 +3281,19 @@ export default function App() {
                 placeholder="OWNER NAME"
                 value={shopProfileForm.ownerName}
                 onChange={(e) => setShopProfileForm({...shopProfileForm, ownerName: e.target.value})}
-                className="w-full p-2 rounded-lg border text-xs bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all font-bold"
+                className="w-full p-2 rounded-lg border text-xs bg-gray-900 border-gray-700 text-white outline-none focus:border-[#d4af37] transition-all font-bold"
               />
               <input
                 placeholder="PHONE"
                 value={shopProfileForm.phone}
                 onChange={(e) => setShopProfileForm({...shopProfileForm, phone: e.target.value})}
-                className="w-full p-2 rounded-lg border text-xs bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all font-bold"
+                className="w-full p-2 rounded-lg border text-xs bg-gray-900 border-gray-700 text-white outline-none focus:border-[#d4af37] transition-all font-bold"
               />
               <input
                 placeholder="ADDRESS"
                 value={shopProfileForm.address}
                 onChange={(e) => setShopProfileForm({...shopProfileForm, address: e.target.value})}
-                className="w-full p-2 rounded-lg border text-xs bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all font-bold"
+                className="w-full p-2 rounded-lg border text-xs bg-gray-900 border-gray-700 text-white outline-none focus:border-[#d4af37] transition-all font-bold"
               />
               <button type="submit" className="w-full py-2 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg text-xs hover:opacity-90 transition-all">SAVE</button>
             </form>
@@ -3309,11 +3307,11 @@ export default function App() {
           <div className={`w-full max-w-xs p-4 rounded-xl border ${
             isDarkMode 
               ? 'bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/30' 
-              : 'bg-white border-gray-200'
+              : 'bg-black border-gray-800'
           } shadow-xl`}>
             <div className="flex justify-between items-center mb-3">
               <h3 className="font-black text-sm text-[#d4af37]">ADD EXPENSE</h3>
-              <button onClick={() => setShowModal(null)} className="text-gray-400 dark:text-white/40 hover:text-gray-600 dark:hover:text-white/60 p-1 transition-all">
+              <button onClick={() => setShowModal(null)} className="text-gray-500 hover:text-white p-1 transition-all">
                 <X size={16}/>
               </button>
             </div>
@@ -3325,8 +3323,8 @@ export default function App() {
                   onClick={() => setExpenseType(t)}
                   className={`p-2 rounded-lg border text-center text-[9px] font-bold uppercase transition-all ${
                     expenseType === t 
-                      ? 'border-[#d4af37] bg-[#d4af37]/10 text-gray-900 dark:text-white' 
-                      : 'border-gray-200 dark:border-white/10 text-gray-700 dark:text-white hover:border-[#d4af37]/50'
+                      ? 'border-[#d4af37] bg-[#d4af37]/10 text-white' 
+                      : 'border-gray-700 text-gray-400 hover:border-[#d4af37]/50'
                   }`}
                 >
                   {t}
@@ -3339,13 +3337,13 @@ export default function App() {
               value={expenseAmount}
               onChange={(e) => setExpenseAmount(e.target.value)}
               placeholder="AMOUNT"
-              className="w-full p-2 rounded-lg border text-sm mb-2 bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all font-bold"
+              className="w-full p-2 rounded-lg border text-sm mb-2 bg-gray-900 border-gray-700 text-white outline-none focus:border-[#d4af37] transition-all font-bold"
             />
             <textarea
               value={expenseNote}
               onChange={(e) => setExpenseNote(e.target.value)}
               placeholder="NOTE"
-              className="w-full p-2 rounded-lg border text-xs mb-3 bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all font-medium h-16"
+              className="w-full p-2 rounded-lg border text-xs mb-3 bg-gray-900 border-gray-700 text-white outline-none focus:border-[#d4af37] transition-all font-medium h-16"
             />
             <button
               onClick={saveExpense}
@@ -3363,11 +3361,11 @@ export default function App() {
           <div className={`w-full max-w-xs p-4 rounded-xl border ${
             isDarkMode 
               ? 'bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/30' 
-              : 'bg-white border-gray-200'
+              : 'bg-black border-gray-800'
           } shadow-xl`}>
             <div className="flex justify-between items-center mb-3">
               <h3 className="font-black text-sm text-[#d4af37]">ADD NOTE</h3>
-              <button onClick={() => setShowModal(null)} className="text-gray-400 dark:text-white/40 hover:text-gray-600 dark:hover:text-white/60 p-1 transition-all">
+              <button onClick={() => setShowModal(null)} className="text-gray-500 hover:text-white p-1 transition-all">
                 <X size={16}/>
               </button>
             </div>
@@ -3375,7 +3373,7 @@ export default function App() {
               value={repNote}
               onChange={(e) => setRepNote(e.target.value)}
               placeholder="TYPE NOTE HERE..."
-              className="w-full p-2 rounded-lg border text-xs mb-3 bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all font-medium h-24"
+              className="w-full p-2 rounded-lg border text-xs mb-3 bg-gray-900 border-gray-700 text-white outline-none focus:border-[#d4af37] transition-all font-medium h-24"
             />
             <button
               onClick={saveNote}
@@ -3390,10 +3388,10 @@ export default function App() {
       {/* PRINT PREVIEW MODAL */}
       {showPrintPreview && printOrder && (
         <div className="fixed inset-0 bg-black/95 z-[200] flex items-center justify-center p-3">
-          <div className="bg-[#0f0f0f] w-full max-w-xs p-4 rounded-xl border border-[#d4af37]/30">
+          <div className="bg-gray-900 w-full max-w-xs p-4 rounded-xl border border-[#d4af37]/30">
             <div className="flex justify-between items-center mb-3">
               <h3 className="text-sm font-black text-[#d4af37]">PRINT BILL</h3>
-              <button onClick={() => setShowPrintPreview(false)} className="text-white/40 hover:text-white/60 p-1 transition-all">
+              <button onClick={() => setShowPrintPreview(false)} className="text-gray-500 hover:text-white p-1 transition-all">
                 <X size={16}/>
               </button>
             </div>
@@ -3431,58 +3429,63 @@ export default function App() {
         }
         .animate-progress { animation: progress 1.2s ease-in-out; }
         
-        /* Light mode text visibility improvements */
-        body:not(.dark) .text-gray-900 {
-          color: #111827 !important;
-          font-weight: 500;
+        /* Base styles */
+        body {
+          background: #000000;
         }
         
-        body:not(.dark) .text-gray-700 {
-          color: #374151 !important;
-          font-weight: 500;
+        /* Light mode specific - only background light, boxes stay dark */
+        body:not(.dark) .bg-gradient-to-br {
+          background: #fef3c7 !important; /* amber-50 */
         }
         
+        body:not(.dark) .text-gray-900,
+        body:not(.dark) .text-gray-700,
         body:not(.dark) .text-gray-600 {
-          color: #4B5563 !important;
-          font-weight: 500;
+          color: #FFFFFF !important;
         }
         
-        body:not(.dark) .bg-white {
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        body:not(.dark) .bg-white,
+        body:not(.dark) .bg-gray-50 {
+          background: #000000 !important;
+          border-color: #333333 !important;
+        }
+        
+        body:not(.dark) .text-gray-900,
+        body:not(.dark) .text-gray-700,
+        body:not(.dark) .text-gray-600,
+        body:not(.dark) .text-white {
+          color: #FFFFFF !important;
+        }
+        
+        body:not(.dark) .text-\\[\\#d4af37\\] {
+          color: #FFD700 !important;
+          text-shadow: 0 0 8px rgba(255, 215, 0, 0.3);
         }
         
         body:not(.dark) input,
         body:not(.dark) select,
         body:not(.dark) textarea {
-          color: #111827 !important;
-          font-weight: 500;
-          background-color: #F9FAFB;
+          background: #111111 !important;
+          border-color: #333333 !important;
+          color: #FFFFFF !important;
         }
         
-        body:not(.dark) .font-medium {
-          color: #1F2937;
-        }
-        
-        body:not(.dark) .font-bold,
-        body:not(.dark) .font-black {
-          color: #111827;
-        }
-        
-        body:not(.dark) .text-\\[\\#d4af37\\] {
-          color: #B8860B !important;
-          text-shadow: 0 1px 2px rgba(184, 134, 11, 0.1);
+        body:not(.dark) .border-gray-200,
+        body:not(.dark) .border-gray-300 {
+          border-color: #333333 !important;
         }
         
         /* Dark mode stays the same */
         .dark body {
-          color-scheme: dark;
+          background: #000000;
         }
         
         input, select, textarea { font-size: 16px !important; }
         * { -webkit-text-size-adjust: 100%; -webkit-tap-highlight-color: transparent; }
         button { min-height: 36px; min-width: 36px; }
         ::-webkit-scrollbar { width: 2px; }
-        ::-webkit-scrollbar-thumb { background: rgba(212, 175, 55, 0.5); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb { background: rgba(255, 215, 0, 0.5); border-radius: 10px; }
       `}</style>
     </div>
   );
