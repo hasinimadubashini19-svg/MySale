@@ -1986,7 +1986,8 @@ export default function App() {
                         <div key={idx} className="flex justify-between items-center py-1.5 border-b border-gray-800 last:border-0">
                           <div className="flex items-center gap-2">
                             {exp.type === 'fuel' && <Fuel size={10} className={isDarkMode ? "text-red-500" : "text-red-400"} />}
-{exp.type === 'food' && <Coffee size={10} className="text-[#d4af37]"} />}                            {exp.type === 'transport' && <Navigation size={10} className={isDarkMode ? "text-blue-500" : "text-blue-400"} />}
+                            {exp.type === 'food' && <Coffee size={10} className="text-[#d4af37]" />}
+                            {exp.type === 'transport' && <Navigation size={10} className={isDarkMode ? "text-blue-500" : "text-blue-400"} />}
                             <span className="text-[10px] font-bold text-white capitalize">{exp.type}</span>
                             {exp.note && <span className="text-[8px] text-gray-400 font-medium">- {exp.note}</span>}
                           </div>
@@ -3435,7 +3436,7 @@ export default function App() {
         
         /* Light mode specific - only background light, boxes stay dark */
         body:not(.dark) .bg-gradient-to-br {
-          background: #fef3c7 !important; /* amber-50 */
+          background: #fef3c7 !important;
         }
         
         body:not(.dark) .text-gray-900,
