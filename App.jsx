@@ -1384,8 +1384,8 @@ export default function App() {
   if (showAppInfo) {
     return (
       <div className={`min-h-screen ${isDarkMode 
-        ? 'bg-gradient-to-br from-[#000000] via-[#1a1a1a] to-[#000000]' 
-        : 'bg-gradient-to-br from-emerald-50 via-green-50 to-teal-50'
+        ? 'bg-gradient-to-br from-[#000000] via-[#1a1a1a] to-[#000000] text-white' 
+        : 'bg-gradient-to-br from-amber-50 via-yellow-50 to-orange-50 text-gray-900'
       } flex flex-col items-center justify-center p-4 relative overflow-hidden`}>
         <div className="absolute inset-0">
           <div className="absolute top-0 left-0 w-96 h-96 bg-[#d4af37]/20 dark:bg-[#d4af37]/5 rounded-full filter blur-3xl"></div>
@@ -1400,13 +1400,13 @@ export default function App() {
                 <Crown size={24} />
               </div>
               <div>
-                <h1 className={`${isDarkMode ? 'text-[#d4af37]' : 'text-emerald-700'} text-xl font-black`}>SALES MONARCH</h1>
-                <p className={`${isDarkMode ? 'text-white/60' : 'text-emerald-600/70'} text-[10px] font-bold`}>PROFESSIONAL EDITION</p>
+                <h1 className={`${isDarkMode ? 'text-[#d4af37]' : 'text-amber-700'} text-xl font-black`}>SALES MONARCH</h1>
+                <p className={`${isDarkMode ? 'text-white/60' : 'text-amber-600/70'} text-[10px] font-bold`}>PROFESSIONAL EDITION</p>
               </div>
             </div>
             <button
               onClick={() => setShowAppInfo(false)}
-              className={`p-2 ${isDarkMode ? 'bg-white/10 text-white/60 hover:bg-white/20' : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'} rounded-lg transition-all`}
+              className={`p-2 ${isDarkMode ? 'bg-white/10 text-white/60 hover:bg-white/20' : 'bg-amber-100 text-amber-700 hover:bg-amber-200'} rounded-lg transition-all`}
             >
               <X size={20} />
             </button>
@@ -1416,49 +1416,49 @@ export default function App() {
           <div className="grid grid-cols-2 gap-3 mb-6">
             <div className={`${isDarkMode 
               ? 'bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/20' 
-              : 'bg-white border-emerald-300 shadow-lg'
+              : 'bg-white border-amber-300 shadow-lg'
             } p-3 rounded-xl border`}>
-              <Store size={20} className={`${isDarkMode ? 'text-[#d4af37]' : 'text-emerald-600'} mb-2`} />
+              <Store size={20} className={`${isDarkMode ? 'text-[#d4af37]' : 'text-amber-600'} mb-2`} />
               <h3 className={`${isDarkMode ? 'text-white' : 'text-gray-800'} text-xs font-black mb-1`}>Shop Management</h3>
               <p className={`${isDarkMode ? 'text-white/50' : 'text-gray-600'} text-[9px]`}>Add, track & manage all your shops with route filtering</p>
             </div>
             <div className={`${isDarkMode 
               ? 'bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/20' 
-              : 'bg-white border-emerald-300 shadow-lg'
+              : 'bg-white border-amber-300 shadow-lg'
             } p-3 rounded-xl border`}>
-              <Receipt size={20} className={`${isDarkMode ? 'text-[#d4af37]' : 'text-emerald-600'} mb-2`} />
+              <Receipt size={20} className={`${isDarkMode ? 'text-[#d4af37]' : 'text-amber-600'} mb-2`} />
               <h3 className={`${isDarkMode ? 'text-white' : 'text-gray-800'} text-xs font-black mb-1`}>Smart Invoicing</h3>
               <p className={`${isDarkMode ? 'text-white/50' : 'text-gray-600'} text-[9px]`}>Create bills, print, share via WhatsApp with location</p>
             </div>
             <div className={`${isDarkMode 
               ? 'bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/20' 
-              : 'bg-white border-emerald-300 shadow-lg'
+              : 'bg-white border-amber-300 shadow-lg'
             } p-3 rounded-xl border`}>
-              <BarChart3 size={20} className={`${isDarkMode ? 'text-[#d4af37]' : 'text-emerald-600'} mb-2`} />
+              <BarChart3 size={20} className={`${isDarkMode ? 'text-[#d4af37]' : 'text-amber-600'} mb-2`} />
               <h3 className={`${isDarkMode ? 'text-white' : 'text-gray-800'} text-xs font-black mb-1`}>Analytics</h3>
               <p className={`${isDarkMode ? 'text-white/50' : 'text-gray-600'} text-[9px]`}>Daily & monthly sales, expenses, brand performance</p>
             </div>
             <div className={`${isDarkMode 
               ? 'bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/20' 
-              : 'bg-white border-emerald-300 shadow-lg'
+              : 'bg-white border-amber-300 shadow-lg'
             } p-3 rounded-xl border`}>
-              <Target size={20} className={`${isDarkMode ? 'text-[#d4af37]' : 'text-emerald-600'} mb-2`} />
+              <Target size={20} className={`${isDarkMode ? 'text-[#d4af37]' : 'text-amber-600'} mb-2`} />
               <h3 className={`${isDarkMode ? 'text-white' : 'text-gray-800'} text-xs font-black mb-1`}>Target Tracking</h3>
               <p className={`${isDarkMode ? 'text-white/50' : 'text-gray-600'} text-[9px]`}>Set revenue/unit targets & track progress</p>
             </div>
             <div className={`${isDarkMode 
               ? 'bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/20' 
-              : 'bg-white border-emerald-300 shadow-lg'
+              : 'bg-white border-amber-300 shadow-lg'
             } p-3 rounded-xl border`}>
-              <MapPin size={20} className={`${isDarkMode ? 'text-[#d4af37]' : 'text-emerald-600'} mb-2`} />
+              <MapPin size={20} className={`${isDarkMode ? 'text-[#d4af37]' : 'text-amber-600'} mb-2`} />
               <h3 className={`${isDarkMode ? 'text-white' : 'text-gray-800'} text-xs font-black mb-1`}>Location Tracking</h3>
               <p className={`${isDarkMode ? 'text-white/50' : 'text-gray-600'} text-[9px]`}>Save shop locations & share in bills</p>
             </div>
             <div className={`${isDarkMode 
               ? 'bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/20' 
-              : 'bg-white border-emerald-300 shadow-lg'
+              : 'bg-white border-amber-300 shadow-lg'
             } p-3 rounded-xl border`}>
-              <WifiOff size={20} className={`${isDarkMode ? 'text-[#d4af37]' : 'text-emerald-600'} mb-2`} />
+              <WifiOff size={20} className={`${isDarkMode ? 'text-[#d4af37]' : 'text-amber-600'} mb-2`} />
               <h3 className={`${isDarkMode ? 'text-white' : 'text-gray-800'} text-xs font-black mb-1`}>Offline Mode</h3>
               <p className={`${isDarkMode ? 'text-white/50' : 'text-gray-600'} text-[9px]`}>Work without internet, sync when online</p>
             </div>
@@ -1467,20 +1467,20 @@ export default function App() {
           {/* Stats */}
           <div className={`${isDarkMode 
             ? 'bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/20' 
-            : 'bg-white border-emerald-300 shadow-lg'
+            : 'bg-white border-amber-300 shadow-lg'
           } p-3 rounded-xl border mb-6`}>
             <h3 className={`${isDarkMode ? 'text-white' : 'text-gray-800'} text-xs font-black mb-3`}>Your Stats</h3>
             <div className="grid grid-cols-3 gap-2 text-center">
               <div>
-                <p className={`${isDarkMode ? 'text-[#d4af37]' : 'text-emerald-600'} text-lg font-black`}>{data.shops.length}</p>
+                <p className={`${isDarkMode ? 'text-[#d4af37]' : 'text-amber-600'} text-lg font-black`}>{data.shops.length}</p>
                 <p className={`${isDarkMode ? 'text-white/50' : 'text-gray-600'} text-[8px] font-bold`}>Shops</p>
               </div>
               <div>
-                <p className={`${isDarkMode ? 'text-[#d4af37]' : 'text-emerald-600'} text-lg font-black`}>{data.orders.length}</p>
+                <p className={`${isDarkMode ? 'text-[#d4af37]' : 'text-amber-600'} text-lg font-black`}>{data.orders.length}</p>
                 <p className={`${isDarkMode ? 'text-white/50' : 'text-gray-600'} text-[8px] font-bold`}>Orders</p>
               </div>
               <div>
-                <p className={`${isDarkMode ? 'text-[#d4af37]' : 'text-emerald-600'} text-lg font-black`}>{data.brands.length}</p>
+                <p className={`${isDarkMode ? 'text-[#d4af37]' : 'text-amber-600'} text-lg font-black`}>{data.brands.length}</p>
                 <p className={`${isDarkMode ? 'text-white/50' : 'text-gray-600'} text-[8px] font-bold`}>Brands</p>
               </div>
             </div>
@@ -1489,10 +1489,10 @@ export default function App() {
           {/* Quick Tips */}
           <div className={`${isDarkMode 
             ? 'bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/20' 
-            : 'bg-white border-emerald-300 shadow-lg'
+            : 'bg-white border-amber-300 shadow-lg'
           } p-3 rounded-xl border mb-6`}>
             <h3 className={`${isDarkMode ? 'text-white' : 'text-gray-800'} text-xs font-black mb-2 flex items-center gap-1`}>
-              <Sparkles size={14} className={`${isDarkMode ? 'text-[#d4af37]' : 'text-emerald-600'}`} /> Quick Tips
+              <Sparkles size={14} className={`${isDarkMode ? 'text-[#d4af37]' : 'text-amber-600'}`} /> Quick Tips
             </h3>
             <div className={`space-y-1 text-[9px] ${isDarkMode ? 'text-white/60' : 'text-gray-600'}`}>
               <p className="flex items-start gap-1">• Tap crown logo to view this info anytime</p>
@@ -1513,7 +1513,7 @@ export default function App() {
             onClick={() => setShowAppInfo(false)}
             className={`w-full mt-4 py-2.5 ${isDarkMode 
               ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black' 
-              : 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white'
+              : 'bg-gradient-to-r from-amber-600 to-orange-600 text-white'
             } font-black rounded-xl text-sm hover:opacity-90 transition-all`}
           >
             BACK TO APP
@@ -1528,16 +1528,16 @@ export default function App() {
     return (
       <div className={`min-h-screen ${isDarkMode 
         ? 'bg-gradient-to-br from-[#000000] via-[#1a1a1a] to-[#000000]' 
-        : 'bg-gradient-to-br from-emerald-50 via-green-50 to-teal-50'
+        : 'bg-gradient-to-br from-amber-50 via-yellow-50 to-orange-50'
       } flex items-center justify-center p-4`}>
         <div className={`w-full max-w-sm ${isDarkMode 
           ? 'bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/30' 
-          : 'bg-white border-emerald-300'
+          : 'bg-white border-amber-300'
         } rounded-2xl border p-6 shadow-xl`}>
           <div className="text-center mb-6">
             <div className={`w-20 h-20 ${isDarkMode 
               ? 'bg-gradient-to-br from-[#d4af37] to-[#b8860b]' 
-              : 'bg-gradient-to-br from-emerald-600 to-teal-600'
+              : 'bg-gradient-to-br from-amber-600 to-orange-600'
             } rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg`}>
               <Crown size={40} className="text-black" />
             </div>
@@ -1549,10 +1549,10 @@ export default function App() {
             <div className="space-y-4">
               <div className={`p-4 ${isDarkMode 
                 ? 'bg-green-500/20 border-green-500/30' 
-                : 'bg-emerald-50 border-emerald-200'
+                : 'bg-green-50 border-green-200'
               } rounded-xl border text-center`}>
-                <CheckCircle2 size={40} className={`${isDarkMode ? 'text-green-500' : 'text-emerald-600'} mx-auto mb-2`} />
-                <p className={`${isDarkMode ? 'text-green-500' : 'text-emerald-700'} font-bold`}>Reset link sent!</p>
+                <CheckCircle2 size={40} className={`${isDarkMode ? 'text-green-500' : 'text-green-600'} mx-auto mb-2`} />
+                <p className={`${isDarkMode ? 'text-green-500' : 'text-green-700'} font-bold`}>Reset link sent!</p>
                 <p className={`${isDarkMode ? 'text-white/50' : 'text-gray-600'} text-xs mt-2`}>Check your email inbox</p>
               </div>
               <button
@@ -1563,7 +1563,7 @@ export default function App() {
                 }}
                 className={`w-full py-3 ${isDarkMode 
                   ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black' 
-                  : 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white'
+                  : 'bg-gradient-to-r from-amber-600 to-orange-600 text-white'
                 } font-black rounded-xl text-sm hover:opacity-90 transition-all`}
               >
                 Back to Login
@@ -1578,7 +1578,7 @@ export default function App() {
                 placeholder="EMAIL"
                 className={`w-full ${isDarkMode 
                   ? 'bg-black/50 border-white/10 text-white placeholder-white/30' 
-                  : 'bg-emerald-50 border-emerald-200 text-gray-800 placeholder-gray-400'
+                  : 'bg-amber-50 border-amber-200 text-gray-800 placeholder-gray-400'
                 } p-3 rounded-xl border text-sm outline-none focus:border-[#d4af37] transition-all font-medium`}
               />
               <button
@@ -1588,10 +1588,10 @@ export default function App() {
                   isSendingReset 
                     ? isDarkMode 
                       ? 'bg-gray-700 text-gray-400' 
-                      : 'bg-emerald-100 text-emerald-400'
+                      : 'bg-amber-100 text-amber-400'
                     : isDarkMode 
                       ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black' 
-                      : 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white'
+                      : 'bg-gradient-to-r from-amber-600 to-orange-600 text-white'
                 }`}
               >
                 {isSendingReset ? 'SENDING...' : 'SEND RESET LINK'}
@@ -1613,26 +1613,26 @@ export default function App() {
     return (
       <div className={`min-h-screen ${isDarkMode 
         ? 'bg-gradient-to-br from-[#000000] via-[#1a1a1a] to-[#000000]' 
-        : 'bg-gradient-to-br from-emerald-50 via-green-50 to-teal-50'
+        : 'bg-gradient-to-br from-amber-50 via-yellow-50 to-orange-50'
       } flex items-center justify-center p-4`}>
         <div className={`w-full max-w-sm ${isDarkMode 
           ? 'bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/30' 
-          : 'bg-white border-emerald-300'
+          : 'bg-white border-amber-300'
         } rounded-2xl border p-6 shadow-xl`}>
           <div className="text-center mb-6">
             <div className="relative inline-block mb-4">
               <div className={`w-20 h-20 ${isDarkMode 
                 ? 'bg-gradient-to-br from-[#d4af37] to-[#b8860b]' 
-                : 'bg-gradient-to-br from-emerald-600 to-teal-600'
+                : 'bg-gradient-to-br from-amber-600 to-orange-600'
               } rounded-full flex items-center justify-center shadow-lg`}>
                 <Crown size={40} className="text-black" />
               </div>
-              <Heart size={16} className={`${isDarkMode ? 'text-[#d4af37]' : 'text-emerald-600'} absolute -top-1 -right-1 animate-bounce`} fill="currentColor" />
+              <Heart size={16} className={`${isDarkMode ? 'text-[#d4af37]' : 'text-amber-600'} absolute -top-1 -right-1 animate-bounce`} fill="currentColor" />
             </div>
             <h2 className={`${isDarkMode ? 'text-white' : 'text-gray-800'} font-black text-xl mb-1`}>
               {isRegisterMode ? "SIGN UP" : "SIGN IN"}
             </h2>
-            <p className={`${isDarkMode ? 'text-[#d4af37]' : 'text-emerald-600'} text-xs font-bold`}>
+            <p className={`${isDarkMode ? 'text-[#d4af37]' : 'text-amber-600'} text-xs font-bold`}>
               {isRegisterMode ? "Create your account" : "Welcome back"}
             </p>
           </div>
@@ -1644,7 +1644,7 @@ export default function App() {
               placeholder="EMAIL"
               className={`w-full ${isDarkMode 
                 ? 'bg-black/50 border-white/10 text-white placeholder-white/30' 
-                : 'bg-emerald-50 border-emerald-200 text-gray-800 placeholder-gray-400'
+                : 'bg-amber-50 border-amber-200 text-gray-800 placeholder-gray-400'
               } p-3 rounded-xl border text-sm outline-none focus:border-[#d4af37] transition-all font-medium`}
               required
             />
@@ -1654,7 +1654,7 @@ export default function App() {
               placeholder="PASSWORD"
               className={`w-full ${isDarkMode 
                 ? 'bg-black/50 border-white/10 text-white placeholder-white/30' 
-                : 'bg-emerald-50 border-emerald-200 text-gray-800 placeholder-gray-400'
+                : 'bg-amber-50 border-amber-200 text-gray-800 placeholder-gray-400'
               } p-3 rounded-xl border text-sm outline-none focus:border-[#d4af37] transition-all font-medium`}
               required
             />
@@ -1672,7 +1672,7 @@ export default function App() {
               type="submit"
               className={`w-full py-3 ${isDarkMode 
                 ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black' 
-                : 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white'
+                : 'bg-gradient-to-r from-amber-600 to-orange-600 text-white'
               } font-black rounded-xl text-sm hover:opacity-90 transition-all`}
             >
               {isRegisterMode ? "SIGN UP" : "SIGN IN"}
@@ -1685,7 +1685,7 @@ export default function App() {
                   setIsRegisterMode(!isRegisterMode);
                   setLoginError('');
                 }}
-                className={`${isDarkMode ? 'text-[#d4af37] hover:text-[#b8860b]' : 'text-emerald-600 hover:text-emerald-700'} text-xs font-bold transition-all`}
+                className={`${isDarkMode ? 'text-[#d4af37] hover:text-[#b8860b]' : 'text-amber-600 hover:text-amber-700'} text-xs font-bold transition-all`}
               >
                 {isRegisterMode ? "← SIGN IN" : "SIGN UP"}
               </button>
@@ -1710,8 +1710,8 @@ export default function App() {
   return (
     <div className={`min-h-screen pb-16 ${
       isDarkMode
-        ? "bg-gradient-to-br from-[#000000] via-[#1a1a1a] to-[#000000] text-white"
-        : "bg-gradient-to-br from-emerald-50 via-green-50 to-teal-50 text-gray-900"
+        ? "bg-gradient-to-br from-[#000000] via-[#0a0a0a] to-[#000000] text-white"
+        : "bg-gradient-to-br from-amber-50 via-yellow-50 to-orange-50 text-gray-900"
     }`}>
 
       {/* Toast Notification */}
@@ -1720,7 +1720,7 @@ export default function App() {
           toast.type === 'success' 
             ? isDarkMode 
               ? 'bg-green-500/20 text-green-500 border-green-500/30' 
-              : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+              : 'bg-green-50 text-green-700 border-green-200'
             : toast.type === 'error'
               ? isDarkMode
                 ? 'bg-red-500/20 text-red-500 border-red-500/30'
@@ -1791,10 +1791,10 @@ export default function App() {
         <div className="fixed inset-0 bg-black/50 dark:bg-black/95 z-[200] flex items-center justify-center p-3 overflow-y-auto">
           <div className={`w-full max-w-md ${isDarkMode 
             ? 'bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/30' 
-            : 'bg-white border-emerald-300'
+            : 'bg-white border-amber-300'
           } p-4 rounded-2xl border shadow-xl`}>
             <div className="flex justify-between items-center mb-4">
-              <h3 className={`font-black ${isDarkMode ? 'text-[#d4af37]' : 'text-emerald-600'} text-sm`}>SHOP ORDERS</h3>
+              <h3 className={`font-black ${isDarkMode ? 'text-[#d4af37]' : 'text-amber-600'} text-sm`}>SHOP ORDERS</h3>
               <button onClick={() => setViewingShopOrders(null)} className={`${isDarkMode ? 'text-white/40 hover:text-white/60' : 'text-gray-400 hover:text-gray-600'} p-1 transition-all`}>
                 <X size={18}/>
               </button>
@@ -1806,17 +1806,17 @@ export default function App() {
             <div className="grid grid-cols-2 gap-2 mb-4">
               <div className={`${isDarkMode 
                 ? 'bg-white/5 border-white/10' 
-                : 'bg-emerald-50 border-emerald-200'
+                : 'bg-amber-50 border-amber-200'
               } p-2 rounded-lg border`}>
                 <p className={`${isDarkMode ? 'text-white/60' : 'text-gray-600'} text-[9px] font-medium`}>Total Sales</p>
-                <p className={`text-sm font-black ${isDarkMode ? 'text-[#d4af37]' : 'text-emerald-600'}`}>Rs.{viewingShopOrders.stats.totalSales.toLocaleString()}</p>
+                <p className={`text-sm font-black ${isDarkMode ? 'text-[#d4af37]' : 'text-amber-600'}`}>Rs.{viewingShopOrders.stats.totalSales.toLocaleString()}</p>
               </div>
               <div className={`${isDarkMode 
                 ? 'bg-white/5 border-white/10' 
-                : 'bg-emerald-50 border-emerald-200'
+                : 'bg-amber-50 border-amber-200'
               } p-2 rounded-lg border`}>
                 <p className={`${isDarkMode ? 'text-white/60' : 'text-gray-600'} text-[9px] font-medium`}>Total Orders</p>
-                <p className={`text-sm font-black ${isDarkMode ? 'text-[#d4af37]' : 'text-emerald-600'}`}>{viewingShopOrders.stats.orderCount}</p>
+                <p className={`text-sm font-black ${isDarkMode ? 'text-[#d4af37]' : 'text-amber-600'}`}>{viewingShopOrders.stats.orderCount}</p>
               </div>
             </div>
 
@@ -1824,11 +1824,11 @@ export default function App() {
               {viewingShopOrders.orders.slice(0, 10).map((order, idx) => (
                 <div key={idx} className={`${isDarkMode 
                   ? 'bg-white/5 border-white/10' 
-                  : 'bg-emerald-50 border-emerald-200'
+                  : 'bg-amber-50 border-amber-200'
                 } p-2 rounded-lg mb-2 border`}>
                   <div className="flex justify-between text-[10px]">
                     <span className={`${isDarkMode ? 'text-white' : 'text-gray-700'} font-medium`}>{new Date(order.timestamp).toLocaleDateString()}</span>
-                    <span className={`${isDarkMode ? 'text-[#d4af37]' : 'text-emerald-600'} font-black`}>Rs.{order.total.toLocaleString()}</span>
+                    <span className={`${isDarkMode ? 'text-[#d4af37]' : 'text-amber-600'} font-black`}>Rs.{order.total.toLocaleString()}</span>
                   </div>
                   <div className="flex gap-1 mt-1">
                     <button
@@ -1850,7 +1850,7 @@ export default function App() {
                       }}
                       className={`text-[8px] ${isDarkMode 
                         ? 'bg-[#d4af37]/20 text-[#d4af37] hover:bg-[#d4af37]/30' 
-                        : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
+                        : 'bg-amber-100 text-amber-700 hover:bg-amber-200'
                       } px-2 py-1 rounded transition-all font-black`}
                     >
                       Share
@@ -1889,7 +1889,7 @@ export default function App() {
               }}
               className={`w-full py-2 ${isDarkMode 
                 ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black' 
-                : 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white'
+                : 'bg-gradient-to-r from-amber-600 to-orange-600 text-white'
               } font-black rounded-lg text-xs hover:opacity-90 transition-all`}
             >
               NEW ORDER
@@ -1903,10 +1903,10 @@ export default function App() {
         <div className="fixed inset-0 bg-black/50 dark:bg-black/95 z-[150] flex items-center justify-center p-3">
           <div className={`w-full max-w-xs ${isDarkMode 
             ? 'bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/30' 
-            : 'bg-white border-emerald-300'
+            : 'bg-white border-amber-300'
           } p-4 rounded-2xl border shadow-xl`}>
             <div className="flex justify-between items-center mb-4">
-              <h3 className={`font-black ${isDarkMode ? 'text-[#d4af37]' : 'text-emerald-600'} text-sm`}>SHOP PROFILE</h3>
+              <h3 className={`font-black ${isDarkMode ? 'text-[#d4af37]' : 'text-amber-600'} text-sm`}>SHOP PROFILE</h3>
               <button onClick={() => setViewingShopProfile(null)} className={`${isDarkMode ? 'text-white/40 hover:text-white/60' : 'text-gray-400 hover:text-gray-600'} p-1 transition-all`}>
                 <X size={18}/>
               </button>
@@ -1918,21 +1918,21 @@ export default function App() {
               <div className="space-y-2 text-xs">
                 <div className={`${isDarkMode 
                   ? 'bg-white/5 border-white/10' 
-                  : 'bg-emerald-50 border-emerald-200'
+                  : 'bg-amber-50 border-amber-200'
                 } p-2 rounded-lg border`}>
                   <p className={`${isDarkMode ? 'text-white/60' : 'text-gray-600'} text-[9px] font-medium mb-1`}>Owner</p>
                   <p className={`${isDarkMode ? 'text-white' : 'text-gray-800'} font-bold`}>{viewingShopProfile.profile.ownerName || 'Not set'}</p>
                 </div>
                 <div className={`${isDarkMode 
                   ? 'bg-white/5 border-white/10' 
-                  : 'bg-emerald-50 border-emerald-200'
+                  : 'bg-amber-50 border-amber-200'
                 } p-2 rounded-lg border`}>
                   <p className={`${isDarkMode ? 'text-white/60' : 'text-gray-600'} text-[9px] font-medium mb-1`}>Phone</p>
                   <p className={`${isDarkMode ? 'text-white' : 'text-gray-800'} font-bold`}>{viewingShopProfile.profile.phone || 'Not set'}</p>
                 </div>
                 <div className={`${isDarkMode 
                   ? 'bg-white/5 border-white/10' 
-                  : 'bg-emerald-50 border-emerald-200'
+                  : 'bg-amber-50 border-amber-200'
                 } p-2 rounded-lg border`}>
                   <p className={`${isDarkMode ? 'text-white/60' : 'text-gray-600'} text-[9px] font-medium mb-1`}>Address</p>
                   <p className={`${isDarkMode ? 'text-white' : 'text-gray-800'} font-bold`}>{viewingShopProfile.profile.address || 'Not set'}</p>
@@ -1949,24 +1949,24 @@ export default function App() {
       <header className={`p-3 flex justify-between items-center sticky top-0 z-50 backdrop-blur-xl border-b ${
         isDarkMode 
           ? "bg-black/90 border-[#d4af37]/20" 
-          : "bg-white/90 border-emerald-200"
+          : "bg-white/90 border-amber-200"
       }`}>
         <button onClick={() => setShowAppInfo(true)} className="flex items-center gap-2">
           <div className="relative">
             <div className={`p-1.5 ${isDarkMode 
               ? 'bg-gradient-to-br from-[#d4af37] to-[#b8860b]' 
-              : 'bg-gradient-to-br from-emerald-600 to-teal-600'
+              : 'bg-gradient-to-br from-amber-600 to-orange-600'
             } rounded-lg text-black`}>
               <Crown size={18} />
             </div>
-            <Heart size={8} className={`${isDarkMode ? 'text-[#d4af37]' : 'text-emerald-600'} absolute -top-1 -right-1`} fill="currentColor" />
+            <Heart size={8} className={`${isDarkMode ? 'text-[#d4af37]' : 'text-amber-600'} absolute -top-1 -right-1`} fill="currentColor" />
           </div>
           <div>
-            <h1 className={`font-black text-sm tracking-tight uppercase ${isDarkMode ? 'text-[#d4af37]' : 'text-emerald-700'}`}>
+            <h1 className={`font-black text-sm tracking-tight uppercase ${isDarkMode ? 'text-[#d4af37]' : 'text-amber-700'}`}>
               {data.settings.company || "SALES MONARCH"}
             </h1>
             <p className={`text-[9px] font-bold uppercase ${
-              isDarkMode ? 'text-white/60' : 'text-emerald-600/70'
+              isDarkMode ? 'text-white/60' : 'text-amber-600/70'
             }`}>
               {data.settings.name || "Rep"}
             </p>
@@ -1994,7 +1994,7 @@ export default function App() {
             className={`p-1.5 rounded-lg border transition-all ${
               isDarkMode 
                 ? "bg-white/5 text-[#d4af37] border-white/10 hover:bg-[#d4af37]/20" 
-                : "bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100"
+                : "bg-amber-100 text-amber-600 border-amber-200 hover:bg-amber-200"
             }`}
           >
             {isDarkMode ? <Sun size={16}/> : <Moon size={16}/>}
@@ -2017,28 +2017,29 @@ export default function App() {
         {/* DASHBOARD TAB */}
         {activeTab === 'dashboard' && (
           <div className="space-y-3">
-            {/* Today's Revenue Card */}
-            <div className={`${isDarkMode 
-              ? 'bg-gradient-to-br from-[#d4af37] via-[#c19a2e] to-[#b8860b] text-black' 
-              : 'bg-gradient-to-br from-emerald-600 via-emerald-500 to-teal-600 text-white'
-            } p-4 rounded-xl shadow-xl border ${isDarkMode ? 'border-[#b8860b]/30' : 'border-emerald-400/30'}`}>
+            {/* Today's Revenue Card - DARK MODE */}
+            <div className={`p-4 rounded-xl shadow-xl border ${
+              isDarkMode 
+                ? "bg-gradient-to-br from-[#d4af37] via-[#b8860b] to-[#8b6914] text-black" 
+                : "bg-gradient-to-br from-amber-600 via-amber-500 to-orange-600 text-white"
+            }`}>
               <div className="flex justify-between items-start mb-2">
                 <div>
-                  <p className="text-[9px] font-black uppercase opacity-80">Today's Revenue</p>
-                  <h2 className="text-xl font-black">Rs.{stats.daily.totalSales.toLocaleString()}</h2>
+                  <p className="text-[9px] font-black uppercase opacity-80 tracking-wider">Today's Revenue</p>
+                  <h2 className="text-2xl font-black tracking-tight">Rs.{stats.daily.totalSales.toLocaleString()}</h2>
                 </div>
-                <div className={`${isDarkMode ? 'bg-black/20' : 'bg-white/20'} p-1.5 rounded-lg text-right border border-white/20`}>
-                  <p className="text-[8px] font-black uppercase">Expenses</p>
-                  <p className="text-sm font-black text-red-800 dark:text-red-300">- Rs.{stats.expenses.toLocaleString()}</p>
+                <div className={`${isDarkMode ? 'bg-black/20' : 'bg-white/20'} p-2 rounded-lg text-right border border-white/20`}>
+                  <p className="text-[8px] font-black uppercase tracking-wider">Expenses</p>
+                  <p className="text-sm font-black text-red-700 dark:text-red-300">- Rs.{stats.expenses.toLocaleString()}</p>
                 </div>
               </div>
               <div className="flex justify-between items-center">
-                <div className={`${isDarkMode ? 'bg-black/10' : 'bg-white/10'} px-2 py-1 rounded-full text-[9px] font-black border border-white/20`}>
+                <div className={`${isDarkMode ? 'bg-black/10' : 'bg-white/10'} px-3 py-1.5 rounded-full text-[9px] font-black border border-white/20 tracking-wide`}>
                   Net: Rs.{(stats.daily.totalSales - stats.expenses).toLocaleString()}
                 </div>
                 <div className="text-right">
-                  <p className="text-[8px] font-black uppercase opacity-80">Top Brand</p>
-                  <p className="text-xs font-black">{stats.daily.topBrand}</p>
+                  <p className="text-[8px] font-black uppercase opacity-80 tracking-wider">Top Brand</p>
+                  <p className="text-sm font-black tracking-tight">{stats.daily.topBrand}</p>
                 </div>
               </div>
             </div>
@@ -2046,43 +2047,47 @@ export default function App() {
             {/* Today's Sales */}
             <div className={`p-4 rounded-xl border shadow-lg ${
               isDarkMode 
-                ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/10" 
-                : "bg-white border-emerald-200"
+                ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/20" 
+                : "bg-white border-amber-200"
             }`}>
               <div className="flex items-center gap-2 mb-3">
                 <div className={`p-1.5 rounded-lg border ${
                   isDarkMode 
                     ? "bg-[#d4af37]/10 border-[#d4af37]/20" 
-                    : "bg-emerald-100 border-emerald-300"
+                    : "bg-amber-100 border-amber-300"
                 }`}>
-                  <TrendingUp size={14} className={`${isDarkMode ? 'text-[#d4af37]' : 'text-emerald-700'}`} />
+                  <TrendingUp size={14} className={`${isDarkMode ? 'text-[#d4af37]' : 'text-amber-700'}`} />
                 </div>
-                <h3 className={`text-sm font-black uppercase tracking-wider ${isDarkMode ? 'text-[#d4af37]' : 'text-emerald-700'}`}>Today's Sales</h3>
+                <h3 className={`text-sm font-black uppercase tracking-wider ${isDarkMode ? 'text-[#d4af37]' : 'text-amber-700'}`}>Today's Sales</h3>
               </div>
 
               {stats.daily.summary.length > 0 ? (
                 <div className="space-y-2">
                   {stats.daily.summary.map((item, idx) => (
-                    <div key={idx} className={`flex justify-between items-center py-2 border-b ${isDarkMode ? 'border-gray-700' : 'border-emerald-100'} last:border-0`}>
+                    <div key={idx} className={`flex justify-between items-center py-2 border-b ${isDarkMode ? 'border-[#d4af37]/10' : 'border-amber-100'} last:border-0`}>
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
-                          <span className={`text-xs font-bold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>{item.name}</span>
-                          <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${isDarkMode ? 'bg-gray-800 text-gray-300 border-gray-700' : 'bg-emerald-100 text-emerald-700 border-emerald-200'} border font-medium`}>x{item.units}</span>
+                          <span className={`text-xs font-black ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>{item.name}</span>
+                          <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${
+                            isDarkMode 
+                              ? 'bg-[#d4af37]/20 text-[#d4af37] border-[#d4af37]/30' 
+                              : 'bg-amber-100 text-amber-700 border-amber-200'
+                          } border font-black`}>x{item.units}</span>
                         </div>
-                        <div className={`text-[9px] ${isDarkMode ? 'text-gray-400' : 'text-gray-500'} mt-0.5 font-medium`}>
+                        <div className={`text-[9px] ${isDarkMode ? 'text-white/40' : 'text-gray-500'} mt-0.5 font-medium`}>
                           @ Rs.{item.avgPrice.toFixed(0)} per unit
                         </div>
                       </div>
                       <div className="text-right">
-                        <span className={`text-sm font-black ${isDarkMode ? 'text-[#d4af37]' : 'text-emerald-600'}`}>Rs.{item.revenue.toLocaleString()}</span>
+                        <span className={`text-sm font-black ${isDarkMode ? 'text-[#d4af37]' : 'text-amber-600'}`}>Rs.{item.revenue.toLocaleString()}</span>
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
                 <div className="text-center py-6">
-                  <ShoppingBag size={30} className={`mx-auto ${isDarkMode ? 'text-gray-600' : 'text-emerald-200'} mb-2`} />
-                  <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'} italic font-medium`}>No sales today</p>
+                  <ShoppingBag size={30} className={`mx-auto ${isDarkMode ? 'text-[#d4af37]/20' : 'text-amber-200'} mb-2`} />
+                  <p className={`text-xs ${isDarkMode ? 'text-white/30' : 'text-gray-400'} italic font-medium`}>No sales today</p>
                 </div>
               )}
             </div>
@@ -2090,8 +2095,8 @@ export default function App() {
             {/* Today's Expenses */}
             <div className={`p-4 rounded-xl border shadow-lg ${
               isDarkMode 
-                ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/10" 
-                : "bg-white border-emerald-200"
+                ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/20" 
+                : "bg-white border-amber-200"
             }`}>
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
@@ -2117,9 +2122,12 @@ export default function App() {
                     {/* Expense Summary by Type */}
                     <div className="grid grid-cols-2 gap-2">
                       {Object.entries(stats.expensesByType).map(([type, amount]) => (
-                        <div key={type} className={`${isDarkMode ? 'bg-gray-900 border-gray-800' : 'bg-emerald-50 border-emerald-200'} p-2 rounded-lg text-center border`}>
-                          <p className={`text-[8px] ${isDarkMode ? 'text-gray-400' : 'text-gray-500'} uppercase font-bold mb-1`}>{type}</p>
-                          <p className={`text-xs font-bold ${
+                        <div key={type} className={`${isDarkMode 
+                          ? 'bg-[#d4af37]/5 border-[#d4af37]/10' 
+                          : 'bg-amber-50 border-amber-200'
+                        } p-2 rounded-lg text-center border`}>
+                          <p className={`text-[8px] ${isDarkMode ? 'text-white/40' : 'text-gray-500'} uppercase font-black mb-1`}>{type}</p>
+                          <p className={`text-xs font-black ${
                             isDarkMode ? "text-red-400" : "text-red-600"
                           }`}>Rs.{amount.toLocaleString()}</p>
                         </div>
@@ -2129,16 +2137,16 @@ export default function App() {
                     {/* Individual Expenses */}
                     <div className="space-y-1 max-h-32 overflow-y-auto">
                       {stats.todayExpenses.map((exp, idx) => (
-                        <div key={idx} className={`flex justify-between items-center py-1.5 border-b ${isDarkMode ? 'border-gray-800' : 'border-emerald-100'} last:border-0`}>
+                        <div key={idx} className={`flex justify-between items-center py-1.5 border-b ${isDarkMode ? 'border-[#d4af37]/10' : 'border-amber-100'} last:border-0`}>
                           <div className="flex items-center gap-2">
                             {exp.type === 'fuel' && <Fuel size={10} className={isDarkMode ? "text-red-500" : "text-red-600"} />}
-                            {exp.type === 'food' && <Coffee size={10} className={isDarkMode ? "text-[#d4af37]" : "text-emerald-600"} />}
+                            {exp.type === 'food' && <Coffee size={10} className={isDarkMode ? "text-[#d4af37]" : "text-amber-600"} />}
                             {exp.type === 'transport' && <Navigation size={10} className={isDarkMode ? "text-blue-500" : "text-blue-600"} />}
-                            <span className={`text-[10px] font-bold ${isDarkMode ? 'text-white' : 'text-gray-800'} capitalize`}>{exp.type}</span>
-                            {exp.note && <span className={`text-[8px] ${isDarkMode ? 'text-gray-400' : 'text-gray-500'} font-medium`}>- {exp.note}</span>}
+                            <span className={`text-[10px] font-black ${isDarkMode ? 'text-white' : 'text-gray-800'} capitalize`}>{exp.type}</span>
+                            {exp.note && <span className={`text-[8px] ${isDarkMode ? 'text-white/40' : 'text-gray-500'} font-medium`}>- {exp.note}</span>}
                           </div>
                           <div className="flex items-center gap-2">
-                            <span className={`text-xs font-bold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>Rs.{exp.amount.toLocaleString()}</span>
+                            <span className={`text-xs font-black ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>Rs.{exp.amount.toLocaleString()}</span>
                             <button
                               onClick={() => confirmDelete(exp.id, 'expense', `${exp.type} expense`)}
                               className="text-red-500 hover:text-red-600 p-0.5"
@@ -2152,8 +2160,8 @@ export default function App() {
                   </>
                 ) : (
                   <div className="text-center py-6">
-                    <CreditCard size={30} className={`mx-auto ${isDarkMode ? 'text-gray-600' : 'text-emerald-200'} mb-2`} />
-                    <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'} italic font-medium`}>No expenses today</p>
+                    <CreditCard size={30} className={`mx-auto ${isDarkMode ? 'text-[#d4af37]/20' : 'text-amber-200'} mb-2`} />
+                    <p className={`text-xs ${isDarkMode ? 'text-white/30' : 'text-gray-400'} italic font-medium`}>No expenses today</p>
                   </div>
                 )}
               </div>
@@ -2164,25 +2172,25 @@ export default function App() {
               <div className={`p-4 rounded-xl border shadow-lg ${
                 isDarkMode 
                   ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/30" 
-                  : "bg-white border-emerald-300"
+                  : "bg-white border-amber-300"
               }`}>
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
                     <div className={`p-1.5 rounded-lg border ${
                       isDarkMode 
                         ? "bg-[#d4af37]/10 border-[#d4af37]/20" 
-                        : "bg-emerald-100 border-emerald-300"
+                        : "bg-amber-100 border-amber-300"
                     }`}>
-                      <Target size={14} className={`${isDarkMode ? 'text-[#d4af37]' : 'text-emerald-700'}`} />
+                      <Target size={14} className={`${isDarkMode ? 'text-[#d4af37]' : 'text-amber-700'}`} />
                     </div>
-                    <h3 className={`text-sm font-black uppercase tracking-wider ${isDarkMode ? 'text-[#d4af37]' : 'text-emerald-700'}`}>Targets ({stats.targets.length})</h3>
+                    <h3 className={`text-sm font-black uppercase tracking-wider ${isDarkMode ? 'text-[#d4af37]' : 'text-amber-700'}`}>Targets ({stats.targets.length})</h3>
                   </div>
                   <button
                     onClick={() => setShowTargetModal(true)}
                     className={`px-2 py-1 rounded-lg text-[8px] font-black transition-all ${
                       isDarkMode 
                         ? "bg-[#d4af37]/20 text-[#d4af37] hover:bg-[#d4af37]/30" 
-                        : "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
+                        : "bg-amber-100 text-amber-700 hover:bg-amber-200"
                     }`}
                   >
                     + ADD
@@ -2191,9 +2199,12 @@ export default function App() {
 
                 <div className="space-y-3 max-h-40 overflow-y-auto">
                   {stats.targets.map((target, idx) => (
-                    <div key={idx} className={`${isDarkMode ? 'bg-gray-900 border-gray-800' : 'bg-emerald-50 border-emerald-200'} p-2 rounded-lg border`}>
+                    <div key={idx} className={`${isDarkMode 
+                      ? 'bg-[#d4af37]/5 border-[#d4af37]/10' 
+                      : 'bg-amber-50 border-amber-200'
+                    } p-2 rounded-lg border`}>
                       <div className="flex justify-between items-center mb-1">
-                        <span className={`text-[9px] font-bold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+                        <span className={`text-[9px] font-black ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
                           {target.specific === 'brand' ? target.brand : 'Total'}
                           ({target.type === 'revenue' ? 'Rs' : 'Units'})
                         </span>
@@ -2213,14 +2224,14 @@ export default function App() {
                         </div>
                       </div>
                       <div className="flex justify-between items-center text-[8px] mb-1">
-                        <span className={`${isDarkMode ? 'text-gray-400' : 'text-gray-500'} font-medium`}>Progress:</span>
-                        <span className={`font-bold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>{target.achieved.toLocaleString()} / {target.amount.toLocaleString()}</span>
+                        <span className={`${isDarkMode ? 'text-white/40' : 'text-gray-500'} font-medium`}>Progress:</span>
+                        <span className={`font-black ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>{target.achieved.toLocaleString()} / {target.amount.toLocaleString()}</span>
                       </div>
-                      <div className={`w-full h-1.5 ${isDarkMode ? 'bg-gray-800' : 'bg-emerald-100'} rounded-full overflow-hidden`}>
+                      <div className={`w-full h-1.5 ${isDarkMode ? 'bg-[#d4af37]/10' : 'bg-amber-100'} rounded-full overflow-hidden`}>
                         <div
                           className={`h-full ${isDarkMode 
                             ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b]' 
-                            : 'bg-gradient-to-r from-emerald-600 to-teal-600'
+                            : 'bg-gradient-to-r from-amber-600 to-orange-600'
                           }`}
                           style={{ width: `${Math.min(target.progress, 100)}%` }}
                         ></div>
@@ -2234,26 +2245,26 @@ export default function App() {
             {/* Monthly Performance */}
             <div className={`p-4 rounded-xl border shadow-lg ${
               isDarkMode 
-                ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-white/10" 
-                : "bg-white border-emerald-200"
+                ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/20" 
+                : "bg-white border-amber-200"
             }`}>
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <div className={`p-1.5 rounded-lg border ${
                     isDarkMode 
                       ? "bg-[#d4af37]/10 border-[#d4af37]/20" 
-                      : "bg-emerald-100 border-emerald-300"
+                      : "bg-amber-100 border-amber-300"
                   }`}>
-                    <BarChart3 size={14} className={`${isDarkMode ? 'text-[#d4af37]' : 'text-emerald-700'}`} />
+                    <BarChart3 size={14} className={`${isDarkMode ? 'text-[#d4af37]' : 'text-amber-700'}`} />
                   </div>
-                  <h3 className={`text-sm font-black uppercase tracking-wider ${isDarkMode ? 'text-[#d4af37]' : 'text-emerald-700'}`}>Monthly Performance</h3>
+                  <h3 className={`text-sm font-black uppercase tracking-wider ${isDarkMode ? 'text-[#d4af37]' : 'text-amber-700'}`}>Monthly Performance</h3>
                 </div>
                 <button
                   onClick={() => setShowAllMonthlyBrands(!showAllMonthlyBrands)}
                   className={`px-2 py-1 rounded-lg text-[8px] font-black transition-all ${
                     isDarkMode 
-                      ? "bg-white/10 text-white hover:bg-white/20" 
-                      : "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
+                      ? "bg-[#d4af37]/10 text-[#d4af37] hover:bg-[#d4af37]/20" 
+                      : "bg-amber-100 text-amber-700 hover:bg-amber-200"
                   }`}
                 >
                   {showAllMonthlyBrands ? 'Show Less' : 'Show All'}
@@ -2261,44 +2272,50 @@ export default function App() {
               </div>
 
               <div className="grid grid-cols-2 gap-2 mb-3">
-                <div className={`${isDarkMode ? 'bg-gray-900 border-gray-800' : 'bg-emerald-50 border-emerald-200'} p-2 rounded-lg border`}>
-                  <p className={`text-[8px] ${isDarkMode ? 'text-gray-400' : 'text-gray-500'} font-medium`}>Total Sales</p>
-                  <p className={`text-base font-black ${isDarkMode ? 'text-[#d4af37]' : 'text-emerald-600'}`}>Rs.{stats.monthlySales.toLocaleString()}</p>
+                <div className={`${isDarkMode 
+                  ? 'bg-[#d4af37]/5 border-[#d4af37]/10' 
+                  : 'bg-amber-50 border-amber-200'
+                } p-2 rounded-lg border`}>
+                  <p className={`text-[8px] ${isDarkMode ? 'text-white/40' : 'text-gray-500'} font-medium`}>Total Sales</p>
+                  <p className={`text-base font-black ${isDarkMode ? 'text-[#d4af37]' : 'text-amber-600'}`}>Rs.{stats.monthlySales.toLocaleString()}</p>
                 </div>
-                <div className={`${isDarkMode ? 'bg-gray-900 border-gray-800' : 'bg-emerald-50 border-emerald-200'} p-2 rounded-lg border`}>
-                  <p className={`text-[8px] ${isDarkMode ? 'text-gray-400' : 'text-gray-500'} font-medium`}>Total Units</p>
-                  <p className={`text-base font-black ${isDarkMode ? 'text-[#d4af37]' : 'text-emerald-600'}`}>{stats.monthly.totalUnits}</p>
+                <div className={`${isDarkMode 
+                  ? 'bg-[#d4af37]/5 border-[#d4af37]/10' 
+                  : 'bg-amber-50 border-amber-200'
+                } p-2 rounded-lg border`}>
+                  <p className={`text-[8px] ${isDarkMode ? 'text-white/40' : 'text-gray-500'} font-medium`}>Total Units</p>
+                  <p className={`text-base font-black ${isDarkMode ? 'text-[#d4af37]' : 'text-amber-600'}`}>{stats.monthly.totalUnits}</p>
                 </div>
               </div>
 
               {/* Brand-wise Performance */}
               <div className="space-y-2">
-                <p className={`text-[9px] font-black ${isDarkMode ? 'text-gray-400' : 'text-gray-500'} uppercase mb-2`}>Brand Performance</p>
+                <p className={`text-[9px] font-black ${isDarkMode ? 'text-white/40' : 'text-gray-500'} uppercase mb-2`}>Brand Performance</p>
 
                 {stats.monthly.summary.slice(0, showAllMonthlyBrands ? undefined : 5).map((brand, idx) => (
                   <div key={idx} className={`p-3 rounded-lg border ${
                     idx === 0
                       ? isDarkMode 
                           ? 'bg-[#d4af37]/10 border-[#d4af37]/40' 
-                          : 'bg-emerald-100 border-emerald-300'
+                          : 'bg-amber-100 border-amber-300'
                       : isDarkMode
-                        ? 'bg-gray-900 border-gray-800'
-                        : 'bg-emerald-50 border-emerald-200'
+                        ? 'bg-[#d4af37]/5 border-[#d4af37]/10'
+                        : 'bg-amber-50 border-amber-200'
                   }`}>
                     <div className="flex justify-between items-center">
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
-                          {idx === 0 && <Trophy size={12} className={isDarkMode ? 'text-[#d4af37]' : 'text-emerald-600'} />}
-                          <span className={`text-xs font-bold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>{brand.name}</span>
+                          {idx === 0 && <Trophy size={12} className={isDarkMode ? 'text-[#d4af37]' : 'text-amber-600'} />}
+                          <span className={`text-xs font-black ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>{brand.name}</span>
                         </div>
                         <div className="flex items-center gap-3 mt-1">
-                          <span className={`text-[8px] ${isDarkMode ? 'text-gray-400' : 'text-gray-500'} font-medium border-r ${isDarkMode ? 'border-gray-700' : 'border-emerald-200'} pr-2`}>{brand.units} units</span>
-                          <span className={`text-[8px] ${isDarkMode ? 'text-gray-400' : 'text-gray-500'} font-medium`}>@ Rs.{brand.avgPrice.toFixed(0)}</span>
+                          <span className={`text-[8px] ${isDarkMode ? 'text-white/40' : 'text-gray-500'} font-medium border-r ${isDarkMode ? 'border-[#d4af37]/20' : 'border-amber-200'} pr-2`}>{brand.units} units</span>
+                          <span className={`text-[8px] ${isDarkMode ? 'text-white/40' : 'text-gray-500'} font-medium`}>@ Rs.{brand.avgPrice.toFixed(0)}</span>
                         </div>
                       </div>
-                      <div className={`text-right border-l ${isDarkMode ? 'border-gray-700' : 'border-emerald-200'} pl-3`}>
-                        <p className={`text-sm font-black ${isDarkMode ? 'text-[#d4af37]' : 'text-emerald-600'}`}>Rs.{brand.revenue.toLocaleString()}</p>
-                        <p className={`text-[7px] ${isDarkMode ? 'text-gray-400' : 'text-gray-500'} mt-0.5 font-medium`}>
+                      <div className={`text-right border-l ${isDarkMode ? 'border-[#d4af37]/20' : 'border-amber-200'} pl-3`}>
+                        <p className={`text-sm font-black ${isDarkMode ? 'text-[#d4af37]' : 'text-amber-600'}`}>Rs.{brand.revenue.toLocaleString()}</p>
+                        <p className={`text-[7px] ${isDarkMode ? 'text-white/40' : 'text-gray-500'} mt-0.5 font-medium`}>
                           {stats.monthly.totalSales > 0 ? ((brand.revenue / stats.monthly.totalSales) * 100).toFixed(1) : 0}%
                         </p>
                       </div>
@@ -2308,8 +2325,8 @@ export default function App() {
 
                 {stats.monthly.summary.length === 0 && (
                   <div className="text-center py-6">
-                    <Package2 size={30} className={`mx-auto ${isDarkMode ? 'text-gray-600' : 'text-emerald-200'} mb-2`} />
-                    <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'} italic font-medium`}>No monthly sales data</p>
+                    <Package2 size={30} className={`mx-auto ${isDarkMode ? 'text-[#d4af37]/20' : 'text-amber-200'} mb-2`} />
+                    <p className={`text-xs ${isDarkMode ? 'text-white/30' : 'text-gray-400'} italic font-medium`}>No monthly sales data</p>
                   </div>
                 )}
               </div>
@@ -2324,10 +2341,10 @@ export default function App() {
             <div className="flex gap-2">
               <div className={`flex-1 p-2 rounded-xl border flex items-center gap-2 ${
                 isDarkMode 
-                  ? "bg-[#0f0f0f] border-white/10" 
-                  : "bg-white border-emerald-200"
+                  ? "bg-[#0f0f0f] border-[#d4af37]/20" 
+                  : "bg-white border-amber-200"
               }`}>
-                <Search size={14} className={isDarkMode ? "text-white/30" : "text-emerald-400"}/>
+                <Search size={14} className={isDarkMode ? "text-[#d4af37]/50" : "text-amber-400"}/>
                 <input
                   value={shopSearch}
                   onChange={(e) => setShopSearch(e.target.value)}
@@ -2341,8 +2358,8 @@ export default function App() {
                 onClick={() => setShowModal('shop')}
                 className={`px-3 py-2 rounded-xl border font-black text-xs flex items-center gap-1 transition-all ${
                   isDarkMode 
-                    ? 'bg-[#1a1a1a] border-white/10 text-[#d4af37] hover:bg-[#d4af37]/10' 
-                    : 'bg-white border-emerald-200 text-emerald-600 hover:bg-emerald-50'
+                    ? 'bg-[#1a1a1a] border-[#d4af37]/20 text-[#d4af37] hover:bg-[#d4af37]/10' 
+                    : 'bg-white border-amber-200 text-amber-600 hover:bg-amber-50'
                 }`}
               >
                 <Plus size={14} /> ADD
@@ -2357,10 +2374,10 @@ export default function App() {
                   selectedRouteFilter === 'ALL'
                     ? isDarkMode
                       ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black border-[#d4af37]'
-                      : 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white border-emerald-400'
+                      : 'bg-gradient-to-r from-amber-600 to-orange-600 text-white border-amber-400'
                     : isDarkMode 
-                      ? 'bg-[#1a1a1a] border-white/10 text-white/60 hover:bg-white/10' 
-                      : 'bg-white border-emerald-200 text-emerald-600 hover:bg-emerald-50'
+                      ? 'bg-[#1a1a1a] border-[#d4af37]/20 text-white/60 hover:bg-[#d4af37]/10' 
+                      : 'bg-white border-amber-200 text-amber-600 hover:bg-amber-50'
                 }`}>
                 ALL
               </button>
@@ -2372,10 +2389,10 @@ export default function App() {
                     selectedRouteFilter === r.name
                       ? isDarkMode
                         ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black border-[#d4af37]'
-                        : 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white border-emerald-400'
+                        : 'bg-gradient-to-r from-amber-600 to-orange-600 text-white border-amber-400'
                       : isDarkMode 
-                        ? 'bg-[#1a1a1a] border-white/10 text-white/60 hover:bg-white/10' 
-                        : 'bg-white border-emerald-200 text-emerald-600 hover:bg-emerald-50'
+                        ? 'bg-[#1a1a1a] border-[#d4af37]/20 text-white/60 hover:bg-[#d4af37]/10' 
+                        : 'bg-white border-amber-200 text-amber-600 hover:bg-amber-50'
                   }`}>
                   {r.name}
                 </button>
@@ -2393,32 +2410,36 @@ export default function App() {
                     key={s.id}
                     className={`p-3 rounded-xl border ${
                       isDarkMode 
-                        ? "bg-[#0f0f0f] border-white/5" 
-                        : "bg-white border-emerald-200 shadow-md"
+                        ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/20" 
+                        : "bg-white border-amber-200 shadow-md"
                     }`}
                   >
                     <div className="flex justify-between items-start mb-2">
                       <div>
                         <h4 className={`text-sm font-black uppercase ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>{s.name}</h4>
-                        <p className={`text-[10px] ${isDarkMode ? 'text-gray-400' : 'text-gray-500'} mt-0.5 font-medium`}>{s.area}</p>
+                        <p className={`text-[10px] ${isDarkMode ? 'text-white/40' : 'text-gray-500'} mt-0.5 font-medium`}>{s.area}</p>
                       </div>
                       <div className="relative">
                         <button
                           onClick={() => setShowShopMenu(showShopMenu === s.id ? null : s.id)}
-                          className={`p-1.5 ${isDarkMode ? 'text-gray-500 hover:text-white hover:bg-gray-800' : 'text-gray-400 hover:text-gray-600 hover:bg-emerald-50'} rounded-lg transition-all`}
+                          className={`p-1.5 ${isDarkMode ? 'text-white/40 hover:text-white hover:bg-[#d4af37]/10' : 'text-gray-400 hover:text-gray-600 hover:bg-amber-50'} rounded-lg transition-all`}
                         >
                           <MoreVertical size={16} />
                         </button>
 
                         {showShopMenu === s.id && (
-                          <div className={`absolute right-0 top-full mt-1 w-32 ${isDarkMode ? 'bg-black border-[#d4af37]/30' : 'bg-white border-emerald-200'} border rounded-lg shadow-xl z-50`}>
+                          <div className={`absolute right-0 top-full mt-1 w-32 ${
+                            isDarkMode 
+                              ? 'bg-black border-[#d4af37]/30' 
+                              : 'bg-white border-amber-200'
+                          } border rounded-lg shadow-xl z-50`}>
                             <div className="p-1">
                               <button
                                 onClick={() => {
                                   setShowShopMenu(null);
                                   viewShopOrders(s);
                                 }}
-                                className={`w-full px-3 py-1.5 text-left text-[9px] font-black uppercase ${isDarkMode ? 'text-white hover:bg-gray-800' : 'text-gray-800 hover:bg-emerald-50'} rounded flex items-center gap-1 transition-all`}
+                                className={`w-full px-3 py-1.5 text-left text-[9px] font-black uppercase ${isDarkMode ? 'text-white hover:bg-[#d4af37]/10' : 'text-gray-800 hover:bg-amber-50'} rounded flex items-center gap-1 transition-all`}
                               >
                                 <History size={10} className="text-blue-500"/> Orders
                               </button>
@@ -2427,7 +2448,7 @@ export default function App() {
                                   setShowShopMenu(null);
                                   viewShopProfile(s);
                                 }}
-                                className={`w-full px-3 py-1.5 text-left text-[9px] font-black uppercase ${isDarkMode ? 'text-white hover:bg-gray-800' : 'text-gray-800 hover:bg-emerald-50'} rounded flex items-center gap-1 transition-all`}
+                                className={`w-full px-3 py-1.5 text-left text-[9px] font-black uppercase ${isDarkMode ? 'text-white hover:bg-[#d4af37]/10' : 'text-gray-800 hover:bg-amber-50'} rounded flex items-center gap-1 transition-all`}
                               >
                                 <Eye size={10} className="text-green-500"/> Profile
                               </button>
@@ -2437,7 +2458,7 @@ export default function App() {
                                     setShowShopMenu(null);
                                     editShopProfile(shopProfile);
                                   }}
-                                  className={`w-full px-3 py-1.5 text-left text-[9px] font-black uppercase ${isDarkMode ? 'text-white hover:bg-gray-800' : 'text-gray-800 hover:bg-emerald-50'} rounded flex items-center gap-1 transition-all`}
+                                  className={`w-full px-3 py-1.5 text-left text-[9px] font-black uppercase ${isDarkMode ? 'text-white hover:bg-[#d4af37]/10' : 'text-gray-800 hover:bg-amber-50'} rounded flex items-center gap-1 transition-all`}
                                 >
                                   <Edit2 size={10} className="text-blue-500"/> Edit
                                 </button>
@@ -2448,9 +2469,9 @@ export default function App() {
                                     setSelectedShop(s);
                                     setShowModal('shopProfile');
                                   }}
-                                  className={`w-full px-3 py-1.5 text-left text-[9px] font-black uppercase ${isDarkMode ? 'text-white hover:bg-gray-800' : 'text-gray-800 hover:bg-emerald-50'} rounded flex items-center gap-1 transition-all`}
+                                  className={`w-full px-3 py-1.5 text-left text-[9px] font-black uppercase ${isDarkMode ? 'text-white hover:bg-[#d4af37]/10' : 'text-gray-800 hover:bg-amber-50'} rounded flex items-center gap-1 transition-all`}
                                 >
-                                  <Plus size={10} className={isDarkMode ? 'text-[#d4af37]' : 'text-emerald-600'}/> Add Profile
+                                  <Plus size={10} className={isDarkMode ? 'text-[#d4af37]' : 'text-amber-600'}/> Add Profile
                                 </button>
                               )}
                               <button
@@ -2469,8 +2490,8 @@ export default function App() {
                     </div>
 
                     <div className="flex items-center gap-3 text-[9px] mb-2">
-                      <span className={`${isDarkMode ? 'text-gray-400' : 'text-gray-500'} font-medium`}>Total: <span className={`font-black ${isDarkMode ? 'text-[#d4af37]' : 'text-emerald-600'}`}>Rs.{shopStats.totalSales.toLocaleString()}</span></span>
-                      <span className={`${isDarkMode ? 'text-gray-400' : 'text-gray-500'} font-medium`}>Orders: <span className={`font-black ${isDarkMode ? 'text-[#d4af37]' : 'text-emerald-600'}`}>{shopStats.orderCount}</span></span>
+                      <span className={`${isDarkMode ? 'text-white/40' : 'text-gray-500'} font-medium`}>Total: <span className={`font-black ${isDarkMode ? 'text-[#d4af37]' : 'text-amber-600'}`}>Rs.{shopStats.totalSales.toLocaleString()}</span></span>
+                      <span className={`${isDarkMode ? 'text-white/40' : 'text-gray-500'} font-medium`}>Orders: <span className={`font-black ${isDarkMode ? 'text-[#d4af37]' : 'text-amber-600'}`}>{shopStats.orderCount}</span></span>
                     </div>
 
                     {/* Compact BILL BUTTON */}
@@ -2481,7 +2502,7 @@ export default function App() {
                       }}
                       className={`w-full py-1.5 ${isDarkMode 
                         ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black' 
-                        : 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white'
+                        : 'bg-gradient-to-r from-amber-600 to-orange-600 text-white'
                       } font-black rounded-lg text-[9px] uppercase flex items-center justify-center gap-1 hover:opacity-90 transition-all`}
                     >
                       <Receipt size={12} /> BILL
@@ -2498,10 +2519,10 @@ export default function App() {
           <div className="space-y-3">
             <div className={`p-2 rounded-xl border flex items-center gap-2 ${
               isDarkMode 
-                ? "bg-[#0f0f0f] border-white/10" 
-                : "bg-white border-emerald-200"
+                ? "bg-[#0f0f0f] border-[#d4af37]/20" 
+                : "bg-white border-amber-200"
             }`}>
-              <Calendar size={14} className={isDarkMode ? 'text-[#d4af37]' : 'text-emerald-600'}/>
+              <Calendar size={14} className={isDarkMode ? 'text-[#d4af37]' : 'text-amber-600'}/>
               <input
                 type="date"
                 className={`bg-transparent text-[10px] font-bold uppercase outline-none w-full ${
@@ -2525,19 +2546,19 @@ export default function App() {
               .map((o) => (
               <div key={o.id} className={`p-3 rounded-xl border ${
                 isDarkMode 
-                  ? "bg-[#0f0f0f] border-white/5" 
-                  : "bg-white border-emerald-200 shadow-md"
+                  ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/20" 
+                  : "bg-white border-amber-200 shadow-md"
               }`}>
                 <div className="flex justify-between items-start mb-2">
                   <div>
-                    <h4 className={`text-xs font-black uppercase ${isDarkMode ? 'text-[#d4af37]' : 'text-emerald-700'}`}>{o.shopName}</h4>
-                    <p className={`text-[8px] ${isDarkMode ? 'text-gray-400' : 'text-gray-500'} font-medium`}>{o.companyName}</p>
+                    <h4 className={`text-xs font-black uppercase ${isDarkMode ? 'text-[#d4af37]' : 'text-amber-700'}`}>{o.shopName}</h4>
+                    <p className={`text-[8px] ${isDarkMode ? 'text-white/40' : 'text-gray-500'} font-medium`}>{o.companyName}</p>
                   </div>
                   <div className="flex gap-1">
                     <button onClick={() => printBill(o)} className={`p-1 ${isDarkMode ? 'text-blue-500 hover:bg-blue-500/10' : 'text-blue-600 hover:bg-blue-50'} rounded transition-all`}>
                       <Printer size={12}/>
                     </button>
-                    <button onClick={() => shareToWhatsApp(o, false)} className={`p-1 ${isDarkMode ? 'text-[#d4af37] hover:bg-[#d4af37]/10' : 'text-emerald-600 hover:bg-emerald-50'} rounded transition-all`}>
+                    <button onClick={() => shareToWhatsApp(o, false)} className={`p-1 ${isDarkMode ? 'text-[#d4af37] hover:bg-[#d4af37]/10' : 'text-amber-600 hover:bg-amber-50'} rounded transition-all`}>
                       <Share2 size={12}/>
                     </button>
                     <button onClick={() => shareToWhatsApp(o, true)} className={`p-1 ${isDarkMode ? 'text-green-500 hover:bg-green-500/10' : 'text-green-600 hover:bg-green-50'} rounded transition-all`}>
@@ -2551,16 +2572,16 @@ export default function App() {
 
                 <div className="space-y-1 text-[9px] mb-2">
                   {o.items?.map((i, k) => (
-                    <div key={k} className={`flex justify-between ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                    <div key={k} className={`flex justify-between ${isDarkMode ? 'text-white/60' : 'text-gray-600'}`}>
                       <span className="font-medium">{i.name} x{i.qty}</span>
                       <span className="font-black">Rs.{i.subtotal.toLocaleString()}</span>
                     </div>
                   ))}
                 </div>
 
-                <div className={`flex justify-between items-center border-t ${isDarkMode ? 'border-gray-800' : 'border-emerald-100'} pt-2`}>
-                  <span className={`text-[9px] ${isDarkMode ? 'text-gray-400' : 'text-gray-500'} font-medium`}>Total</span>
-                  <span className={`text-sm font-black ${isDarkMode ? 'text-[#d4af37]' : 'text-emerald-600'}`}>Rs.{o.total.toLocaleString()}</span>
+                <div className={`flex justify-between items-center border-t ${isDarkMode ? 'border-[#d4af37]/10' : 'border-amber-100'} pt-2`}>
+                  <span className={`text-[9px] ${isDarkMode ? 'text-white/40' : 'text-gray-500'} font-medium`}>Total</span>
+                  <span className={`text-sm font-black ${isDarkMode ? 'text-[#d4af37]' : 'text-amber-600'}`}>Rs.{o.total.toLocaleString()}</span>
                 </div>
               </div>
             ))}
@@ -2571,13 +2592,13 @@ export default function App() {
               .map((o) => (
               <div key={o.id} className={`p-3 rounded-xl border ${
                 isDarkMode 
-                  ? "bg-[#0f0f0f] border-purple-500/30" 
+                  ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-purple-500/30" 
                   : "bg-white border-purple-200 shadow-md"
               }`}>
                 <div className="flex justify-between items-start mb-2">
                   <div>
                     <h4 className={`text-xs font-black uppercase ${isDarkMode ? 'text-purple-500' : 'text-purple-700'}`}>{o.shopName}</h4>
-                    <p className={`text-[8px] ${isDarkMode ? 'text-gray-400' : 'text-gray-500'} font-medium`}>{o.companyName}</p>
+                    <p className={`text-[8px] ${isDarkMode ? 'text-white/40' : 'text-gray-500'} font-medium`}>{o.companyName}</p>
                   </div>
                   <div className="flex gap-1">
                     <button onClick={() => printBill(o)} className={`p-1 ${isDarkMode ? 'text-blue-500 hover:bg-blue-500/10' : 'text-blue-600 hover:bg-blue-50'} rounded transition-all`}>
@@ -2594,15 +2615,15 @@ export default function App() {
 
                 <div className="space-y-1 text-[9px] mb-2">
                   {o.items?.map((i, k) => (
-                    <div key={k} className={`flex justify-between ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                    <div key={k} className={`flex justify-between ${isDarkMode ? 'text-white/60' : 'text-gray-600'}`}>
                       <span className="font-medium">{i.name} x{i.qty}</span>
                       <span className="font-black">Rs.{i.subtotal.toLocaleString()}</span>
                     </div>
                   ))}
                 </div>
 
-                <div className={`flex justify-between items-center border-t ${isDarkMode ? 'border-gray-800' : 'border-emerald-100'} pt-2`}>
-                  <span className={`text-[9px] ${isDarkMode ? 'text-gray-400' : 'text-gray-500'} font-medium`}>Manual Order Total</span>
+                <div className={`flex justify-between items-center border-t ${isDarkMode ? 'border-[#d4af37]/10' : 'border-amber-100'} pt-2`}>
+                  <span className={`text-[9px] ${isDarkMode ? 'text-white/40' : 'text-gray-500'} font-medium`}>Manual Order Total</span>
                   <span className={`text-sm font-black ${isDarkMode ? 'text-purple-500' : 'text-purple-700'}`}>Rs.{o.total.toLocaleString()}</span>
                 </div>
               </div>
@@ -2615,10 +2636,10 @@ export default function App() {
           <div className="space-y-3">
             <div className={`p-2 rounded-xl border flex items-center gap-2 ${
               isDarkMode 
-                ? "bg-[#0f0f0f] border-white/10" 
-                : "bg-white border-emerald-200"
+                ? "bg-[#0f0f0f] border-[#d4af37]/20" 
+                : "bg-white border-amber-200"
             }`}>
-              <Calendar size={14} className={isDarkMode ? 'text-[#d4af37]' : 'text-emerald-600'}/>
+              <Calendar size={14} className={isDarkMode ? 'text-[#d4af37]' : 'text-amber-600'}/>
               <input
                 type="date"
                 className={`bg-transparent text-[10px] font-bold uppercase outline-none w-full ${
@@ -2631,7 +2652,7 @@ export default function App() {
                 onClick={() => setShowModal('note')}
                 className={`${isDarkMode 
                   ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black' 
-                  : 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white'
+                  : 'bg-gradient-to-r from-amber-600 to-orange-600 text-white'
                 } px-2 py-1 rounded-lg text-[9px] font-black hover:opacity-90 transition-all`}
               >
                 ADD
@@ -2641,13 +2662,13 @@ export default function App() {
             {filteredNotes.map((note) => (
               <div key={note.id} className={`p-3 rounded-xl border ${
                 isDarkMode 
-                  ? "bg-[#0f0f0f] border-white/5" 
-                  : "bg-white border-emerald-200 shadow-md"
+                  ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/20" 
+                  : "bg-white border-amber-200 shadow-md"
               }`}>
                 <div className="flex justify-between items-start mb-2">
                   <div className="flex items-center gap-1">
-                    <Clock size={10} className={isDarkMode ? 'text-gray-500' : 'text-gray-400'}/>
-                    <span className={`text-[8px] ${isDarkMode ? 'text-gray-400' : 'text-gray-500'} font-medium`}>
+                    <Clock size={10} className={isDarkMode ? 'text-white/40' : 'text-gray-400'}/>
+                    <span className={`text-[8px] ${isDarkMode ? 'text-white/40' : 'text-gray-500'} font-medium`}>
                       {new Date(note.timestamp).toLocaleTimeString()}
                     </span>
                   </div>
@@ -2670,10 +2691,10 @@ export default function App() {
             {/* Profile Form */}
             <form onSubmit={handleSaveProfile} className={`p-3 rounded-xl border ${
               isDarkMode 
-                ? "bg-[#0f0f0f] border-white/10" 
-                : "bg-white border-emerald-200 shadow-md"
+                ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/20" 
+                : "bg-white border-amber-200 shadow-md"
             }`}>
-              <h3 className={`text-xs font-black uppercase mb-2 ${isDarkMode ? 'text-[#d4af37]' : 'text-emerald-700'}`}>Profile</h3>
+              <h3 className={`text-xs font-black uppercase mb-2 ${isDarkMode ? 'text-[#d4af37]' : 'text-amber-700'}`}>Profile</h3>
               <div className="space-y-2">
                 <input
                   name="repName"
@@ -2681,8 +2702,8 @@ export default function App() {
                   placeholder="YOUR NAME"
                   className={`w-full p-2 rounded-lg border text-[10px] font-bold uppercase outline-none ${
                     isDarkMode 
-                      ? 'bg-[#1a1a1a] border-white/5 text-white placeholder-white/30' 
-                      : 'bg-emerald-50 border-emerald-200 text-gray-800 placeholder-gray-400'
+                      ? 'bg-[#1a1a1a] border-[#d4af37]/10 text-white placeholder-white/30' 
+                      : 'bg-amber-50 border-amber-200 text-gray-800 placeholder-gray-400'
                   }`}
                 />
                 <input
@@ -2691,8 +2712,8 @@ export default function App() {
                   placeholder="COMPANY"
                   className={`w-full p-2 rounded-lg border text-[10px] font-bold uppercase outline-none ${
                     isDarkMode 
-                      ? 'bg-[#1a1a1a] border-white/5 text-white placeholder-white/30' 
-                      : 'bg-emerald-50 border-emerald-200 text-gray-800 placeholder-gray-400'
+                      ? 'bg-[#1a1a1a] border-[#d4af37]/10 text-white placeholder-white/30' 
+                      : 'bg-amber-50 border-amber-200 text-gray-800 placeholder-gray-400'
                   }`}
                 />
                 <button type="submit" className="w-full py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-black rounded-lg text-[10px] flex items-center justify-center gap-1 hover:opacity-90 transition-all">
@@ -2707,8 +2728,8 @@ export default function App() {
                 onClick={() => setShowModal('route')}
                 className={`py-2 rounded-xl border font-black text-[9px] flex flex-col items-center transition-all ${
                   isDarkMode 
-                    ? 'bg-[#1a1a1a] border-white/5 text-[#d4af37] hover:bg-[#d4af37]/10' 
-                    : 'bg-white border-emerald-200 text-emerald-600 hover:bg-emerald-50'
+                    ? 'bg-[#1a1a1a] border-[#d4af37]/20 text-[#d4af37] hover:bg-[#d4af37]/10' 
+                    : 'bg-white border-amber-200 text-amber-600 hover:bg-amber-50'
                 }`}
               >
                 <MapPin size={14}/> ROUTE
@@ -2717,8 +2738,8 @@ export default function App() {
                 onClick={() => setShowModal('brand')}
                 className={`py-2 rounded-xl border font-black text-[9px] flex flex-col items-center transition-all ${
                   isDarkMode 
-                    ? 'bg-[#1a1a1a] border-white/5 text-[#d4af37] hover:bg-[#d4af37]/10' 
-                    : 'bg-white border-emerald-200 text-emerald-600 hover:bg-emerald-50'
+                    ? 'bg-[#1a1a1a] border-[#d4af37]/20 text-[#d4af37] hover:bg-[#d4af37]/10' 
+                    : 'bg-white border-amber-200 text-amber-600 hover:bg-amber-50'
                 }`}
               >
                 <Package size={14}/> BRAND
@@ -2727,8 +2748,8 @@ export default function App() {
                 onClick={() => setShowModal('manual')}
                 className={`py-2 rounded-xl border font-black text-[9px] flex flex-col items-center transition-all ${
                   isDarkMode 
-                    ? 'bg-[#1a1a1a] border-white/5 text-[#d4af37] hover:bg-[#d4af37]/10' 
-                    : 'bg-white border-emerald-200 text-emerald-600 hover:bg-emerald-50'
+                    ? 'bg-[#1a1a1a] border-[#d4af37]/20 text-[#d4af37] hover:bg-[#d4af37]/10' 
+                    : 'bg-white border-amber-200 text-amber-600 hover:bg-amber-50'
                 }`}
               >
                 <ShoppingBag size={14}/> MANUAL
@@ -2737,12 +2758,12 @@ export default function App() {
 
             {/* Routes List */}
             <div>
-              <h4 className={`text-xs font-black uppercase mb-2 ${isDarkMode ? 'text-[#d4af37]' : 'text-emerald-700'}`}>Routes</h4>
+              <h4 className={`text-xs font-black uppercase mb-2 ${isDarkMode ? 'text-[#d4af37]' : 'text-amber-700'}`}>Routes</h4>
               {data.routes.map(r => (
                 <div key={r.id} className={`p-2 rounded-lg border mb-1 flex justify-between items-center ${
                   isDarkMode 
-                    ? 'bg-[#1a1a1a] border-white/5' 
-                    : 'bg-emerald-50 border-emerald-200'
+                    ? 'bg-[#1a1a1a] border-[#d4af37]/10' 
+                    : 'bg-amber-50 border-amber-200'
                 }`}>
                   <span className={`text-[10px] font-bold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>{r.name}</span>
                   <button onClick={() => confirmDelete(r.id, 'route', r.name)} className="text-red-500 p-1 hover:bg-red-500/10 rounded transition-all">
@@ -2754,7 +2775,7 @@ export default function App() {
 
             {/* Brands List */}
             <div>
-              <h4 className={`text-xs font-black uppercase mb-2 ${isDarkMode ? 'text-[#d4af37]' : 'text-emerald-700'}`}>Brands</h4>
+              <h4 className={`text-xs font-black uppercase mb-2 ${isDarkMode ? 'text-[#d4af37]' : 'text-amber-700'}`}>Brands</h4>
               {data.brands.map((b, idx) => (
                 <div
                   key={b.id}
@@ -2762,10 +2783,10 @@ export default function App() {
                     movingBrandId === b.id 
                       ? isDarkMode
                         ? 'border-[#d4af37] bg-[#d4af37]/10 scale-105'
-                        : 'border-emerald-600 bg-emerald-100 scale-105'
+                        : 'border-amber-600 bg-amber-100 scale-105'
                       : isDarkMode 
-                        ? 'bg-[#1a1a1a] border-white/5' 
-                        : 'bg-emerald-50 border-emerald-200'
+                        ? 'bg-[#1a1a1a] border-[#d4af37]/10' 
+                        : 'bg-amber-50 border-amber-200'
                   }`}
                 >
                   {editingBrand === b.id ? (
@@ -2777,8 +2798,8 @@ export default function App() {
                           placeholder="NAME"
                           className={`flex-1 min-w-[80px] p-1.5 text-[10px] rounded ${
                             isDarkMode 
-                              ? 'bg-gray-900 border-gray-700 text-white placeholder-gray-500' 
-                              : 'bg-emerald-100 border-emerald-200 text-gray-800 placeholder-gray-400'
+                              ? 'bg-black border-[#d4af37]/20 text-white placeholder-white/30' 
+                              : 'bg-amber-100 border-amber-200 text-gray-800 placeholder-gray-400'
                           } border font-medium`}
                         />
                         <input
@@ -2787,8 +2808,8 @@ export default function App() {
                           placeholder="SIZE"
                           className={`w-16 p-1.5 text-[10px] rounded ${
                             isDarkMode 
-                              ? 'bg-gray-900 border-gray-700 text-white placeholder-gray-500' 
-                              : 'bg-emerald-100 border-emerald-200 text-gray-800 placeholder-gray-400'
+                              ? 'bg-black border-[#d4af37]/20 text-white placeholder-white/30' 
+                              : 'bg-amber-100 border-amber-200 text-gray-800 placeholder-gray-400'
                           } border font-medium`}
                         />
                         <input
@@ -2798,8 +2819,8 @@ export default function App() {
                           placeholder="PRICE"
                           className={`w-20 p-1.5 text-[10px] rounded ${
                             isDarkMode 
-                              ? 'bg-gray-900 border-gray-700 text-white placeholder-gray-500' 
-                              : 'bg-emerald-100 border-emerald-200 text-gray-800 placeholder-gray-400'
+                              ? 'bg-black border-[#d4af37]/20 text-white placeholder-white/30' 
+                              : 'bg-amber-100 border-amber-200 text-gray-800 placeholder-gray-400'
                           } border font-medium`}
                         />
                       </div>
@@ -2815,7 +2836,7 @@ export default function App() {
                             setEditingBrand(null);
                             setEditingBrandData({ name: '', size: '', price: '' });
                           }}
-                          className={`flex-1 py-1 ${isDarkMode ? 'bg-gray-800 text-white hover:bg-gray-700' : 'bg-emerald-200 text-gray-800 hover:bg-emerald-300'} text-[8px] font-black rounded transition-all`}
+                          className={`flex-1 py-1 ${isDarkMode ? 'bg-[#d4af37]/20 text-[#d4af37] hover:bg-[#d4af37]/30' : 'bg-amber-200 text-gray-800 hover:bg-amber-300'} text-[8px] font-black rounded transition-all`}
                         >
                           CANCEL
                         </button>
@@ -2827,16 +2848,20 @@ export default function App() {
                         <div className={`w-6 h-6 rounded flex items-center justify-center font-black text-xs ${
                           isDarkMode 
                             ? 'bg-[#d4af37]/20 text-[#d4af37]' 
-                            : 'bg-emerald-200 text-emerald-700'
+                            : 'bg-amber-200 text-amber-700'
                         }`}>
                           {b.sequence || idx + 1}
                         </div>
                         <div className="flex-1">
                           <div className="flex items-center flex-wrap gap-1">
                             <span className={`text-xs font-black ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>{b.name}</span>
-                            <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${isDarkMode ? 'bg-gray-800 text-gray-300 border-gray-700' : 'bg-emerald-100 text-emerald-700 border-emerald-200'} border font-bold`}>{b.size}</span>
+                            <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${
+                              isDarkMode 
+                                ? 'bg-[#d4af37]/10 text-[#d4af37] border-[#d4af37]/20' 
+                                : 'bg-amber-100 text-amber-700 border-amber-200'
+                            } border font-black`}>{b.size}</span>
                           </div>
-                          <div className={`text-[9px] font-black ${isDarkMode ? 'text-[#d4af37]' : 'text-emerald-600'}`}>Rs.{b.price}</div>
+                          <div className={`text-[9px] font-black ${isDarkMode ? 'text-[#d4af37]' : 'text-amber-600'}`}>Rs.{b.price}</div>
                         </div>
                       </div>
                       <div className="flex gap-1">
@@ -2848,8 +2873,8 @@ export default function App() {
                                 movingBrandId 
                                   ? 'text-green-500 hover:bg-green-500/10' 
                                   : isDarkMode
-                                    ? 'text-gray-500 hover:text-white hover:bg-gray-800'
-                                    : 'text-gray-400 hover:text-gray-600 hover:bg-emerald-100'
+                                    ? 'text-white/40 hover:text-white hover:bg-[#d4af37]/10'
+                                    : 'text-gray-400 hover:text-gray-600 hover:bg-amber-100'
                               }`}
                               title="Move to position"
                             >
@@ -2900,8 +2925,8 @@ export default function App() {
       {/* Bottom Navigation */}
       <nav className={`fixed bottom-2 inset-x-2 h-12 rounded-xl border flex items-center justify-around ${
         isDarkMode 
-          ? "bg-black/95 border-white/10" 
-          : "bg-white border-emerald-200 shadow-lg"
+          ? "bg-black/95 border-[#d4af37]/20" 
+          : "bg-white border-amber-200 shadow-lg"
       }`}>
         {[
           {id: 'dashboard', icon: Home, label: 'Home'},
@@ -2915,8 +2940,8 @@ export default function App() {
             onClick={() => setActiveTab(t.id)}
             className={`p-1 flex flex-col items-center transition-all ${
               activeTab === t.id 
-                ? isDarkMode ? 'text-[#d4af37]' : 'text-emerald-600'
-                : isDarkMode ? 'text-gray-500 hover:text-gray-400' : 'text-gray-400 hover:text-gray-600'
+                ? isDarkMode ? 'text-[#d4af37]' : 'text-amber-600'
+                : isDarkMode ? 'text-white/30 hover:text-white/50' : 'text-gray-400 hover:text-gray-600'
             }`}
           >
             <t.icon size={18} />
@@ -2936,7 +2961,7 @@ export default function App() {
               }}
               className={`w-10 h-10 ${isDarkMode 
                 ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black' 
-                : 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white'
+                : 'bg-gradient-to-r from-amber-600 to-orange-600 text-white'
               } rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-all`}
             >
               <Wallet size={16} />
@@ -2975,7 +3000,7 @@ export default function App() {
           onClick={() => setIsFabOpen(!isFabOpen)}
           className={`w-12 h-12 ${isDarkMode 
             ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black' 
-            : 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white'
+            : 'bg-gradient-to-r from-amber-600 to-orange-600 text-white'
           } rounded-full flex items-center justify-center shadow-2xl hover:scale-110 transition-all`}
         >
           {isFabOpen ? <X size={20} /> : <Plus size={20} />}
@@ -2988,11 +3013,11 @@ export default function App() {
           <div className={`w-full max-w-xs p-4 rounded-xl border ${
             isDarkMode 
               ? 'bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/30' 
-              : 'bg-white border-emerald-300'
+              : 'bg-white border-amber-300'
           } shadow-xl`}>
             <div className="flex justify-between items-center mb-3">
-              <h3 className={`font-black text-sm ${isDarkMode ? 'text-[#d4af37]' : 'text-emerald-700'}`}>{editingTarget ? 'EDIT TARGET' : 'NEW TARGET'}</h3>
-              <button onClick={() => { setShowTargetModal(false); setEditingTarget(null); }} className={`${isDarkMode ? 'text-gray-500 hover:text-white' : 'text-gray-400 hover:text-gray-600'} p-1 transition-all`}>
+              <h3 className={`font-black text-sm ${isDarkMode ? 'text-[#d4af37]' : 'text-amber-700'}`}>{editingTarget ? 'EDIT TARGET' : 'NEW TARGET'}</h3>
+              <button onClick={() => { setShowTargetModal(false); setEditingTarget(null); }} className={`${isDarkMode ? 'text-white/40 hover:text-white' : 'text-gray-400 hover:text-gray-600'} p-1 transition-all`}>
                 <X size={16}/>
               </button>
             </div>
@@ -3003,8 +3028,8 @@ export default function App() {
                 onChange={(e) => setTargetMonth(e.target.value)}
                 className={`w-full p-2 rounded-lg border text-xs ${
                   isDarkMode 
-                    ? 'bg-gray-900 border-gray-700 text-white' 
-                    : 'bg-emerald-50 border-emerald-200 text-gray-800'
+                    ? 'bg-black border-[#d4af37]/20 text-white' 
+                    : 'bg-amber-50 border-amber-200 text-gray-800'
                 } outline-none focus:border-[#d4af37] transition-all font-medium`}
                 required
               />
@@ -3017,10 +3042,10 @@ export default function App() {
                     targetType === 'revenue' 
                       ? isDarkMode
                         ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black border-[#d4af37]'
-                        : 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white border-emerald-400'
+                        : 'bg-gradient-to-r from-amber-600 to-orange-600 text-white border-amber-400'
                       : isDarkMode
-                        ? 'border-gray-700 text-gray-300 hover:border-[#d4af37]/50'
-                        : 'border-emerald-200 text-gray-600 hover:border-emerald-400'
+                        ? 'border-[#d4af37]/20 text-white/60 hover:border-[#d4af37]/50'
+                        : 'border-amber-200 text-gray-600 hover:border-amber-400'
                   }`}
                 >
                   REVENUE
@@ -3032,10 +3057,10 @@ export default function App() {
                     targetType === 'units' 
                       ? isDarkMode
                         ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black border-[#d4af37]'
-                        : 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white border-emerald-400'
+                        : 'bg-gradient-to-r from-amber-600 to-orange-600 text-white border-amber-400'
                       : isDarkMode
-                        ? 'border-gray-700 text-gray-300 hover:border-[#d4af37]/50'
-                        : 'border-emerald-200 text-gray-600 hover:border-emerald-400'
+                        ? 'border-[#d4af37]/20 text-white/60 hover:border-[#d4af37]/50'
+                        : 'border-amber-200 text-gray-600 hover:border-amber-400'
                   }`}
                 >
                   UNITS
@@ -3050,10 +3075,10 @@ export default function App() {
                     targetSpecific === 'total' 
                       ? isDarkMode
                         ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black border-[#d4af37]'
-                        : 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white border-emerald-400'
+                        : 'bg-gradient-to-r from-amber-600 to-orange-600 text-white border-amber-400'
                       : isDarkMode
-                        ? 'border-gray-700 text-gray-300 hover:border-[#d4af37]/50'
-                        : 'border-emerald-200 text-gray-600 hover:border-emerald-400'
+                        ? 'border-[#d4af37]/20 text-white/60 hover:border-[#d4af37]/50'
+                        : 'border-amber-200 text-gray-600 hover:border-amber-400'
                   }`}
                 >
                   TOTAL
@@ -3065,10 +3090,10 @@ export default function App() {
                     targetSpecific === 'brand' 
                       ? isDarkMode
                         ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black border-[#d4af37]'
-                        : 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white border-emerald-400'
+                        : 'bg-gradient-to-r from-amber-600 to-orange-600 text-white border-amber-400'
                       : isDarkMode
-                        ? 'border-gray-700 text-gray-300 hover:border-[#d4af37]/50'
-                        : 'border-emerald-200 text-gray-600 hover:border-emerald-400'
+                        ? 'border-[#d4af37]/20 text-white/60 hover:border-[#d4af37]/50'
+                        : 'border-amber-200 text-gray-600 hover:border-amber-400'
                   }`}
                 >
                   BRAND
@@ -3081,8 +3106,8 @@ export default function App() {
                   onChange={(e) => setTargetBrand(e.target.value)}
                   className={`w-full p-2 rounded-lg border text-xs ${
                     isDarkMode 
-                      ? 'bg-gray-900 border-gray-700 text-white' 
-                      : 'bg-emerald-50 border-emerald-200 text-gray-800'
+                      ? 'bg-black border-[#d4af37]/20 text-white' 
+                      : 'bg-amber-50 border-amber-200 text-gray-800'
                   } outline-none focus:border-[#d4af37] transition-all font-medium`}
                   required
                 >
@@ -3100,8 +3125,8 @@ export default function App() {
                 placeholder="AMOUNT"
                 className={`w-full p-2 rounded-lg border text-xs ${
                   isDarkMode 
-                    ? 'bg-gray-900 border-gray-700 text-white' 
-                    : 'bg-emerald-50 border-emerald-200 text-gray-800'
+                    ? 'bg-black border-[#d4af37]/20 text-white' 
+                    : 'bg-amber-50 border-amber-200 text-gray-800'
                 } outline-none focus:border-[#d4af37] transition-all font-medium`}
                 required
               />
@@ -3110,7 +3135,7 @@ export default function App() {
                 type="submit"
                 className={`w-full py-2 ${isDarkMode 
                   ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black' 
-                  : 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white'
+                  : 'bg-gradient-to-r from-amber-600 to-orange-600 text-white'
                 } font-black rounded-lg text-xs hover:opacity-90 transition-all`}
               >
                 {editingTarget ? 'UPDATE' : 'SAVE'}
@@ -3126,11 +3151,11 @@ export default function App() {
           <div className={`w-full max-w-xs p-4 rounded-xl border ${
             isDarkMode 
               ? 'bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/30' 
-              : 'bg-white border-emerald-300'
+              : 'bg-white border-amber-300'
           } shadow-xl`}>
             <div className="flex justify-between items-center mb-3">
-              <h3 className={`font-black text-sm ${isDarkMode ? 'text-[#d4af37]' : 'text-emerald-700'}`}>CALCULATOR</h3>
-              <button onClick={() => { setShowCalculator(false); resetCalculator(); }} className={`${isDarkMode ? 'text-gray-500 hover:text-white' : 'text-gray-400 hover:text-gray-600'} p-1 transition-all`}>
+              <h3 className={`font-black text-sm ${isDarkMode ? 'text-[#d4af37]' : 'text-amber-700'}`}>CALCULATOR</h3>
+              <button onClick={() => { setShowCalculator(false); resetCalculator(); }} className={`${isDarkMode ? 'text-white/40 hover:text-white' : 'text-gray-400 hover:text-gray-600'} p-1 transition-all`}>
                 <X size={16}/>
               </button>
             </div>
@@ -3142,8 +3167,8 @@ export default function App() {
               placeholder="SUBTOTAL"
               className={`w-full p-2 rounded-lg border text-sm mb-2 ${
                 isDarkMode 
-                  ? 'bg-gray-900 border-gray-700 text-white' 
-                  : 'bg-emerald-50 border-emerald-200 text-gray-800'
+                  ? 'bg-black border-[#d4af37]/20 text-white' 
+                  : 'bg-amber-50 border-amber-200 text-gray-800'
               } outline-none focus:border-[#d4af37] transition-all font-medium`}
             />
 
@@ -3154,10 +3179,10 @@ export default function App() {
                   !totalCalculation.usePercentage 
                     ? isDarkMode
                       ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black'
-                      : 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white'
+                      : 'bg-gradient-to-r from-amber-600 to-orange-600 text-white'
                     : isDarkMode
-                      ? 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-                      : 'bg-emerald-100 text-gray-600 hover:bg-emerald-200'
+                      ? 'bg-[#d4af37]/10 text-white/60 hover:bg-[#d4af37]/20'
+                      : 'bg-amber-100 text-gray-600 hover:bg-amber-200'
                 }`}
               >
                 Rs.
@@ -3168,10 +3193,10 @@ export default function App() {
                   totalCalculation.usePercentage 
                     ? isDarkMode
                       ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black'
-                      : 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white'
+                      : 'bg-gradient-to-r from-amber-600 to-orange-600 text-white'
                     : isDarkMode
-                      ? 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-                      : 'bg-emerald-100 text-gray-600 hover:bg-emerald-200'
+                      ? 'bg-[#d4af37]/10 text-white/60 hover:bg-[#d4af37]/20'
+                      : 'bg-amber-100 text-gray-600 hover:bg-amber-200'
                 }`}
               >
                 %
@@ -3186,8 +3211,8 @@ export default function App() {
                 placeholder="DISCOUNT %"
                 className={`w-full p-2 rounded-lg border text-sm mb-2 ${
                   isDarkMode 
-                    ? 'bg-gray-900 border-gray-700 text-white' 
-                    : 'bg-emerald-50 border-emerald-200 text-gray-800'
+                    ? 'bg-black border-[#d4af37]/20 text-white' 
+                    : 'bg-amber-50 border-amber-200 text-gray-800'
                 } outline-none focus:border-[#d4af37] transition-all font-medium`}
               />
             ) : (
@@ -3198,8 +3223,8 @@ export default function App() {
                 placeholder="DISCOUNT"
                 className={`w-full p-2 rounded-lg border text-sm mb-2 ${
                   isDarkMode 
-                    ? 'bg-gray-900 border-gray-700 text-white' 
-                    : 'bg-emerald-50 border-emerald-200 text-gray-800'
+                    ? 'bg-black border-[#d4af37]/20 text-white' 
+                    : 'bg-amber-50 border-amber-200 text-gray-800'
                 } outline-none focus:border-[#d4af37] transition-all font-medium`}
               />
             )}
@@ -3211,14 +3236,14 @@ export default function App() {
               placeholder="TAX"
               className={`w-full p-2 rounded-lg border text-sm mb-3 ${
                 isDarkMode 
-                  ? 'bg-gray-900 border-gray-700 text-white' 
-                  : 'bg-emerald-50 border-emerald-200 text-gray-800'
+                  ? 'bg-black border-[#d4af37]/20 text-white' 
+                  : 'bg-amber-50 border-amber-200 text-gray-800'
               } outline-none focus:border-[#d4af37] transition-all font-medium`}
             />
 
-            <div className={`${isDarkMode ? 'bg-gray-900 border-gray-800' : 'bg-emerald-50 border-emerald-200'} p-2 rounded-lg mb-3 text-center border`}>
-              <p className={`text-[9px] ${isDarkMode ? 'text-gray-400' : 'text-gray-500'} mb-1 font-medium`}>GRAND TOTAL</p>
-              <p className={`text-base font-black ${isDarkMode ? 'text-[#d4af37]' : 'text-emerald-600'}`}>
+            <div className={`${isDarkMode ? 'bg-black border-[#d4af37]/20' : 'bg-amber-50 border-amber-200'} p-2 rounded-lg mb-3 text-center border`}>
+              <p className={`text-[9px] ${isDarkMode ? 'text-white/40' : 'text-gray-500'} mb-1 font-medium`}>GRAND TOTAL</p>
+              <p className={`text-base font-black ${isDarkMode ? 'text-[#d4af37]' : 'text-amber-600'}`}>
                 Rs.{(
                   (totalCalculation.subtotal || 0) -
                   (totalCalculation.usePercentage
@@ -3233,14 +3258,17 @@ export default function App() {
               onClick={calculateTotal}
               className={`w-full py-2 ${isDarkMode 
                 ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black' 
-                : 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white'
+                : 'bg-gradient-to-r from-amber-600 to-orange-600 text-white'
               } font-black rounded-lg text-xs mb-1 hover:opacity-90 transition-all`}
             >
               CALCULATE
             </button>
             <button
               onClick={resetCalculator}
-              className={`w-full py-1.5 ${isDarkMode ? 'bg-gray-800 text-gray-300 hover:bg-gray-700' : 'bg-emerald-100 text-gray-600 hover:bg-emerald-200'} font-black rounded-lg text-[10px] transition-all`}
+              className={`w-full py-1.5 ${isDarkMode 
+                ? 'bg-[#d4af37]/10 text-[#d4af37] hover:bg-[#d4af37]/20' 
+                : 'bg-amber-100 text-gray-600 hover:bg-amber-200'
+              } font-black rounded-lg text-[10px] transition-all`}
             >
               RESET
             </button>
@@ -3251,25 +3279,31 @@ export default function App() {
       {/* INVOICE MODAL */}
       {showModal === 'invoice' && selectedShop && (
         <div className="fixed inset-0 bg-black z-[100] overflow-y-auto">
-          <div className={`min-h-screen p-3 max-w-lg mx-auto pb-20 ${isDarkMode ? 'bg-black' : 'bg-emerald-50'}`}>
-            <div className={`flex justify-between items-center mb-3 sticky top-0 ${isDarkMode ? 'bg-black' : 'bg-emerald-50'} py-2 border-b ${isDarkMode ? 'border-gray-800' : 'border-emerald-200'}`}>
+          <div className={`min-h-screen p-3 max-w-lg mx-auto pb-20 ${isDarkMode ? 'bg-black' : 'bg-amber-50'}`}>
+            <div className={`flex justify-between items-center mb-3 sticky top-0 ${isDarkMode ? 'bg-black' : 'bg-amber-50'} py-2 border-b ${isDarkMode ? 'border-[#d4af37]/20' : 'border-amber-200'}`}>
               <h2 className={`text-sm font-black ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>{selectedShop.name}</h2>
-              <button onClick={() => { setShowModal(null); setCart({}); }} className={`p-1 ${isDarkMode ? 'bg-gray-900 hover:bg-gray-800' : 'bg-emerald-100 hover:bg-emerald-200'} rounded-full transition-all`}>
+              <button onClick={() => { setShowModal(null); setCart({}); }} className={`p-1 ${isDarkMode ? 'bg-[#d4af37]/10 hover:bg-[#d4af37]/20' : 'bg-amber-100 hover:bg-amber-200'} rounded-full transition-all`}>
                 <X size={16} className={isDarkMode ? 'text-white' : 'text-gray-600'}/>
               </button>
             </div>
 
             <div className="space-y-2">
               {data.brands.map((b, index) => (
-                <div key={b.id} className={`${isDarkMode ? 'bg-gray-900 border-gray-800 hover:border-[#d4af37]/30' : 'bg-white border-emerald-200 hover:border-emerald-400'} p-2 rounded-xl border flex items-center justify-between transition-all`}>
+                <div key={b.id} className={`${isDarkMode 
+                  ? 'bg-[#d4af37]/5 border-[#d4af37]/20 hover:border-[#d4af37]/50' 
+                  : 'bg-white border-amber-200 hover:border-amber-400'
+                } p-2 rounded-xl border flex items-center justify-between transition-all`}>
                   <div>
                     <span className={`text-xs font-bold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>{b.name} ({b.size})</span>
-                    <p className={`text-[10px] font-black ${isDarkMode ? 'text-[#d4af37]' : 'text-emerald-600'}`}>Rs.{b.price}</p>
+                    <p className={`text-[10px] font-black ${isDarkMode ? 'text-[#d4af37]' : 'text-amber-600'}`}>Rs.{b.price}</p>
                   </div>
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => setCart({...cart, [b.id]: Math.max(0, (Number(cart[b.id])||0)-1)})}
-                      className={`w-6 h-6 ${isDarkMode ? 'bg-gray-800 text-white hover:bg-gray-700' : 'bg-emerald-100 text-gray-600 hover:bg-emerald-200'} rounded-lg text-xs transition-all font-black`}
+                      className={`w-6 h-6 ${isDarkMode 
+                        ? 'bg-[#d4af37]/10 text-white hover:bg-[#d4af37]/20' 
+                        : 'bg-amber-100 text-gray-600 hover:bg-amber-200'
+                      } rounded-lg text-xs transition-all font-black`}
                     >
                       -
                     </button>
@@ -3277,12 +3311,15 @@ export default function App() {
                       type="number"
                       value={cart[b.id] || ''}
                       onChange={(e) => setCart({...cart, [b.id]: e.target.value})}
-                      className={`w-8 bg-transparent text-center ${isDarkMode ? 'text-[#d4af37]' : 'text-emerald-600'} text-xs outline-none font-black`}
+                      className={`w-8 bg-transparent text-center ${isDarkMode ? 'text-[#d4af37]' : 'text-amber-600'} text-xs outline-none font-black`}
                       placeholder="0"
                     />
                     <button
                       onClick={() => setCart({...cart, [b.id]: (Number(cart[b.id])||0) + 1})}
-                      className={`w-6 h-6 ${isDarkMode ? 'bg-gray-800 text-white hover:bg-gray-700' : 'bg-emerald-100 text-gray-600 hover:bg-emerald-200'} rounded-lg text-xs transition-all font-black`}
+                      className={`w-6 h-6 ${isDarkMode 
+                        ? 'bg-[#d4af37]/10 text-white hover:bg-[#d4af37]/20' 
+                        : 'bg-amber-100 text-gray-600 hover:bg-amber-200'
+                      } rounded-lg text-xs transition-all font-black`}
                     >
                       +
                     </button>
@@ -3291,16 +3328,16 @@ export default function App() {
               ))}
             </div>
 
-            <div className={`fixed bottom-0 inset-x-0 p-2 ${isDarkMode ? 'bg-black border-gray-800' : 'bg-emerald-50 border-emerald-200'} border-t`}>
+            <div className={`fixed bottom-0 inset-x-0 p-2 ${isDarkMode ? 'bg-black border-[#d4af37]/20' : 'bg-amber-50 border-amber-200'} border-t`}>
               <div className="flex justify-between items-center mb-2">
                 <span className={`text-xs font-bold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>Total:</span>
-                <span className={`text-base font-black ${isDarkMode ? 'text-[#d4af37]' : 'text-emerald-600'}`}>Rs.{calculateCartTotal().toLocaleString()}</span>
+                <span className={`text-base font-black ${isDarkMode ? 'text-[#d4af37]' : 'text-amber-600'}`}>Rs.{calculateCartTotal().toLocaleString()}</span>
               </div>
               <button
                 onClick={handleCreateOrder}
                 className={`w-full py-2 ${isDarkMode 
                   ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black' 
-                  : 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white'
+                  : 'bg-gradient-to-r from-amber-600 to-orange-600 text-white'
                 } font-black rounded-lg text-xs hover:opacity-90 transition-all`}
               >
                 CONFIRM ORDER
@@ -3313,15 +3350,15 @@ export default function App() {
       {/* MANUAL ORDER MODAL */}
       {showModal === 'manual' && (
         <div className="fixed inset-0 bg-black z-[100] overflow-y-auto">
-          <div className={`min-h-screen p-3 max-w-lg mx-auto pb-28 ${isDarkMode ? 'bg-black' : 'bg-emerald-50'}`}>
-            <div className={`flex justify-between items-center mb-3 sticky top-0 ${isDarkMode ? 'bg-black' : 'bg-emerald-50'} py-2 border-b ${isDarkMode ? 'border-gray-800' : 'border-emerald-200'}`}>
+          <div className={`min-h-screen p-3 max-w-lg mx-auto pb-28 ${isDarkMode ? 'bg-black' : 'bg-amber-50'}`}>
+            <div className={`flex justify-between items-center mb-3 sticky top-0 ${isDarkMode ? 'bg-black' : 'bg-amber-50'} py-2 border-b ${isDarkMode ? 'border-[#d4af37]/20' : 'border-amber-200'}`}>
               <h2 className={`text-sm font-black ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>MANUAL ORDER</h2>
               <button
                 onClick={() => {
                   setShowModal(null);
                   setManualItems([{ name: '', qty: 1, price: 0, subtotal: 0 }]);
                 }}
-                className={`p-1 ${isDarkMode ? 'bg-gray-900 hover:bg-gray-800' : 'bg-emerald-100 hover:bg-emerald-200'} rounded-full transition-all`}
+                className={`p-1 ${isDarkMode ? 'bg-[#d4af37]/10 hover:bg-[#d4af37]/20' : 'bg-amber-100 hover:bg-amber-200'} rounded-full transition-all`}
               >
                 <X size={16} className={isDarkMode ? 'text-white' : 'text-gray-600'}/>
               </button>
@@ -3330,8 +3367,8 @@ export default function App() {
             <select
               className={`w-full p-2 rounded-lg border ${
                 isDarkMode 
-                  ? 'bg-gray-900 border-gray-800 text-white' 
-                  : 'bg-white border-emerald-200 text-gray-800'
+                  ? 'bg-[#d4af37]/5 border-[#d4af37]/20 text-white' 
+                  : 'bg-white border-amber-200 text-gray-800'
               } text-xs mb-3 outline-none focus:border-[#d4af37] transition-all font-bold`}
               onChange={(e) => {
                 const shopId = e.target.value;
@@ -3345,7 +3382,10 @@ export default function App() {
             </select>
 
             {manualItems.map((item, index) => (
-              <div key={index} className={`${isDarkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-emerald-200'} p-2 rounded-lg border mb-2`}>
+              <div key={index} className={`${isDarkMode 
+                ? 'bg-[#d4af37]/5 border-[#d4af37]/20' 
+                : 'bg-white border-amber-200'
+              } p-2 rounded-lg border mb-2`}>
                 <div className="grid grid-cols-2 gap-1">
                   <input
                     value={item.name}
@@ -3353,8 +3393,8 @@ export default function App() {
                     placeholder="ITEM"
                     className={`p-1 rounded text-[10px] border ${
                       isDarkMode 
-                        ? 'bg-black border-gray-700 text-white placeholder-white/30' 
-                        : 'bg-emerald-50 border-emerald-200 text-gray-800 placeholder-gray-400'
+                        ? 'bg-black border-[#d4af37]/20 text-white placeholder-white/30' 
+                        : 'bg-amber-50 border-amber-200 text-gray-800 placeholder-gray-400'
                     } outline-none focus:border-[#d4af37] transition-all font-medium`}
                   />
                   <input
@@ -3364,8 +3404,8 @@ export default function App() {
                     placeholder="QTY"
                     className={`p-1 rounded text-[10px] border ${
                       isDarkMode 
-                        ? 'bg-black border-gray-700 text-white placeholder-white/30' 
-                        : 'bg-emerald-50 border-emerald-200 text-gray-800 placeholder-gray-400'
+                        ? 'bg-black border-[#d4af37]/20 text-white placeholder-white/30' 
+                        : 'bg-amber-50 border-amber-200 text-gray-800 placeholder-gray-400'
                     } outline-none focus:border-[#d4af37] transition-all font-medium`}
                   />
                   <input
@@ -3375,12 +3415,15 @@ export default function App() {
                     placeholder="PRICE"
                     className={`p-1 rounded text-[10px] border ${
                       isDarkMode 
-                        ? 'bg-black border-gray-700 text-white placeholder-white/30' 
-                        : 'bg-emerald-50 border-emerald-200 text-gray-800 placeholder-gray-400'
+                        ? 'bg-black border-[#d4af37]/20 text-white placeholder-white/30' 
+                        : 'bg-amber-50 border-amber-200 text-gray-800 placeholder-gray-400'
                     } outline-none focus:border-[#d4af37] transition-all font-medium`}
                   />
-                  <div className={`p-1 rounded text-center border ${isDarkMode ? 'bg-black border-gray-700' : 'bg-emerald-50 border-emerald-200'}`}>
-                    <span className={`${isDarkMode ? 'text-[#d4af37]' : 'text-emerald-600'} text-[10px] font-black`}>Rs.{item.subtotal}</span>
+                  <div className={`p-1 rounded text-center border ${isDarkMode 
+                    ? 'bg-black border-[#d4af37]/20' 
+                    : 'bg-amber-50 border-amber-200'
+                  }`}>
+                    <span className={`${isDarkMode ? 'text-[#d4af37]' : 'text-amber-600'} text-[10px] font-black`}>Rs.{item.subtotal}</span>
                   </div>
                 </div>
                 {manualItems.length > 1 && (
@@ -3389,19 +3432,22 @@ export default function App() {
               </div>
             ))}
 
-            <button onClick={addManualItem} className={`w-full py-1.5 ${isDarkMode ? 'bg-gray-800 text-[#d4af37] hover:bg-gray-700' : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'} rounded-lg text-xs font-black mb-3 transition-all`}>+ ADD ITEM</button>
+            <button onClick={addManualItem} className={`w-full py-1.5 ${isDarkMode 
+              ? 'bg-[#d4af37]/10 text-[#d4af37] hover:bg-[#d4af37]/20' 
+              : 'bg-amber-100 text-amber-700 hover:bg-amber-200'
+            } rounded-lg text-xs font-black mb-3 transition-all`}>+ ADD ITEM</button>
 
-            <div className={`fixed bottom-0 inset-x-0 p-2 ${isDarkMode ? 'bg-black border-gray-800' : 'bg-emerald-50 border-emerald-200'} border-t`}>
+            <div className={`fixed bottom-0 inset-x-0 p-2 ${isDarkMode ? 'bg-black border-[#d4af37]/20' : 'bg-amber-50 border-amber-200'} border-t`}>
               <button
                 onClick={saveManualOrder}
                 disabled={!selectedShop}
                 className={`w-full py-2 font-black rounded-lg text-xs transition-all ${selectedShop 
                   ? isDarkMode 
                     ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black hover:opacity-90' 
-                    : 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white hover:opacity-90'
+                    : 'bg-gradient-to-r from-amber-600 to-orange-600 text-white hover:opacity-90'
                   : isDarkMode 
-                    ? 'bg-gray-800 text-gray-500' 
-                    : 'bg-emerald-100 text-emerald-300'
+                    ? 'bg-[#d4af37]/5 text-white/30' 
+                    : 'bg-amber-100 text-amber-300'
                 }`}
               >
                 {selectedShop ? 'SAVE ORDER' : 'SELECT SHOP FIRST'}
@@ -3414,7 +3460,7 @@ export default function App() {
       {/* PREVIEW MODAL */}
       {showModal === 'preview' && lastOrder && (
         <div className="fixed inset-0 bg-black/95 z-[110] flex items-center justify-center p-3">
-          <div className={`${isDarkMode ? 'bg-gray-900 border-[#d4af37]/30' : 'bg-white border-emerald-300'} w-full max-w-xs p-4 rounded-xl border`}>
+          <div className={`${isDarkMode ? 'bg-gradient-to-br from-[#1a1a1a] to-[#000000] border-[#d4af37]/30' : 'bg-white border-amber-300'} w-full max-w-xs p-4 rounded-xl border`}>
             <div className="text-center mb-3">
               <div className={`w-12 h-12 ${isDarkMode ? 'bg-green-500/20 border-green-500/30' : 'bg-green-100 border-green-200'} rounded-full flex items-center justify-center mx-auto mb-2 border`}>
                 <CheckCircle2 size={24} className="text-green-500" />
@@ -3422,7 +3468,7 @@ export default function App() {
               <h3 className={`text-sm font-black ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>ORDER CONFIRMED</h3>
             </div>
 
-            <div className={`${isDarkMode ? 'bg-black border-gray-800' : 'bg-emerald-50 border-emerald-200'} rounded-lg p-2 mb-3 border`}>
+            <div className={`${isDarkMode ? 'bg-black border-[#d4af37]/20' : 'bg-amber-50 border-amber-200'} rounded-lg p-2 mb-3 border`}>
               <div className="space-y-1 max-h-24 overflow-y-auto text-[9px]">
                 {lastOrder.items?.map((it, idx) => (
                   <div key={idx} className="flex justify-between">
@@ -3431,17 +3477,17 @@ export default function App() {
                   </div>
                 ))}
               </div>
-              <div className={`border-t ${isDarkMode ? 'border-gray-800' : 'border-emerald-200'} mt-2 pt-2 flex justify-between`}>
-                <span className={`text-[10px] ${isDarkMode ? 'text-gray-400' : 'text-gray-500'} font-medium`}>Total</span>
-                <span className={`text-sm font-black ${isDarkMode ? 'text-[#d4af37]' : 'text-emerald-600'}`}>Rs.{lastOrder.total}</span>
+              <div className={`border-t ${isDarkMode ? 'border-[#d4af37]/20' : 'border-amber-200'} mt-2 pt-2 flex justify-between`}>
+                <span className={`text-[10px] ${isDarkMode ? 'text-white/40' : 'text-gray-500'} font-medium`}>Total</span>
+                <span className={`text-sm font-black ${isDarkMode ? 'text-[#d4af37]' : 'text-amber-600'}`}>Rs.{lastOrder.total}</span>
               </div>
             </div>
 
             <div className="space-y-1">
               <button onClick={() => { printBill(lastOrder); setShowModal(null); }} className="w-full py-1.5 bg-blue-600 text-white font-black rounded-lg text-[10px] hover:bg-blue-700 transition-all">PRINT</button>
-              <button onClick={() => { shareToWhatsApp(lastOrder, false); setShowModal(null); }} className={`w-full py-1.5 ${isDarkMode ? 'bg-[#d4af37] text-black hover:bg-[#b8860b]' : 'bg-emerald-600 text-white hover:bg-emerald-700'} font-black rounded-lg text-[10px] transition-all`}>SHARE</button>
+              <button onClick={() => { shareToWhatsApp(lastOrder, false); setShowModal(null); }} className={`w-full py-1.5 ${isDarkMode ? 'bg-[#d4af37] text-black hover:bg-[#b8860b]' : 'bg-amber-600 text-white hover:bg-amber-700'} font-black rounded-lg text-[10px] transition-all`}>SHARE</button>
               <button onClick={() => { shareToWhatsApp(lastOrder, true); setShowModal(null); }} className="w-full py-1.5 bg-green-600 text-white font-black rounded-lg text-[10px] hover:bg-green-700 transition-all">SHARE + LOC</button>
-              <button onClick={() => { setShowModal(null); setLastOrder(null); }} className={`w-full py-1.5 ${isDarkMode ? 'bg-gray-800 text-gray-300 hover:bg-gray-700' : 'bg-emerald-100 text-gray-600 hover:bg-emerald-200'} font-black rounded-lg text-[10px] transition-all`}>CLOSE</button>
+              <button onClick={() => { setShowModal(null); setLastOrder(null); }} className={`w-full py-1.5 ${isDarkMode ? 'bg-[#d4af37]/10 text-[#d4af37] hover:bg-[#d4af37]/20' : 'bg-amber-100 text-gray-600 hover:bg-amber-200'} font-black rounded-lg text-[10px] transition-all`}>CLOSE</button>
             </div>
           </div>
         </div>
@@ -3453,11 +3499,11 @@ export default function App() {
           <div className={`w-full max-w-xs p-4 rounded-xl border ${
             isDarkMode 
               ? 'bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/30' 
-              : 'bg-white border-emerald-300'
+              : 'bg-white border-amber-300'
           } shadow-xl`}>
             <div className="flex justify-between items-center mb-3">
-              <h3 className={`font-black text-sm ${isDarkMode ? 'text-[#d4af37]' : 'text-emerald-700'}`}>NEW SHOP</h3>
-              <button onClick={() => setShowModal(null)} className={`${isDarkMode ? 'text-gray-500 hover:text-white' : 'text-gray-400 hover:text-gray-600'} p-1 transition-all`}>
+              <h3 className={`font-black text-sm ${isDarkMode ? 'text-[#d4af37]' : 'text-amber-700'}`}>NEW SHOP</h3>
+              <button onClick={() => setShowModal(null)} className={`${isDarkMode ? 'text-white/40 hover:text-white' : 'text-gray-400 hover:text-gray-600'} p-1 transition-all`}>
                 <X size={16}/>
               </button>
             </div>
@@ -3475,13 +3521,13 @@ export default function App() {
             }} className="space-y-2">
               <input name="name" placeholder="SHOP NAME" className={`w-full p-2 rounded-lg border text-xs ${
                 isDarkMode 
-                  ? 'bg-gray-900 border-gray-700 text-white' 
-                  : 'bg-emerald-50 border-emerald-200 text-gray-800'
+                  ? 'bg-black border-[#d4af37]/20 text-white' 
+                  : 'bg-amber-50 border-amber-200 text-gray-800'
               } outline-none focus:border-[#d4af37] transition-all font-bold`} required />
               <select name="area" className={`w-full p-2 rounded-lg border text-xs ${
                 isDarkMode 
-                  ? 'bg-gray-900 border-gray-700 text-white' 
-                  : 'bg-emerald-50 border-emerald-200 text-gray-800'
+                  ? 'bg-black border-[#d4af37]/20 text-white' 
+                  : 'bg-amber-50 border-amber-200 text-gray-800'
               } outline-none focus:border-[#d4af37] transition-all font-bold`} required>
                 <option value="">SELECT ROUTE</option>
                 {data.routes.map(r => (
@@ -3490,7 +3536,7 @@ export default function App() {
               </select>
               <button type="submit" className={`w-full py-2 ${isDarkMode 
                 ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black' 
-                : 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white'
+                : 'bg-gradient-to-r from-amber-600 to-orange-600 text-white'
               } font-black rounded-lg text-xs hover:opacity-90 transition-all`}>SAVE</button>
             </form>
           </div>
@@ -3503,11 +3549,11 @@ export default function App() {
           <div className={`w-full max-w-xs p-4 rounded-xl border ${
             isDarkMode 
               ? 'bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/30' 
-              : 'bg-white border-emerald-300'
+              : 'bg-white border-amber-300'
           } shadow-xl`}>
             <div className="flex justify-between items-center mb-3">
-              <h3 className={`font-black text-sm ${isDarkMode ? 'text-[#d4af37]' : 'text-emerald-700'}`}>NEW ROUTE</h3>
-              <button onClick={() => setShowModal(null)} className={`${isDarkMode ? 'text-gray-500 hover:text-white' : 'text-gray-400 hover:text-gray-600'} p-1 transition-all`}>
+              <h3 className={`font-black text-sm ${isDarkMode ? 'text-[#d4af37]' : 'text-amber-700'}`}>NEW ROUTE</h3>
+              <button onClick={() => setShowModal(null)} className={`${isDarkMode ? 'text-white/40 hover:text-white' : 'text-gray-400 hover:text-gray-600'} p-1 transition-all`}>
                 <X size={16}/>
               </button>
             </div>
@@ -3523,12 +3569,12 @@ export default function App() {
             }} className="space-y-2">
               <input name="name" placeholder="ROUTE NAME" className={`w-full p-2 rounded-lg border text-xs ${
                 isDarkMode 
-                  ? 'bg-gray-900 border-gray-700 text-white' 
-                  : 'bg-emerald-50 border-emerald-200 text-gray-800'
+                  ? 'bg-black border-[#d4af37]/20 text-white' 
+                  : 'bg-amber-50 border-amber-200 text-gray-800'
               } outline-none focus:border-[#d4af37] transition-all font-bold`} required />
               <button type="submit" className={`w-full py-2 ${isDarkMode 
                 ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black' 
-                : 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white'
+                : 'bg-gradient-to-r from-amber-600 to-orange-600 text-white'
               } font-black rounded-lg text-xs hover:opacity-90 transition-all`}>SAVE</button>
             </form>
           </div>
@@ -3541,33 +3587,33 @@ export default function App() {
           <div className={`w-full max-w-xs p-4 rounded-xl border ${
             isDarkMode 
               ? 'bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/30' 
-              : 'bg-white border-emerald-300'
+              : 'bg-white border-amber-300'
           } shadow-xl`}>
             <div className="flex justify-between items-center mb-3">
-              <h3 className={`font-black text-sm ${isDarkMode ? 'text-[#d4af37]' : 'text-emerald-700'}`}>NEW BRAND</h3>
-              <button onClick={() => setShowModal(null)} className={`${isDarkMode ? 'text-gray-500 hover:text-white' : 'text-gray-400 hover:text-gray-600'} p-1 transition-all`}>
+              <h3 className={`font-black text-sm ${isDarkMode ? 'text-[#d4af37]' : 'text-amber-700'}`}>NEW BRAND</h3>
+              <button onClick={() => setShowModal(null)} className={`${isDarkMode ? 'text-white/40 hover:text-white' : 'text-gray-400 hover:text-gray-600'} p-1 transition-all`}>
                 <X size={16}/>
               </button>
             </div>
             <form onSubmit={addBrandWithSequence} className="space-y-2">
               <input name="name" placeholder="BRAND NAME" className={`w-full p-2 rounded-lg border text-xs ${
                 isDarkMode 
-                  ? 'bg-gray-900 border-gray-700 text-white' 
-                  : 'bg-emerald-50 border-emerald-200 text-gray-800'
+                  ? 'bg-black border-[#d4af37]/20 text-white' 
+                  : 'bg-amber-50 border-amber-200 text-gray-800'
               } outline-none focus:border-[#d4af37] transition-all font-bold`} required />
               <input name="size" placeholder="SIZE" className={`w-full p-2 rounded-lg border text-xs ${
                 isDarkMode 
-                  ? 'bg-gray-900 border-gray-700 text-white' 
-                  : 'bg-emerald-50 border-emerald-200 text-gray-800'
+                  ? 'bg-black border-[#d4af37]/20 text-white' 
+                  : 'bg-amber-50 border-amber-200 text-gray-800'
               } outline-none focus:border-[#d4af37] transition-all font-bold`} required />
               <input name="price" type="number" placeholder="PRICE" className={`w-full p-2 rounded-lg border text-xs ${
                 isDarkMode 
-                  ? 'bg-gray-900 border-gray-700 text-white' 
-                  : 'bg-emerald-50 border-emerald-200 text-gray-800'
+                  ? 'bg-black border-[#d4af37]/20 text-white' 
+                  : 'bg-amber-50 border-amber-200 text-gray-800'
               } outline-none focus:border-[#d4af37] transition-all font-bold`} required />
               <button type="submit" className={`w-full py-2 ${isDarkMode 
                 ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black' 
-                : 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white'
+                : 'bg-gradient-to-r from-amber-600 to-orange-600 text-white'
               } font-black rounded-lg text-xs hover:opacity-90 transition-all`}>SAVE</button>
             </form>
           </div>
@@ -3580,11 +3626,11 @@ export default function App() {
           <div className={`w-full max-w-xs p-4 rounded-xl border ${
             isDarkMode 
               ? 'bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/30' 
-              : 'bg-white border-emerald-300'
+              : 'bg-white border-amber-300'
           } shadow-xl`}>
             <div className="flex justify-between items-center mb-3">
-              <h3 className={`font-black text-sm ${isDarkMode ? 'text-[#d4af37]' : 'text-emerald-700'}`}>SHOP PROFILE</h3>
-              <button onClick={() => { setShowModal(null); setEditingProfile(null); }} className={`${isDarkMode ? 'text-gray-500 hover:text-white' : 'text-gray-400 hover:text-gray-600'} p-1 transition-all`}>
+              <h3 className={`font-black text-sm ${isDarkMode ? 'text-[#d4af37]' : 'text-amber-700'}`}>SHOP PROFILE</h3>
+              <button onClick={() => { setShowModal(null); setEditingProfile(null); }} className={`${isDarkMode ? 'text-white/40 hover:text-white' : 'text-gray-400 hover:text-gray-600'} p-1 transition-all`}>
                 <X size={16}/>
               </button>
             </div>
@@ -3595,8 +3641,8 @@ export default function App() {
                 onChange={(e) => setShopProfileForm({...shopProfileForm, ownerName: e.target.value})}
                 className={`w-full p-2 rounded-lg border text-xs ${
                   isDarkMode 
-                    ? 'bg-gray-900 border-gray-700 text-white' 
-                    : 'bg-emerald-50 border-emerald-200 text-gray-800'
+                    ? 'bg-black border-[#d4af37]/20 text-white' 
+                    : 'bg-amber-50 border-amber-200 text-gray-800'
                 } outline-none focus:border-[#d4af37] transition-all font-bold`}
               />
               <input
@@ -3605,8 +3651,8 @@ export default function App() {
                 onChange={(e) => setShopProfileForm({...shopProfileForm, phone: e.target.value})}
                 className={`w-full p-2 rounded-lg border text-xs ${
                   isDarkMode 
-                    ? 'bg-gray-900 border-gray-700 text-white' 
-                    : 'bg-emerald-50 border-emerald-200 text-gray-800'
+                    ? 'bg-black border-[#d4af37]/20 text-white' 
+                    : 'bg-amber-50 border-amber-200 text-gray-800'
                 } outline-none focus:border-[#d4af37] transition-all font-bold`}
               />
               <input
@@ -3615,13 +3661,13 @@ export default function App() {
                 onChange={(e) => setShopProfileForm({...shopProfileForm, address: e.target.value})}
                 className={`w-full p-2 rounded-lg border text-xs ${
                   isDarkMode 
-                    ? 'bg-gray-900 border-gray-700 text-white' 
-                    : 'bg-emerald-50 border-emerald-200 text-gray-800'
+                    ? 'bg-black border-[#d4af37]/20 text-white' 
+                    : 'bg-amber-50 border-amber-200 text-gray-800'
                 } outline-none focus:border-[#d4af37] transition-all font-bold`}
               />
               <button type="submit" className={`w-full py-2 ${isDarkMode 
                 ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black' 
-                : 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white'
+                : 'bg-gradient-to-r from-amber-600 to-orange-600 text-white'
               } font-black rounded-lg text-xs hover:opacity-90 transition-all`}>SAVE</button>
             </form>
           </div>
@@ -3634,11 +3680,11 @@ export default function App() {
           <div className={`w-full max-w-xs p-4 rounded-xl border ${
             isDarkMode 
               ? 'bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/30' 
-              : 'bg-white border-emerald-300'
+              : 'bg-white border-amber-300'
           } shadow-xl`}>
             <div className="flex justify-between items-center mb-3">
-              <h3 className={`font-black text-sm ${isDarkMode ? 'text-[#d4af37]' : 'text-emerald-700'}`}>ADD EXPENSE</h3>
-              <button onClick={() => setShowModal(null)} className={`${isDarkMode ? 'text-gray-500 hover:text-white' : 'text-gray-400 hover:text-gray-600'} p-1 transition-all`}>
+              <h3 className={`font-black text-sm ${isDarkMode ? 'text-[#d4af37]' : 'text-amber-700'}`}>ADD EXPENSE</h3>
+              <button onClick={() => setShowModal(null)} className={`${isDarkMode ? 'text-white/40 hover:text-white' : 'text-gray-400 hover:text-gray-600'} p-1 transition-all`}>
                 <X size={16}/>
               </button>
             </div>
@@ -3652,10 +3698,10 @@ export default function App() {
                     expenseType === t 
                       ? isDarkMode
                         ? 'border-[#d4af37] bg-[#d4af37]/10 text-white'
-                        : 'border-emerald-400 bg-emerald-100 text-emerald-700'
+                        : 'border-amber-400 bg-amber-100 text-amber-700'
                       : isDarkMode
-                        ? 'border-gray-700 text-gray-400 hover:border-[#d4af37]/50'
-                        : 'border-emerald-200 text-gray-500 hover:border-emerald-400'
+                        ? 'border-[#d4af37]/20 text-white/40 hover:border-[#d4af37]/50'
+                        : 'border-amber-200 text-gray-500 hover:border-amber-400'
                   }`}
                 >
                   {t}
@@ -3670,8 +3716,8 @@ export default function App() {
               placeholder="AMOUNT"
               className={`w-full p-2 rounded-lg border text-sm mb-2 ${
                 isDarkMode 
-                  ? 'bg-gray-900 border-gray-700 text-white' 
-                  : 'bg-emerald-50 border-emerald-200 text-gray-800'
+                  ? 'bg-black border-[#d4af37]/20 text-white' 
+                  : 'bg-amber-50 border-amber-200 text-gray-800'
               } outline-none focus:border-[#d4af37] transition-all font-bold`}
             />
             <textarea
@@ -3680,15 +3726,15 @@ export default function App() {
               placeholder="NOTE"
               className={`w-full p-2 rounded-lg border text-xs mb-3 ${
                 isDarkMode 
-                  ? 'bg-gray-900 border-gray-700 text-white' 
-                  : 'bg-emerald-50 border-emerald-200 text-gray-800'
+                  ? 'bg-black border-[#d4af37]/20 text-white' 
+                  : 'bg-amber-50 border-amber-200 text-gray-800'
               } outline-none focus:border-[#d4af37] transition-all font-medium h-16`}
             />
             <button
               onClick={saveExpense}
               className={`w-full py-2 ${isDarkMode 
                 ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black' 
-                : 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white'
+                : 'bg-gradient-to-r from-amber-600 to-orange-600 text-white'
               } font-black rounded-lg text-xs hover:opacity-90 transition-all`}
             >
               SAVE
@@ -3703,11 +3749,11 @@ export default function App() {
           <div className={`w-full max-w-xs p-4 rounded-xl border ${
             isDarkMode 
               ? 'bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/30' 
-              : 'bg-white border-emerald-300'
+              : 'bg-white border-amber-300'
           } shadow-xl`}>
             <div className="flex justify-between items-center mb-3">
-              <h3 className={`font-black text-sm ${isDarkMode ? 'text-[#d4af37]' : 'text-emerald-700'}`}>ADD NOTE</h3>
-              <button onClick={() => setShowModal(null)} className={`${isDarkMode ? 'text-gray-500 hover:text-white' : 'text-gray-400 hover:text-gray-600'} p-1 transition-all`}>
+              <h3 className={`font-black text-sm ${isDarkMode ? 'text-[#d4af37]' : 'text-amber-700'}`}>ADD NOTE</h3>
+              <button onClick={() => setShowModal(null)} className={`${isDarkMode ? 'text-white/40 hover:text-white' : 'text-gray-400 hover:text-gray-600'} p-1 transition-all`}>
                 <X size={16}/>
               </button>
             </div>
@@ -3717,15 +3763,15 @@ export default function App() {
               placeholder="TYPE NOTE HERE..."
               className={`w-full p-2 rounded-lg border text-xs mb-3 ${
                 isDarkMode 
-                  ? 'bg-gray-900 border-gray-700 text-white' 
-                  : 'bg-emerald-50 border-emerald-200 text-gray-800'
+                  ? 'bg-black border-[#d4af37]/20 text-white' 
+                  : 'bg-amber-50 border-amber-200 text-gray-800'
               } outline-none focus:border-[#d4af37] transition-all font-medium h-24`}
             />
             <button
               onClick={saveNote}
               className={`w-full py-2 ${isDarkMode 
                 ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black' 
-                : 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white'
+                : 'bg-gradient-to-r from-amber-600 to-orange-600 text-white'
               } font-black rounded-lg text-xs hover:opacity-90 transition-all`}
             >
               SAVE
@@ -3737,10 +3783,10 @@ export default function App() {
       {/* PRINT PREVIEW MODAL */}
       {showPrintPreview && printOrder && (
         <div className="fixed inset-0 bg-black/95 z-[200] flex items-center justify-center p-3">
-          <div className={`${isDarkMode ? 'bg-gray-900 border-[#d4af37]/30' : 'bg-white border-emerald-300'} w-full max-w-xs p-4 rounded-xl border`}>
+          <div className={`${isDarkMode ? 'bg-gradient-to-br from-[#1a1a1a] to-[#000000] border-[#d4af37]/30' : 'bg-white border-amber-300'} w-full max-w-xs p-4 rounded-xl border`}>
             <div className="flex justify-between items-center mb-3">
-              <h3 className={`text-sm font-black ${isDarkMode ? 'text-[#d4af37]' : 'text-emerald-700'}`}>PRINT BILL</h3>
-              <button onClick={() => setShowPrintPreview(false)} className={`${isDarkMode ? 'text-gray-500 hover:text-white' : 'text-gray-400 hover:text-gray-600'} p-1 transition-all`}>
+              <h3 className={`text-sm font-black ${isDarkMode ? 'text-[#d4af37]' : 'text-amber-700'}`}>PRINT BILL</h3>
+              <button onClick={() => setShowPrintPreview(false)} className={`${isDarkMode ? 'text-white/40 hover:text-white' : 'text-gray-400 hover:text-gray-600'} p-1 transition-all`}>
                 <X size={16}/>
               </button>
             </div>
@@ -3765,7 +3811,7 @@ export default function App() {
               onClick={() => { handlePrint(printOrder); setShowPrintPreview(false); }}
               className={`w-full py-2 ${isDarkMode 
                 ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black' 
-                : 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white'
+                : 'bg-gradient-to-r from-amber-600 to-orange-600 text-white'
               } font-black rounded-lg text-xs hover:opacity-90 transition-all`}
             >
               PRINT
@@ -3785,7 +3831,8 @@ export default function App() {
         * { -webkit-text-size-adjust: 100%; -webkit-tap-highlight-color: transparent; }
         button { min-height: 36px; min-width: 36px; }
         ::-webkit-scrollbar { width: 2px; }
-        ::-webkit-scrollbar-thumb { ${isDarkMode ? 'background: rgba(255, 215, 0, 0.5);' : 'background: rgba(16, 185, 129, 0.5);'} border-radius: 10px; }
+        ::-webkit-scrollbar-thumb { ${isDarkMode ? 'background: #d4af37;' : 'background: #f59e0b;'} border-radius: 10px; }
+        ::-webkit-scrollbar-track { ${isDarkMode ? 'background: #1a1a1a;' : 'background: #fef3c7;'} }
         
         /* Dark mode styles */
         .dark body {
@@ -3793,8 +3840,8 @@ export default function App() {
         }
         
         /* Light mode styles */
-        body:not(.dark) .bg-gradient-to-br {
-          background: linear-gradient(to bottom right, #ecfdf5, #f0fdf4, #f0f9ff) !important;
+        body:not(.dark) {
+          background: #fef3c7;
         }
       `}</style>
     </div>
