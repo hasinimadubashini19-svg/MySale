@@ -22,7 +22,7 @@ import {
   RotateCcw, Volume2, VolumeX, Trophy, Timer, Users, Shield, Heart,
   Sparkles, Flame, Star as StarIcon, Menu, MoreVertical, Home,
   ArrowUpDown, ArrowUp, ArrowDown, RefreshCw, Play, Pause, Volume2 as Volume,
-  Map, MapPin as MapPinIcon, XCircle
+  Map, MapPin as MapPinIcon, XCircle, Target as TargetIcon, Crosshair
 } from 'lucide-react';
 
 // --- FIREBASE CONFIG ---
@@ -195,16 +195,6 @@ export default function App() {
       clearTimeout(timer);
       unsubAuth();
     };
-  }, []);
-
-  // ========== LOAD HIGH SCORE ==========
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem('monarchGameHighScore');
-      if (saved) setGameHighScore(parseInt(saved));
-    } catch (err) {
-      console.error("Error loading game data:", err);
-    }
   }, []);
 
   // ========== REAL-TIME DATA FETCHING ==========
@@ -1361,36 +1351,54 @@ export default function App() {
     setMovingBrandId(null);
   };
 
-  // Game State
+  // BUBBLE SHOOTER GAME
   const [showGame, setShowGame] = useState(false);
   const [gameScore, setGameScore] = useState(0);
   const [gameHighScore, setGameHighScore] = useState(0);
   const [gameActive, setGameActive] = useState(false);
   const [gameTimeLeft, setGameTimeLeft] = useState(30);
-  const [gameTargets, setGameTargets] = useState([]);
   const [gameLevel, setGameLevel] = useState(1);
   const [gameSound, setGameSound] = useState(true);
-  const [gameCombo, setGameCombo] = useState(0);
+  const [gameBubbles, setGameBubbles] = useState([]);
+  const [gameShots, setGameShots] = useState([]);
+  const [gameShotsRemaining, setGameShotsRemaining] = useState(5);
+  const [gameTargetScore, setGameTargetScore] = useState(100);
+  const [gameCannonAngle, setGameCannonAngle] = useState(0);
 
-  // ========== ENHANCED GAME FUNCTIONS ==========
-  const startGame = () => {
+  // Load high score
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('monarchBubbleHighScore');
+      if (saved) setGameHighScore(parseInt(saved));
+    } catch (err) {
+      console.error("Error loading game data:", err);
+    }
+  }, []);
+
+  // BUBBLE SHOOTER GAME FUNCTIONS
+  const startBubbleGame = () => {
     setGameActive(true);
     setGameScore(0);
     setGameTimeLeft(30);
     setGameLevel(1);
-    setGameCombo(0);
-
-    const newTargets = [];
-    for (let i = 0; i < 5; i++) {
-      newTargets.push({
+    setGameShotsRemaining(5);
+    setGameTargetScore(100);
+    
+    // Create initial bubbles
+    const newBubbles = [];
+    for (let i = 0; i < 8; i++) {
+      newBubbles.push({
         id: i,
-        x: Math.random() * 80 + 10,
-        y: Math.random() * 80 + 10,
-        value: 10,
-        type: Math.random() > 0.3 ? 'coin' : 'bonus'
+        x: 10 + Math.random() * 80,
+        y: 10 + Math.random() * 60,
+        size: 30 + Math.floor(Math.random() * 20),
+        color: `hsl(${Math.random() * 60 + 30}, 80%, 60%)`,
+        value: 10 + Math.floor(Math.random() * 20),
+        speed: 0.5 + Math.random() * 1.5
       });
     }
-    setGameTargets(newTargets);
+    setGameBubbles(newBubbles);
+    setGameShots([]);
   };
 
   useEffect(() => {
@@ -1400,177 +1408,261 @@ export default function App() {
         setGameTimeLeft(prev => prev - 1);
       }, 1000);
     } else if (gameTimeLeft === 0) {
-      endGame();
+      endBubbleGame();
     }
     return () => clearTimeout(timer);
   }, [gameActive, gameTimeLeft]);
 
-  const endGame = () => {
+  // Game loop for bubble movement
+  useEffect(() => {
+    if (!gameActive) return;
+    
+    const interval = setInterval(() => {
+      setGameBubbles(prev => prev.map(bubble => ({
+        ...bubble,
+        y: bubble.y + bubble.speed * (gameLevel * 0.2)
+      })).filter(bubble => bubble.y < 90)); // Remove bubbles that go off screen
+      
+      // Add new bubbles occasionally
+      if (Math.random() < 0.05 && gameBubbles.length < 12) {
+        setGameBubbles(prev => [...prev, {
+          id: Date.now() + Math.random(),
+          x: 10 + Math.random() * 80,
+          y: 5,
+          size: 30 + Math.floor(Math.random() * 20),
+          color: `hsl(${Math.random() * 60 + 30}, 80%, 60%)`,
+          value: 10 + Math.floor(Math.random() * 20) * gameLevel,
+          speed: 0.5 + Math.random() * 1.5
+        }]);
+      }
+    }, 100);
+    
+    return () => clearInterval(interval);
+  }, [gameActive, gameBubbles.length, gameLevel]);
+
+  const handleCanvasClick = (e) => {
+    if (!gameActive || gameShotsRemaining <= 0) return;
+    
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * 100;
+    const y = ((e.clientY - rect.top) / rect.height) * 100;
+    
+    // Calculate angle for cannon
+    const angle = Math.atan2(y - 85, x - 50) * 180 / Math.PI;
+    setGameCannonAngle(angle);
+    
+    // Check for bubble hits
+    let hitBubble = null;
+    let minDistance = 100;
+    
+    gameBubbles.forEach(bubble => {
+      const distance = Math.sqrt(Math.pow(x - bubble.x, 2) + Math.pow(y - bubble.y, 2));
+      if (distance < bubble.size / 2) {
+        if (distance < minDistance) {
+          minDistance = distance;
+          hitBubble = bubble;
+        }
+      }
+    });
+    
+    if (hitBubble) {
+      // Hit a bubble
+      setGameBubbles(prev => prev.filter(b => b.id !== hitBubble.id));
+      setGameScore(prev => prev + hitBubble.value);
+      setGameShotsRemaining(prev => prev + 1); // Gain a shot for hitting
+      
+      if (gameSound && navigator.vibrate) {
+        navigator.vibrate(50);
+      }
+      
+      // Level up
+      if (gameScore > gameLevel * 100) {
+        setGameLevel(prev => prev + 1);
+        setGameShotsRemaining(prev => prev + 2);
+        setGameTargetScore(prev => prev + 100);
+        showToast(`🎯 Level ${gameLevel + 1}!`, "success");
+      }
+    } else {
+      // Missed - add shot effect
+      setGameShotsRemaining(prev => prev - 1);
+      setGameShots(prev => [...prev, {
+        id: Date.now(),
+        x, y,
+        timestamp: Date.now()
+      }]);
+      
+      setTimeout(() => {
+        setGameShots(prev => prev.filter(s => s.id !== Date.now()));
+      }, 300);
+    }
+  };
+
+  const endBubbleGame = () => {
     setGameActive(false);
     if (gameScore > gameHighScore) {
       setGameHighScore(gameScore);
-      localStorage.setItem('monarchGameHighScore', gameScore);
+      localStorage.setItem('monarchBubbleHighScore', gameScore);
     }
     showToast(`🎮 Game Over! Score: ${gameScore}`, "info");
-  };
-
-  const handleTargetClick = (id, type) => {
-    if (!gameActive) return;
-
-    let points = type === 'bonus' ? 20 : 10;
-    setGameScore(prev => prev + points);
-    setGameCombo(prev => prev + 1);
-
-    if (gameSound && navigator.vibrate) {
-      navigator.vibrate(50);
-    }
-
-    setGameTargets(prev => prev.filter(t => t.id !== id));
-
-    // Add new target
-    const newTarget = {
-      id: Date.now() + Math.random(),
-      x: Math.random() * 80 + 10,
-      y: Math.random() * 80 + 10,
-      value: 10,
-      type: Math.random() > 0.3 ? 'coin' : 'bonus'
-    };
-    setGameTargets(prev => [...prev, newTarget]);
-
-    // Level up
-    if (gameScore > 100 * gameLevel) {
-      setGameLevel(prev => prev + 1);
-      showToast(`🎯 Level ${gameLevel + 1}!`, "success");
-    }
   };
 
   // ========== RENDER ==========
   if (isSplash || loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 dark:from-[#0a0a0a] dark:via-[#1a1a1a] dark:to-[#000000] flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-[#000000] via-[#1a1a1a] to-[#000000] flex items-center justify-center">
         <div className="text-center">
           <div className="relative mb-8">
             <div className="w-32 h-32 mx-auto relative">
-              <div className="absolute inset-0 bg-gradient-to-r from-amber-500 to-amber-600 dark:from-[#d4af37] dark:to-[#b8860b] rounded-full animate-ping opacity-20"></div>
-              <div className="relative z-10 w-32 h-32 bg-gradient-to-br from-amber-500 to-amber-600 dark:from-[#d4af37] dark:to-[#b8860b] rounded-full flex items-center justify-center shadow-2xl border-4 border-amber-400/30 dark:border-[#d4af37]/30">
-                <Crown size={60} className="text-gray-900 dark:text-black" />
+              <div className="absolute inset-0 bg-gradient-to-r from-[#d4af37] to-[#b8860b] rounded-full animate-ping opacity-20"></div>
+              <div className="relative z-10 w-32 h-32 bg-gradient-to-br from-[#d4af37] to-[#b8860b] rounded-full flex items-center justify-center shadow-2xl border-4 border-[#d4af37]/30">
+                <Crown size={60} className="text-black" />
               </div>
             </div>
-            <Heart size={30} className="text-amber-500 dark:text-[#d4af37] absolute -top-2 -right-2 animate-bounce" fill="currentColor" />
+            <Heart size={30} className="text-[#d4af37] absolute -top-2 -right-2 animate-bounce" fill="currentColor" />
           </div>
 
-          <h1 className="text-amber-600 dark:text-[#d4af37] text-4xl font-black tracking-[0.2em] mb-3">SALES MONARCH</h1>
-          <p className="text-gray-700 dark:text-white/70 text-lg font-light tracking-wider mb-8">for my soul</p>
+          <h1 className="text-[#d4af37] text-4xl font-black tracking-[0.2em] mb-3">SALES MONARCH</h1>
+          <p className="text-white/70 text-lg font-light tracking-wider mb-8">for my soul</p>
 
-          <div className="w-64 h-1.5 bg-gray-200 dark:bg-white/10 rounded-full mx-auto overflow-hidden">
-            <div className="h-full bg-gradient-to-r from-amber-500 to-amber-600 dark:from-[#d4af37] dark:via-[#f5e7a3] dark:to-[#b8860b] animate-progress"></div>
+          <div className="w-64 h-1.5 bg-white/10 rounded-full mx-auto overflow-hidden">
+            <div className="h-full bg-gradient-to-r from-[#d4af37] via-[#f5e7a3] to-[#b8860b] animate-progress"></div>
           </div>
 
-          <p className="text-gray-400 dark:text-white/30 text-xs mt-6 tracking-widest">version 2.0</p>
+          <p className="text-white/30 text-xs mt-6 tracking-widest">version 2.0</p>
         </div>
       </div>
     );
   }
 
-  // ========== ENHANCED GAME SCREEN ==========
+  // ========== BUBBLE SHOOTER GAME SCREEN ==========
   if (showGame) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-200 dark:from-black dark:via-[#1a1a1a] dark:to-[#2d2d2d] flex flex-col items-center justify-center p-4 relative overflow-hidden">
+      <div className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-200 dark:from-black dark:via-[#1a1a1a] dark:to-[#000000] flex flex-col items-center justify-center p-4 relative overflow-hidden">
         <div className="absolute inset-0">
-          <div className="absolute top-0 left-0 w-96 h-96 bg-amber-500/20 dark:bg-[#d4af37]/5 rounded-full filter blur-3xl"></div>
-          <div className="absolute bottom-0 right-0 w-96 h-96 bg-amber-600/20 dark:bg-[#b8860b]/5 rounded-full filter blur-3xl"></div>
+          <div className="absolute top-0 left-0 w-96 h-96 bg-[#d4af37]/20 dark:bg-[#d4af37]/5 rounded-full filter blur-3xl"></div>
+          <div className="absolute bottom-0 right-0 w-96 h-96 bg-[#b8860b]/20 dark:bg-[#b8860b]/5 rounded-full filter blur-3xl"></div>
         </div>
 
         <div className="relative z-10 w-full max-w-md">
           <div className="flex justify-between items-center mb-4">
             <div>
-              <h2 className="text-amber-600 dark:text-[#d4af37] text-2xl font-black uppercase flex items-center gap-2">
+              <h2 className="text-[#d4af37] text-2xl font-black uppercase flex items-center gap-2">
                 <Gamepad2 size={24} />
-                TAP HUNT
+                BUBBLE SHOOTER
               </h2>
             </div>
             <button
               onClick={() => setGameSound(!gameSound)}
               className="p-2 bg-gray-200 dark:bg-white/10 rounded-lg"
             >
-              {gameSound ? <Volume size={18} className="text-amber-600 dark:text-[#d4af37]"/> : <VolumeX size={18} className="text-gray-400 dark:text-white/40"/>}
+              {gameSound ? <Volume size={18} className="text-[#d4af37]"/> : <VolumeX size={18} className="text-gray-400 dark:text-white/40"/>}
             </button>
           </div>
 
           <div className="grid grid-cols-4 gap-2 mb-4">
-            <div className="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-[#1a1a1a] dark:to-[#2d2d2d] p-2 rounded-xl text-center border border-gray-200 dark:border-white/10">
-              <p className="text-amber-600 dark:text-[#d4af37] text-xs uppercase">Score</p>
+            <div className="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-[#1a1a1a] dark:to-[#000000] p-2 rounded-xl text-center border border-gray-200 dark:border-[#d4af37]/20">
+              <p className="text-[#d4af37] text-xs uppercase">Score</p>
               <p className="text-gray-900 dark:text-white text-lg font-black">{gameScore}</p>
             </div>
-            <div className="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-[#1a1a1a] dark:to-[#2d2d2d] p-2 rounded-xl text-center border border-gray-200 dark:border-white/10">
-              <p className="text-amber-600 dark:text-[#d4af37] text-xs uppercase">Level</p>
+            <div className="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-[#1a1a1a] dark:to-[#000000] p-2 rounded-xl text-center border border-gray-200 dark:border-[#d4af37]/20">
+              <p className="text-[#d4af37] text-xs uppercase">Level</p>
               <p className="text-gray-900 dark:text-white text-lg font-black">{gameLevel}</p>
             </div>
-            <div className="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-[#1a1a1a] dark:to-[#2d2d2d] p-2 rounded-xl text-center border border-gray-200 dark:border-white/10">
-              <p className="text-amber-600 dark:text-[#d4af37] text-xs uppercase">Combo</p>
-              <p className="text-gray-900 dark:text-white text-lg font-black">{gameCombo}</p>
+            <div className="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-[#1a1a1a] dark:to-[#000000] p-2 rounded-xl text-center border border-gray-200 dark:border-[#d4af37]/20">
+              <p className="text-[#d4af37] text-xs uppercase">Shots</p>
+              <p className="text-gray-900 dark:text-white text-lg font-black">{gameShotsRemaining}</p>
             </div>
-            <div className="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-[#1a1a1a] dark:to-[#2d2d2d] p-2 rounded-xl text-center border border-gray-200 dark:border-white/10">
-              <p className="text-amber-600 dark:text-[#d4af37] text-xs uppercase">Time</p>
+            <div className="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-[#1a1a1a] dark:to-[#000000] p-2 rounded-xl text-center border border-gray-200 dark:border-[#d4af37]/20">
+              <p className="text-[#d4af37] text-xs uppercase">Time</p>
               <p className="text-gray-900 dark:text-white text-lg font-black">{gameTimeLeft}s</p>
             </div>
           </div>
 
-          <div className="bg-gradient-to-br from-gray-100 to-gray-200 dark:from-[#0f0f0f] dark:to-[#1a1a1a] rounded-2xl border border-amber-500/30 dark:border-[#d4af37]/30 p-4 mb-4 relative h-[400px]">
-            {!gameActive ? (
-              <div className="h-full flex flex-col items-center justify-center">
-                <Trophy size={60} className="text-amber-500 dark:text-[#d4af37] mb-4 opacity-50" />
-                <p className="text-gray-700 dark:text-white/60 text-center mb-2 text-sm">
-                  Tap the coins as fast as you can!<br/>
-                  <span className="text-amber-600 dark:text-[#d4af37]">30 seconds challenge</span>
-                </p>
-                <div className="flex gap-8 mb-4">
-                  <div className="text-center">
-                    <p className="text-gray-500 dark:text-white/40 text-xs">Best Score</p>
-                    <p className="text-amber-600 dark:text-[#d4af37] text-xl font-black">{gameHighScore}</p>
-                  </div>
-                </div>
-                <button
-                  onClick={startGame}
-                  className="px-8 py-3 bg-gradient-to-r from-amber-500 to-amber-600 dark:from-[#d4af37] dark:to-[#b8860b] text-white dark:text-black font-black rounded-xl uppercase text-sm tracking-widest hover:opacity-90 transition-all"
-                >
-                  START GAME
-                </button>
+          <div className="bg-gradient-to-br from-gray-100 to-gray-200 dark:from-[#0f0f0f] dark:to-[#1a1a1a] rounded-2xl border border-[#d4af37]/30 p-4 mb-4 relative h-[400px] overflow-hidden">
+            {/* Game Canvas */}
+            <div 
+              className="relative w-full h-full cursor-crosshair"
+              onClick={handleCanvasClick}
+            >
+              {/* Cannon */}
+              <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-16 h-16">
+                <div 
+                  className="absolute bottom-2 left-1/2 w-1 h-12 bg-[#d4af37] origin-bottom"
+                  style={{ 
+                    transform: `translateX(-50%) rotate(${gameCannonAngle}deg)`,
+                    transition: 'transform 0.1s'
+                  }}
+                ></div>
+                <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-8 h-8 bg-gradient-to-r from-[#d4af37] to-[#b8860b] rounded-full border-2 border-black"></div>
               </div>
-            ) : (
-              <div className="relative h-full">
-                {gameTargets.map(target => (
+
+              {/* Bubbles */}
+              {gameBubbles.map(bubble => (
+                <div
+                  key={bubble.id}
+                  className="absolute rounded-full flex items-center justify-center text-white font-bold text-xs shadow-lg animate-float"
+                  style={{
+                    left: `${bubble.x}%`,
+                    top: `${bubble.y}%`,
+                    width: `${bubble.size}px`,
+                    height: `${bubble.size}px`,
+                    backgroundColor: bubble.color,
+                    transform: 'translate(-50%, -50%)',
+                    boxShadow: '0 4px 15px rgba(212, 175, 55, 0.3)'
+                  }}
+                >
+                  {bubble.value}
+                </div>
+              ))}
+
+              {/* Shot effects */}
+              {gameShots.map(shot => (
+                <div
+                  key={shot.id}
+                  className="absolute w-2 h-2 bg-[#d4af37] rounded-full animate-ping"
+                  style={{
+                    left: `${shot.x}%`,
+                    top: `${shot.y}%`,
+                    transform: 'translate(-50%, -50%)'
+                  }}
+                ></div>
+              ))}
+
+              {/* Game Overlay when not active */}
+              {!gameActive && (
+                <div className="absolute inset-0 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center">
+                  <Trophy size={60} className="text-[#d4af37] mb-4" />
+                  <p className="text-white text-center mb-2 text-sm">
+                    Pop the bubbles before they escape!<br/>
+                    <span className="text-[#d4af37]">Get extra shots for hits!</span>
+                  </p>
+                  <div className="flex gap-8 mb-4">
+                    <div className="text-center">
+                      <p className="text-white/60 text-xs">Best Score</p>
+                      <p className="text-[#d4af37] text-xl font-black">{gameHighScore}</p>
+                    </div>
+                  </div>
                   <button
-                    key={target.id}
-                    onClick={() => handleTargetClick(target.id, target.type)}
-                    className={`absolute w-12 h-12 rounded-full flex items-center justify-center animate-pulse shadow-lg transform hover:scale-110 transition-all ${
-                      target.type === 'bonus'
-                        ? 'bg-gradient-to-r from-purple-500 to-pink-500'
-                        : 'bg-gradient-to-r from-amber-500 to-amber-600 dark:from-[#d4af37] dark:to-[#b8860b]'
-                    }`}
-                    style={{
-                      left: `${target.x}%`,
-                      top: `${target.y}%`,
-                      transform: 'translate(-50%, -50%)'
-                    }}
+                    onClick={startBubbleGame}
+                    className="px-8 py-3 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-xl uppercase text-sm tracking-widest hover:opacity-90 transition-all"
                   >
-                    {target.type === 'bonus' ? (
-                      <Gift size={16} className="text-white" />
-                    ) : (
-                      <DollarSign size={16} className="text-white dark:text-black" />
-                    )}
+                    START GAME
                   </button>
-                ))}
+                </div>
+              )}
+
+              {/* Time bar */}
+              {gameActive && (
                 <div className="absolute bottom-0 left-0 right-0">
                   <div className="h-1.5 bg-gray-200 dark:bg-white/10 rounded-full overflow-hidden">
                     <div
-                      className="h-full bg-gradient-to-r from-amber-500 to-amber-600 dark:from-[#d4af37] dark:to-[#b8860b]"
+                      className="h-full bg-gradient-to-r from-[#d4af37] to-[#b8860b]"
                       style={{ width: `${(gameTimeLeft / 30) * 100}%` }}
                     ></div>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
 
           <button
@@ -1579,7 +1671,7 @@ export default function App() {
               setGameActive(false);
               setGameScore(0);
             }}
-            className="w-full py-2.5 bg-gradient-to-br from-gray-200 to-gray-300 dark:from-[#1a1a1a] dark:to-[#2d2d2d] text-gray-700 dark:text-white/60 font-black rounded-xl uppercase text-xs border border-gray-300 dark:border-white/5 hover:bg-gray-300 dark:hover:border-white/10 transition-all"
+            className="w-full py-2.5 bg-gradient-to-br from-gray-200 to-gray-300 dark:from-[#1a1a1a] dark:to-[#000000] text-gray-700 dark:text-white/60 font-black rounded-xl uppercase text-xs border border-gray-300 dark:border-[#d4af37]/20 hover:bg-gray-300 dark:hover:border-[#d4af37]/30 transition-all"
           >
             ← BACK TO APP
           </button>
@@ -1591,11 +1683,11 @@ export default function App() {
   // ========== LOGIN SCREEN ==========
   if (!user && showForgotPassword) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-200 dark:from-black dark:to-[#1a1a1a] flex items-center justify-center p-4">
-        <div className="w-full max-w-sm bg-white dark:bg-gradient-to-br dark:from-[#0f0f0f] dark:to-[#1a1a1a] rounded-2xl border border-amber-500/30 dark:border-[#d4af37]/30 p-6">
+      <div className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-200 dark:from-black dark:to-[#000000] flex items-center justify-center p-4">
+        <div className="w-full max-w-sm bg-white dark:bg-gradient-to-br dark:from-[#0f0f0f] dark:to-[#1a1a1a] rounded-2xl border border-[#d4af37]/30 p-6">
           <div className="text-center mb-6">
-            <div className="w-20 h-20 bg-gradient-to-br from-amber-500 to-amber-600 dark:from-[#d4af37] dark:to-[#b8860b] rounded-full flex items-center justify-center mx-auto mb-4">
-              <Crown size={40} className="text-white dark:text-black" />
+            <div className="w-20 h-20 bg-gradient-to-br from-[#d4af37] to-[#b8860b] rounded-full flex items-center justify-center mx-auto mb-4">
+              <Crown size={40} className="text-black" />
             </div>
             <h2 className="text-gray-900 dark:text-white font-black text-xl">Reset Password</h2>
             <p className="text-gray-600 dark:text-white/50 text-xs mt-2">Enter your email to receive reset link</p>
@@ -1614,7 +1706,7 @@ export default function App() {
                   setResetSuccess(false);
                   setResetEmail('');
                 }}
-                className="w-full py-3 bg-gradient-to-r from-amber-500 to-amber-600 dark:from-[#d4af37] dark:to-[#b8860b] text-white dark:text-black font-black rounded-xl text-sm hover:opacity-90 transition-all"
+                className="w-full py-3 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-xl text-sm hover:opacity-90 transition-all"
               >
                 Back to Login
               </button>
@@ -1626,7 +1718,7 @@ export default function App() {
                 value={resetEmail}
                 onChange={(e) => setResetEmail(e.target.value)}
                 placeholder="EMAIL"
-                className="w-full bg-gray-50 dark:bg-black/50 p-3 rounded-xl border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white text-sm outline-none focus:border-amber-500 dark:focus:border-[#d4af37] transition-all"
+                className="w-full bg-gray-50 dark:bg-black/50 p-3 rounded-xl border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white text-sm outline-none focus:border-[#d4af37] transition-all"
               />
               <button
                 onClick={handleForgotPassword}
@@ -1634,7 +1726,7 @@ export default function App() {
                 className={`w-full py-3 font-black rounded-xl text-sm transition-all ${
                   isSendingReset 
                     ? 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400' 
-                    : 'bg-gradient-to-r from-amber-500 to-amber-600 dark:from-[#d4af37] dark:to-[#b8860b] text-white dark:text-black hover:opacity-90'
+                    : 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black hover:opacity-90'
                 }`}
               >
                 {isSendingReset ? 'SENDING...' : 'SEND RESET LINK'}
@@ -1654,19 +1746,19 @@ export default function App() {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-200 dark:from-black dark:via-[#1a1a1a] dark:to-[#2d2d2d] flex items-center justify-center p-4">
-        <div className="w-full max-w-sm bg-white dark:bg-gradient-to-br dark:from-[#0f0f0f] dark:to-[#1a1a1a] rounded-2xl border border-amber-500/30 dark:border-[#d4af37]/30 p-6">
+      <div className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-200 dark:from-black dark:via-[#1a1a1a] dark:to-[#000000] flex items-center justify-center p-4">
+        <div className="w-full max-w-sm bg-white dark:bg-gradient-to-br dark:from-[#0f0f0f] dark:to-[#1a1a1a] rounded-2xl border border-[#d4af37]/30 p-6">
           <div className="text-center mb-6">
             <div className="relative inline-block mb-4">
-              <div className="w-20 h-20 bg-gradient-to-br from-amber-500 to-amber-600 dark:from-[#d4af37] dark:to-[#b8860b] rounded-full flex items-center justify-center shadow-lg">
-                <Crown size={40} className="text-white dark:text-black" />
+              <div className="w-20 h-20 bg-gradient-to-br from-[#d4af37] to-[#b8860b] rounded-full flex items-center justify-center shadow-lg">
+                <Crown size={40} className="text-black" />
               </div>
-              <Heart size={16} className="text-amber-500 dark:text-[#d4af37] absolute -top-1 -right-1 animate-bounce" fill="currentColor" />
+              <Heart size={16} className="text-[#d4af37] absolute -top-1 -right-1 animate-bounce" fill="currentColor" />
             </div>
             <h2 className="text-gray-900 dark:text-white font-black text-xl mb-1">
               {isRegisterMode ? "SIGN UP" : "SIGN IN"}
             </h2>
-            <p className="text-amber-600 dark:text-[#d4af37] text-xs">
+            <p className="text-[#d4af37] text-xs">
               {isRegisterMode ? "Create your account" : "Welcome back"}
             </p>
           </div>
@@ -1676,14 +1768,14 @@ export default function App() {
               name="email"
               type="email"
               placeholder="EMAIL"
-              className="w-full bg-gray-50 dark:bg-black/50 p-3 rounded-xl border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white text-sm outline-none focus:border-amber-500 dark:focus:border-[#d4af37] transition-all"
+              className="w-full bg-gray-50 dark:bg-black/50 p-3 rounded-xl border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white text-sm outline-none focus:border-[#d4af37] transition-all"
               required
             />
             <input
               name="password"
               type="password"
               placeholder="PASSWORD"
-              className="w-full bg-gray-50 dark:bg-black/50 p-3 rounded-xl border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white text-sm outline-none focus:border-amber-500 dark:focus:border-[#d4af37] transition-all"
+              className="w-full bg-gray-50 dark:bg-black/50 p-3 rounded-xl border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white text-sm outline-none focus:border-[#d4af37] transition-all"
               required
             />
 
@@ -1695,7 +1787,7 @@ export default function App() {
 
             <button
               type="submit"
-              className="w-full py-3 bg-gradient-to-r from-amber-500 to-amber-600 dark:from-[#d4af37] dark:to-[#b8860b] text-white dark:text-black font-black rounded-xl text-sm hover:opacity-90 transition-all"
+              className="w-full py-3 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-xl text-sm hover:opacity-90 transition-all"
             >
               {isRegisterMode ? "SIGN UP" : "SIGN IN"}
             </button>
@@ -1707,7 +1799,7 @@ export default function App() {
                   setIsRegisterMode(!isRegisterMode);
                   setLoginError('');
                 }}
-                className="text-amber-600 dark:text-[#d4af37] text-xs font-bold hover:text-amber-700 dark:hover:text-[#b8860b] transition-all"
+                className="text-[#d4af37] text-xs font-bold hover:text-[#b8860b] transition-all"
               >
                 {isRegisterMode ? "← SIGN IN" : "SIGN UP"}
               </button>
@@ -1732,7 +1824,7 @@ export default function App() {
   return (
     <div className={`min-h-screen pb-16 ${
       isDarkMode
-        ? "bg-gradient-to-br from-[#0a0a0a] via-[#1a1a1a] to-[#0f0f0f] text-white"
+        ? "bg-gradient-to-br from-[#000000] via-[#1a1a1a] to-[#000000] text-white"
         : "bg-gradient-to-br from-amber-50 via-yellow-50 to-orange-50 text-gray-900"
     }`}>
 
@@ -1762,7 +1854,7 @@ export default function App() {
       {/* Delete Confirm Modal */}
       {showDeleteConfirm.show && (
         <div className="fixed inset-0 bg-black/50 dark:bg-black/95 z-[1000] flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-gradient-to-br dark:from-[#1a1a1a] dark:to-[#2d2d2d] w-full max-w-xs p-5 rounded-2xl border border-red-200 dark:border-red-500/30">
+          <div className="bg-white dark:bg-gradient-to-br dark:from-[#1a1a1a] dark:to-[#000000] w-full max-w-xs p-5 rounded-2xl border border-red-200 dark:border-red-500/30">
             <div className="text-center mb-4">
               <div className="w-16 h-16 bg-red-50 dark:bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-3 border border-red-200 dark:border-red-500/30">
                 <Trash2 size={30} className="text-red-600 dark:text-red-500" />
@@ -1792,9 +1884,9 @@ export default function App() {
       {/* SHOP ORDERS VIEW MODAL */}
       {viewingShopOrders && (
         <div className="fixed inset-0 bg-black/50 dark:bg-black/95 z-[200] flex items-center justify-center p-3 overflow-y-auto">
-          <div className="w-full max-w-md bg-white dark:bg-gradient-to-br dark:from-[#0f0f0f] dark:to-[#1a1a1a] p-4 rounded-2xl border border-amber-500/30 dark:border-[#d4af37]/30">
+          <div className="w-full max-w-md bg-white dark:bg-gradient-to-br dark:from-[#0f0f0f] dark:to-[#1a1a1a] p-4 rounded-2xl border border-[#d4af37]/30">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="font-black text-amber-600 dark:text-[#d4af37] text-sm">SHOP ORDERS</h3>
+              <h3 className="font-black text-[#d4af37] text-sm">SHOP ORDERS</h3>
               <button onClick={() => setViewingShopOrders(null)} className="text-gray-400 dark:text-white/40 hover:text-gray-600 dark:hover:text-white/60 p-1 transition-all">
                 <X size={18}/>
               </button>
@@ -1806,11 +1898,11 @@ export default function App() {
             <div className="grid grid-cols-2 gap-2 mb-4">
               <div className="bg-gray-50 dark:bg-white/5 p-2 rounded-lg border border-gray-200 dark:border-white/10">
                 <p className="text-[9px] text-gray-600 dark:text-white/60">Total Sales</p>
-                <p className="text-sm font-black text-amber-600 dark:text-[#d4af37]">Rs.{viewingShopOrders.stats.totalSales.toLocaleString()}</p>
+                <p className="text-sm font-black text-[#d4af37]">Rs.{viewingShopOrders.stats.totalSales.toLocaleString()}</p>
               </div>
               <div className="bg-gray-50 dark:bg-white/5 p-2 rounded-lg border border-gray-200 dark:border-white/10">
                 <p className="text-[9px] text-gray-600 dark:text-white/60">Total Orders</p>
-                <p className="text-sm font-black text-amber-600 dark:text-[#d4af37]">{viewingShopOrders.stats.orderCount}</p>
+                <p className="text-sm font-black text-[#d4af37]">{viewingShopOrders.stats.orderCount}</p>
               </div>
             </div>
 
@@ -1819,7 +1911,7 @@ export default function App() {
                 <div key={idx} className="bg-gray-50 dark:bg-white/5 p-2 rounded-lg mb-2 border border-gray-200 dark:border-white/10">
                   <div className="flex justify-between text-[10px]">
                     <span className="text-gray-700 dark:text-white">{new Date(order.timestamp).toLocaleDateString()}</span>
-                    <span className="text-amber-600 dark:text-[#d4af37] font-black">Rs.{order.total.toLocaleString()}</span>
+                    <span className="text-[#d4af37] font-black">Rs.{order.total.toLocaleString()}</span>
                   </div>
                   <div className="flex gap-1 mt-1">
                     <button
@@ -1836,7 +1928,7 @@ export default function App() {
                         setViewingShopOrders(null);
                         shareToWhatsApp(order, false);
                       }}
-                      className="text-[8px] bg-amber-50 dark:bg-[#d4af37]/20 text-amber-700 dark:text-[#d4af37] px-2 py-1 rounded hover:bg-amber-100 dark:hover:bg-[#d4af37]/30 transition-all"
+                      className="text-[8px] bg-[#d4af37]/20 text-[#d4af37] px-2 py-1 rounded hover:bg-[#d4af37]/30 transition-all"
                     >
                       Share
                     </button>
@@ -1866,7 +1958,7 @@ export default function App() {
                 setViewingShopOrders(null);
                 setShowModal('invoice');
               }}
-              className="w-full py-2 bg-gradient-to-r from-amber-500 to-amber-600 dark:from-[#d4af37] dark:to-[#b8860b] text-white dark:text-black font-black rounded-lg text-xs hover:opacity-90 transition-all"
+              className="w-full py-2 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg text-xs hover:opacity-90 transition-all"
             >
               NEW ORDER
             </button>
@@ -1877,9 +1969,9 @@ export default function App() {
       {/* Shop Profile View Modal */}
       {viewingShopProfile && (
         <div className="fixed inset-0 bg-black/50 dark:bg-black/95 z-[150] flex items-center justify-center p-3">
-          <div className="w-full max-w-xs bg-white dark:bg-gradient-to-br dark:from-[#0f0f0f] dark:to-[#1a1a1a] p-4 rounded-2xl border border-amber-500/30 dark:border-[#d4af37]/30">
+          <div className="w-full max-w-xs bg-white dark:bg-gradient-to-br dark:from-[#0f0f0f] dark:to-[#1a1a1a] p-4 rounded-2xl border border-[#d4af37]/30">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="font-black text-amber-600 dark:text-[#d4af37] text-sm">SHOP PROFILE</h3>
+              <h3 className="font-black text-[#d4af37] text-sm">SHOP PROFILE</h3>
               <button onClick={() => setViewingShopProfile(null)} className="text-gray-400 dark:text-white/40 hover:text-gray-600 dark:hover:text-white/60 p-1 transition-all">
                 <X size={18}/>
               </button>
@@ -1913,17 +2005,17 @@ export default function App() {
       <header className={`p-3 flex justify-between items-center sticky top-0 z-50 backdrop-blur-xl border-b ${
         isDarkMode 
           ? "bg-black/90 border-[#d4af37]/20" 
-          : "bg-white/90 border-amber-500/30"
+          : "bg-white/90 border-[#d4af37]/30"
       }`}>
         <button onClick={() => setShowGame(true)} className="flex items-center gap-2">
           <div className="relative">
-            <div className="p-1.5 bg-gradient-to-br from-amber-500 to-amber-600 dark:from-[#d4af37] dark:to-[#b8860b] rounded-lg text-white dark:text-black">
+            <div className="p-1.5 bg-gradient-to-br from-[#d4af37] to-[#b8860b] rounded-lg text-black">
               <Crown size={18} />
             </div>
-            <Heart size={8} className="text-amber-500 dark:text-[#d4af37] absolute -top-1 -right-1" fill="currentColor" />
+            <Heart size={8} className="text-[#d4af37] absolute -top-1 -right-1" fill="currentColor" />
           </div>
           <div>
-            <h1 className="font-black text-sm tracking-tight uppercase text-amber-600 dark:text-[#d4af37]">
+            <h1 className="font-black text-sm tracking-tight uppercase text-[#d4af37]">
               {data.settings.company || "SALES MONARCH"}
             </h1>
             <p className={`text-[9px] font-bold uppercase ${
@@ -1949,7 +2041,7 @@ export default function App() {
             className={`p-1.5 rounded-lg border transition-all ${
               isDarkMode 
                 ? "bg-white/5 text-[#d4af37] border-white/10 hover:bg-[#d4af37]/20" 
-                : "bg-gray-100 text-amber-600 border-gray-200 hover:bg-amber-100"
+                : "bg-gray-100 text-[#d4af37] border-gray-200 hover:bg-[#d4af37]/10"
             }`}
           >
             {isDarkMode ? <Sun size={16}/> : <Moon size={16}/>}
@@ -1970,19 +2062,19 @@ export default function App() {
         {activeTab === 'dashboard' && (
           <div className="space-y-3">
             {/* Today's Revenue Card */}
-            <div className="bg-gradient-to-br from-amber-500 via-amber-600 to-amber-700 dark:from-[#d4af37] dark:via-[#c19a2e] dark:to-[#b8860b] p-4 rounded-xl text-white dark:text-black shadow-xl border border-amber-700/30 dark:border-[#b8860b]/30">
+            <div className="bg-gradient-to-br from-[#d4af37] via-[#c19a2e] to-[#b8860b] p-4 rounded-xl text-black shadow-xl border border-[#b8860b]/30">
               <div className="flex justify-between items-start mb-2">
                 <div>
                   <p className="text-[9px] font-black uppercase opacity-80">Today's Revenue</p>
                   <h2 className="text-xl font-black">Rs.{stats.daily.totalSales.toLocaleString()}</h2>
                 </div>
-                <div className="bg-black/20 dark:bg-black/20 p-1.5 rounded-lg text-right border border-white/20 dark:border-black/10">
+                <div className="bg-black/20 p-1.5 rounded-lg text-right border border-white/20">
                   <p className="text-[8px] font-black uppercase">Expenses</p>
-                  <p className="text-sm font-black text-red-300 dark:text-red-800">- Rs.{stats.expenses.toLocaleString()}</p>
+                  <p className="text-sm font-black text-red-800">- Rs.{stats.expenses.toLocaleString()}</p>
                 </div>
               </div>
               <div className="flex justify-between items-center">
-                <div className="bg-black/10 dark:bg-black/10 px-2 py-1 rounded-full text-[9px] font-black border border-white/20 dark:border-black/10">
+                <div className="bg-black/10 px-2 py-1 rounded-full text-[9px] font-black border border-white/20">
                   Net: Rs.{(stats.daily.totalSales - stats.expenses).toLocaleString()}
                 </div>
                 <div className="text-right">
@@ -2002,13 +2094,11 @@ export default function App() {
                 <div className={`p-1.5 rounded-lg border ${
                   isDarkMode 
                     ? "bg-[#d4af37]/10 border-[#d4af37]/20" 
-                    : "bg-amber-50 border-amber-200"
+                    : "bg-[#d4af37]/10 border-[#d4af37]/20"
                 }`}>
-                  <TrendingUp size={14} className={isDarkMode ? "text-[#d4af37]" : "text-amber-600"} />
+                  <TrendingUp size={14} className="text-[#d4af37]" />
                 </div>
-                <h3 className={`text-sm font-black uppercase tracking-wider ${
-                  isDarkMode ? "text-[#d4af37]" : "text-amber-600"
-                }`}>Today's Sales</h3>
+                <h3 className={`text-sm font-black uppercase tracking-wider text-[#d4af37]`}>Today's Sales</h3>
               </div>
 
               {stats.daily.summary.length > 0 ? (
@@ -2025,9 +2115,7 @@ export default function App() {
                         </div>
                       </div>
                       <div className="text-right">
-                        <span className={`text-sm font-black ${
-                          isDarkMode ? "text-[#d4af37]" : "text-amber-600"
-                        }`}>Rs.{item.revenue.toLocaleString()}</span>
+                        <span className="text-sm font-black text-[#d4af37]">Rs.{item.revenue.toLocaleString()}</span>
                       </div>
                     </div>
                   ))}
@@ -2085,7 +2173,7 @@ export default function App() {
                         <div key={idx} className="flex justify-between items-center py-1.5 border-b border-gray-200 dark:border-white/5 last:border-0">
                           <div className="flex items-center gap-2">
                             {exp.type === 'fuel' && <Fuel size={10} className={isDarkMode ? "text-red-500" : "text-red-600"} />}
-                            {exp.type === 'food' && <Coffee size={10} className={isDarkMode ? "text-amber-500" : "text-amber-600"} />}
+                            {exp.type === 'food' && <Coffee size={10} className={isDarkMode ? "text-[#d4af37]" : "text-[#d4af37]"} />}
                             {exp.type === 'transport' && <Navigation size={10} className={isDarkMode ? "text-blue-500" : "text-blue-600"} />}
                             <span className="text-[10px] font-medium text-gray-700 dark:text-white capitalize">{exp.type}</span>
                             {exp.note && <span className="text-[8px] text-gray-500 dark:text-white/50">- {exp.note}</span>}
@@ -2117,27 +2205,25 @@ export default function App() {
               <div className={`p-4 rounded-xl border shadow-lg ${
                 isDarkMode 
                   ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/30" 
-                  : "bg-white border-amber-500/30"
+                  : "bg-white border-[#d4af37]/30"
               }`}>
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
                     <div className={`p-1.5 rounded-lg border ${
                       isDarkMode 
                         ? "bg-[#d4af37]/10 border-[#d4af37]/20" 
-                        : "bg-amber-50 border-amber-200"
+                        : "bg-[#d4af37]/10 border-[#d4af37]/20"
                     }`}>
-                      <Target size={14} className={isDarkMode ? "text-[#d4af37]" : "text-amber-600"} />
+                      <Target size={14} className="text-[#d4af37]" />
                     </div>
-                    <h3 className={`text-sm font-black uppercase tracking-wider ${
-                      isDarkMode ? "text-[#d4af37]" : "text-amber-600"
-                    }`}>Targets ({stats.targets.length})</h3>
+                    <h3 className="text-sm font-black uppercase tracking-wider text-[#d4af37]">Targets ({stats.targets.length})</h3>
                   </div>
                   <button
                     onClick={() => setShowTargetModal(true)}
                     className={`px-2 py-1 rounded-lg text-[8px] font-black transition-all ${
                       isDarkMode 
                         ? "bg-[#d4af37]/20 text-[#d4af37] hover:bg-[#d4af37]/30" 
-                        : "bg-amber-100 text-amber-700 hover:bg-amber-200"
+                        : "bg-[#d4af37]/10 text-[#d4af37] hover:bg-[#d4af37]/20"
                     }`}
                   >
                     + ADD
@@ -2173,7 +2259,7 @@ export default function App() {
                       </div>
                       <div className="w-full h-1.5 bg-gray-200 dark:bg-white/10 rounded-full overflow-hidden">
                         <div
-                          className="h-full bg-gradient-to-r from-amber-500 to-amber-600 dark:from-[#d4af37] dark:to-[#b8860b]"
+                          className="h-full bg-gradient-to-r from-[#d4af37] to-[#b8860b]"
                           style={{ width: `${Math.min(target.progress, 100)}%` }}
                         ></div>
                       </div>
@@ -2194,13 +2280,11 @@ export default function App() {
                   <div className={`p-1.5 rounded-lg border ${
                     isDarkMode 
                       ? "bg-[#d4af37]/10 border-[#d4af37]/20" 
-                      : "bg-amber-50 border-amber-200"
+                      : "bg-[#d4af37]/10 border-[#d4af37]/20"
                   }`}>
-                    <BarChart3 size={14} className={isDarkMode ? "text-[#d4af37]" : "text-amber-600"} />
+                    <BarChart3 size={14} className="text-[#d4af37]" />
                   </div>
-                  <h3 className={`text-sm font-black uppercase tracking-wider ${
-                    isDarkMode ? "text-[#d4af37]" : "text-amber-600"
-                  }`}>Monthly Performance</h3>
+                  <h3 className="text-sm font-black uppercase tracking-wider text-[#d4af37]">Monthly Performance</h3>
                 </div>
                 <button
                   onClick={() => setShowAllMonthlyBrands(!showAllMonthlyBrands)}
@@ -2217,15 +2301,11 @@ export default function App() {
               <div className="grid grid-cols-2 gap-2 mb-3">
                 <div className="bg-gray-50 dark:bg-white/5 p-2 rounded-lg border border-gray-200 dark:border-white/10">
                   <p className="text-[8px] text-gray-600 dark:text-white/60">Total Sales</p>
-                  <p className={`text-base font-black ${
-                    isDarkMode ? "text-[#d4af37]" : "text-amber-600"
-                  }`}>Rs.{stats.monthlySales.toLocaleString()}</p>
+                  <p className="text-base font-black text-[#d4af37]">Rs.{stats.monthlySales.toLocaleString()}</p>
                 </div>
                 <div className="bg-gray-50 dark:bg-white/5 p-2 rounded-lg border border-gray-200 dark:border-white/10">
                   <p className="text-[8px] text-gray-600 dark:text-white/60">Total Units</p>
-                  <p className={`text-base font-black ${
-                    isDarkMode ? "text-[#d4af37]" : "text-amber-600"
-                  }`}>{stats.monthly.totalUnits}</p>
+                  <p className="text-base font-black text-[#d4af37]">{stats.monthly.totalUnits}</p>
                 </div>
               </div>
 
@@ -2238,13 +2318,13 @@ export default function App() {
                     idx === 0
                       ? (isDarkMode 
                           ? 'bg-[#d4af37]/10 border-[#d4af37]/40' 
-                          : 'bg-amber-50 border-amber-300')
+                          : 'bg-[#d4af37]/10 border-[#d4af37]/30')
                       : 'bg-gray-50 dark:bg-white/5 border-gray-200 dark:border-white/10'
                   }`}>
                     <div className="flex justify-between items-center">
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
-                          {idx === 0 && <Trophy size={12} className={isDarkMode ? "text-[#d4af37]" : "text-amber-600"} />}
+                          {idx === 0 && <Trophy size={12} className="text-[#d4af37]" />}
                           <span className="text-xs font-bold text-gray-900 dark:text-white">{brand.name}</span>
                         </div>
                         <div className="flex items-center gap-3 mt-1">
@@ -2253,9 +2333,7 @@ export default function App() {
                         </div>
                       </div>
                       <div className="text-right border-l border-gray-300 dark:border-white/10 pl-3">
-                        <p className={`text-sm font-black ${
-                          isDarkMode ? "text-[#d4af37]" : "text-amber-600"
-                        }`}>Rs.{brand.revenue.toLocaleString()}</p>
+                        <p className="text-sm font-black text-[#d4af37]">Rs.{brand.revenue.toLocaleString()}</p>
                         <p className="text-[7px] text-gray-600 dark:text-white/60 mt-0.5">
                           {stats.monthly.totalSales > 0 ? ((brand.revenue / stats.monthly.totalSales) * 100).toFixed(1) : 0}%
                         </p>
@@ -2298,7 +2376,7 @@ export default function App() {
                 className={`px-3 py-2 rounded-xl border font-black text-xs flex items-center gap-1 transition-all ${
                   isDarkMode 
                     ? 'bg-[#1a1a1a] border-white/10 text-[#d4af37] hover:bg-[#d4af37]/10' 
-                    : 'bg-gray-100 border-gray-200 text-amber-600 hover:bg-amber-100'
+                    : 'bg-gray-100 border-gray-200 text-[#d4af37] hover:bg-[#d4af37]/10'
                 }`}
               >
                 <Plus size={14} /> ADD
@@ -2311,7 +2389,7 @@ export default function App() {
                 onClick={() => setSelectedRouteFilter('ALL')}
                 className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase whitespace-nowrap border transition-all flex-shrink-0 ${
                   selectedRouteFilter === 'ALL'
-                    ? 'bg-gradient-to-r from-amber-500 to-amber-600 dark:from-[#d4af37] dark:to-[#b8860b] text-white dark:text-black border-amber-600 dark:border-[#d4af37]'
+                    ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black border-[#d4af37]'
                     : isDarkMode 
                       ? 'bg-[#1a1a1a] border-white/10 text-white/60 hover:bg-white/10' 
                       : 'bg-gray-100 border-gray-200 text-gray-600 hover:bg-gray-200'
@@ -2324,7 +2402,7 @@ export default function App() {
                   onClick={() => setSelectedRouteFilter(r.name)}
                   className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase whitespace-nowrap border transition-all flex-shrink-0 ${
                     selectedRouteFilter === r.name
-                      ? 'bg-gradient-to-r from-amber-500 to-amber-600 dark:from-[#d4af37] dark:to-[#b8860b] text-white dark:text-black border-amber-600 dark:border-[#d4af37]'
+                      ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black border-[#d4af37]'
                       : isDarkMode 
                         ? 'bg-[#1a1a1a] border-white/10 text-white/60 hover:bg-white/10' 
                         : 'bg-gray-100 border-gray-200 text-gray-600 hover:bg-gray-200'
@@ -2363,7 +2441,7 @@ export default function App() {
                         </button>
 
                         {showShopMenu === s.id && (
-                          <div className="absolute right-0 top-full mt-1 w-32 bg-white dark:bg-gradient-to-br dark:from-[#1a1a1a] dark:to-[#2d2d2d] rounded-lg border border-amber-500/30 dark:border-[#d4af37]/30 shadow-xl z-50">
+                          <div className="absolute right-0 top-full mt-1 w-32 bg-white dark:bg-gradient-to-br dark:from-[#1a1a1a] dark:to-[#000000] rounded-lg border border-[#d4af37]/30 shadow-xl z-50">
                             <div className="p-1">
                               <button
                                 onClick={() => {
@@ -2402,7 +2480,7 @@ export default function App() {
                                   }}
                                   className="w-full px-3 py-1.5 text-left text-[9px] font-black uppercase text-gray-700 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 rounded flex items-center gap-1 transition-all"
                                 >
-                                  <Plus size={10} className="text-amber-600 dark:text-[#d4af37]"/> Add Profile
+                                  <Plus size={10} className="text-[#d4af37]"/> Add Profile
                                 </button>
                               )}
                               <button
@@ -2421,12 +2499,8 @@ export default function App() {
                     </div>
 
                     <div className="flex items-center gap-3 text-[9px] mb-2">
-                      <span className="text-gray-700 dark:text-white/80">Total: <span className={`font-bold ${
-                        isDarkMode ? "text-[#d4af37]" : "text-amber-600"
-                      }`}>Rs.{shopStats.totalSales.toLocaleString()}</span></span>
-                      <span className="text-gray-700 dark:text-white/80">Orders: <span className={`font-bold ${
-                        isDarkMode ? "text-[#d4af37]" : "text-amber-600"
-                      }`}>{shopStats.orderCount}</span></span>
+                      <span className="text-gray-700 dark:text-white/80">Total: <span className="font-bold text-[#d4af37]">Rs.{shopStats.totalSales.toLocaleString()}</span></span>
+                      <span className="text-gray-700 dark:text-white/80">Orders: <span className="font-bold text-[#d4af37]">{shopStats.orderCount}</span></span>
                     </div>
 
                     {/* Compact GOLD BILL BUTTON */}
@@ -2435,7 +2509,7 @@ export default function App() {
                         setSelectedShop(s);
                         setShowModal('invoice');
                       }}
-                      className="w-full py-1.5 bg-gradient-to-r from-amber-500 to-amber-600 dark:from-[#d4af37] dark:to-[#b8860b] text-white dark:text-black font-black rounded-lg text-[9px] uppercase flex items-center justify-center gap-1 hover:opacity-90 transition-all"
+                      className="w-full py-1.5 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg text-[9px] uppercase flex items-center justify-center gap-1 hover:opacity-90 transition-all"
                     >
                       <Receipt size={12} /> BILL
                     </button>
@@ -2454,7 +2528,7 @@ export default function App() {
                 ? "bg-[#0f0f0f] border-white/10" 
                 : "bg-white border-gray-200"
             }`}>
-              <Calendar size={14} className={isDarkMode ? "text-[#d4af37]" : "text-amber-600"}/>
+              <Calendar size={14} className="text-[#d4af37]"/>
               <input
                 type="date"
                 className="bg-transparent text-[10px] font-bold uppercase outline-none w-full text-gray-900 dark:text-white"
@@ -2481,16 +2555,14 @@ export default function App() {
               }`}>
                 <div className="flex justify-between items-start mb-2">
                   <div>
-                    <h4 className={`text-xs font-black uppercase ${
-                      isDarkMode ? "text-[#d4af37]" : "text-amber-600"
-                    }`}>{o.shopName}</h4>
+                    <h4 className="text-xs font-black uppercase text-[#d4af37]">{o.shopName}</h4>
                     <p className="text-[8px] text-gray-600 dark:text-white/60">{o.companyName}</p>
                   </div>
                   <div className="flex gap-1">
                     <button onClick={() => printBill(o)} className="p-1 text-blue-600 dark:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded transition-all">
                       <Printer size={12}/>
                     </button>
-                    <button onClick={() => shareToWhatsApp(o, false)} className="p-1 text-amber-600 dark:text-[#d4af37] hover:bg-amber-50 dark:hover:bg-[#d4af37]/10 rounded transition-all">
+                    <button onClick={() => shareToWhatsApp(o, false)} className="p-1 text-[#d4af37] hover:bg-[#d4af37]/10 rounded transition-all">
                       <Share2 size={12}/>
                     </button>
                     <button onClick={() => shareToWhatsApp(o, true)} className="p-1 text-green-600 dark:text-green-500 hover:bg-green-50 dark:hover:bg-green-500/10 rounded transition-all">
@@ -2513,9 +2585,7 @@ export default function App() {
 
                 <div className="flex justify-between items-center border-t border-gray-200 dark:border-white/10 pt-2">
                   <span className="text-[9px] text-gray-600 dark:text-white/60">Total</span>
-                  <span className={`text-sm font-black ${
-                    isDarkMode ? "text-[#d4af37]" : "text-amber-600"
-                  }`}>Rs.{o.total.toLocaleString()}</span>
+                  <span className="text-sm font-black text-[#d4af37]">Rs.{o.total.toLocaleString()}</span>
                 </div>
               </div>
             ))}
@@ -2573,7 +2643,7 @@ export default function App() {
                 ? "bg-[#0f0f0f] border-white/10" 
                 : "bg-white border-gray-200"
             }`}>
-              <Calendar size={14} className={isDarkMode ? "text-[#d4af37]" : "text-amber-600"}/>
+              <Calendar size={14} className="text-[#d4af37]"/>
               <input
                 type="date"
                 className="bg-transparent text-[10px] font-bold uppercase outline-none w-full text-gray-900 dark:text-white"
@@ -2582,7 +2652,7 @@ export default function App() {
               />
               <button
                 onClick={() => setShowModal('note')}
-                className="bg-gradient-to-r from-amber-500 to-amber-600 dark:from-[#d4af37] dark:to-[#b8860b] text-white dark:text-black px-2 py-1 rounded-lg text-[9px] font-black hover:opacity-90 transition-all"
+                className="bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black px-2 py-1 rounded-lg text-[9px] font-black hover:opacity-90 transition-all"
               >
                 ADD
               </button>
@@ -2623,9 +2693,7 @@ export default function App() {
                 ? "bg-[#0f0f0f] border-white/10" 
                 : "bg-white border-gray-200"
             }`}>
-              <h3 className={`text-xs font-black uppercase mb-2 ${
-                isDarkMode ? "text-[#d4af37]" : "text-amber-600"
-              }`}>Profile</h3>
+              <h3 className="text-xs font-black uppercase mb-2 text-[#d4af37]">Profile</h3>
               <div className="space-y-2">
                 <input
                   name="repName"
@@ -2660,7 +2728,7 @@ export default function App() {
                 className={`py-2 rounded-xl border font-black text-[9px] flex flex-col items-center transition-all ${
                   isDarkMode 
                     ? 'bg-[#1a1a1a] border-white/5 text-[#d4af37] hover:bg-[#d4af37]/10' 
-                    : 'bg-gray-50 border-gray-200 text-amber-600 hover:bg-amber-100'
+                    : 'bg-gray-50 border-gray-200 text-[#d4af37] hover:bg-[#d4af37]/10'
                 }`}
               >
                 <MapPin size={14}/> ROUTE
@@ -2670,7 +2738,7 @@ export default function App() {
                 className={`py-2 rounded-xl border font-black text-[9px] flex flex-col items-center transition-all ${
                   isDarkMode 
                     ? 'bg-[#1a1a1a] border-white/5 text-[#d4af37] hover:bg-[#d4af37]/10' 
-                    : 'bg-gray-50 border-gray-200 text-amber-600 hover:bg-amber-100'
+                    : 'bg-gray-50 border-gray-200 text-[#d4af37] hover:bg-[#d4af37]/10'
                 }`}
               >
                 <Package size={14}/> BRAND
@@ -2680,7 +2748,7 @@ export default function App() {
                 className={`py-2 rounded-xl border font-black text-[9px] flex flex-col items-center transition-all ${
                   isDarkMode 
                     ? 'bg-[#1a1a1a] border-white/5 text-[#d4af37] hover:bg-[#d4af37]/10' 
-                    : 'bg-gray-50 border-gray-200 text-amber-600 hover:bg-amber-100'
+                    : 'bg-gray-50 border-gray-200 text-[#d4af37] hover:bg-[#d4af37]/10'
                 }`}
               >
                 <ShoppingBag size={14}/> MANUAL
@@ -2689,9 +2757,7 @@ export default function App() {
 
             {/* Routes List */}
             <div>
-              <h4 className={`text-xs font-black uppercase mb-2 ${
-                isDarkMode ? "text-[#d4af37]" : "text-amber-600"
-              }`}>Routes</h4>
+              <h4 className="text-xs font-black uppercase mb-2 text-[#d4af37]">Routes</h4>
               {data.routes.map(r => (
                 <div key={r.id} className={`p-2 rounded-lg border mb-1 flex justify-between items-center ${
                   isDarkMode 
@@ -2708,15 +2774,13 @@ export default function App() {
 
             {/* Brands List */}
             <div>
-              <h4 className={`text-xs font-black uppercase mb-2 ${
-                isDarkMode ? "text-[#d4af37]" : "text-amber-600"
-              }`}>Brands</h4>
+              <h4 className="text-xs font-black uppercase mb-2 text-[#d4af37]">Brands</h4>
               {data.brands.map((b, idx) => (
                 <div
                   key={b.id}
                   className={`p-2 rounded-lg border mb-1 transition-all ${
                     movingBrandId === b.id 
-                      ? 'border-amber-500 dark:border-[#d4af37] bg-amber-50 dark:bg-[#d4af37]/10 scale-105' 
+                      ? 'border-[#d4af37] bg-[#d4af37]/10 scale-105' 
                       : ''
                   } ${
                     isDarkMode 
@@ -2771,7 +2835,7 @@ export default function App() {
                         <div className={`w-6 h-6 rounded flex items-center justify-center font-black text-xs ${
                           isDarkMode 
                             ? 'bg-[#d4af37]/20 text-[#d4af37]' 
-                            : 'bg-amber-100 text-amber-700'
+                            : 'bg-[#d4af37]/10 text-[#d4af37]'
                         }`}>
                           {b.sequence || idx + 1}
                         </div>
@@ -2780,9 +2844,7 @@ export default function App() {
                             <span className="text-xs font-bold text-gray-900 dark:text-white">{b.name}</span>
                             <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-white border border-gray-200 dark:border-white/20">{b.size}</span>
                           </div>
-                          <div className={`text-[9px] font-bold ${
-                            isDarkMode ? "text-[#d4af37]" : "text-amber-600"
-                          }`}>Rs.{b.price}</div>
+                          <div className="text-[9px] font-bold text-[#d4af37]">Rs.{b.price}</div>
                         </div>
                       </div>
                       <div className="flex gap-1">
@@ -2859,7 +2921,7 @@ export default function App() {
             onClick={() => setActiveTab(t.id)}
             className={`p-1 flex flex-col items-center transition-all ${
               activeTab === t.id 
-                ? isDarkMode ? 'text-[#d4af37]' : 'text-amber-600'
+                ? 'text-[#d4af37]'
                 : isDarkMode 
                   ? 'text-white/40 hover:text-white/60' 
                   : 'text-gray-400 hover:text-gray-600'
@@ -2880,7 +2942,7 @@ export default function App() {
                 setIsFabOpen(false);
                 setShowModal('expense');
               }}
-              className="w-10 h-10 bg-gradient-to-r from-amber-500 to-amber-600 dark:from-[#d4af37] dark:to-[#b8860b] rounded-full text-white dark:text-black flex items-center justify-center shadow-lg hover:scale-110 transition-all"
+              className="w-10 h-10 bg-gradient-to-r from-[#d4af37] to-[#b8860b] rounded-full text-black flex items-center justify-center shadow-lg hover:scale-110 transition-all"
             >
               <Wallet size={16} />
             </button>
@@ -2916,7 +2978,7 @@ export default function App() {
         )}
         <button
           onClick={() => setIsFabOpen(!isFabOpen)}
-          className="w-12 h-12 bg-gradient-to-r from-amber-500 to-amber-600 dark:from-[#d4af37] dark:to-[#b8860b] rounded-full text-white dark:text-black flex items-center justify-center shadow-2xl hover:scale-110 transition-all"
+          className="w-12 h-12 bg-gradient-to-r from-[#d4af37] to-[#b8860b] rounded-full text-black flex items-center justify-center shadow-2xl hover:scale-110 transition-all"
         >
           {isFabOpen ? <X size={20} /> : <Plus size={20} />}
         </button>
@@ -2925,11 +2987,9 @@ export default function App() {
       {/* TARGET MODAL */}
       {showTargetModal && (
         <div className="fixed inset-0 bg-black/50 dark:bg-black/95 z-[100] flex items-center justify-center p-3">
-          <div className="w-full max-w-xs p-4 rounded-xl border border-amber-500/30 dark:border-[#d4af37]/30 bg-white dark:bg-gradient-to-br dark:from-[#0f0f0f] dark:to-[#1a1a1a]">
+          <div className="w-full max-w-xs p-4 rounded-xl border border-[#d4af37]/30 bg-white dark:bg-gradient-to-br dark:from-[#0f0f0f] dark:to-[#1a1a1a]">
             <div className="flex justify-between items-center mb-3">
-              <h3 className={`font-black text-sm ${
-                isDarkMode ? "text-[#d4af37]" : "text-amber-600"
-              }`}>{editingTarget ? 'EDIT TARGET' : 'NEW TARGET'}</h3>
+              <h3 className="font-black text-sm text-[#d4af37]">{editingTarget ? 'EDIT TARGET' : 'NEW TARGET'}</h3>
               <button onClick={() => { setShowTargetModal(false); setEditingTarget(null); }} className="text-gray-400 dark:text-white/40 hover:text-gray-600 dark:hover:text-white/60 p-1 transition-all">
                 <X size={16}/>
               </button>
@@ -2939,7 +2999,7 @@ export default function App() {
                 type="month"
                 value={targetMonth}
                 onChange={(e) => setTargetMonth(e.target.value)}
-                className="w-full p-2 rounded-lg border text-xs bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-amber-500 dark:focus:border-[#d4af37] transition-all"
+                className="w-full p-2 rounded-lg border text-xs bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all"
                 required
               />
 
@@ -2949,8 +3009,8 @@ export default function App() {
                   onClick={() => setTargetType('revenue')}
                   className={`p-1 rounded-lg border text-[9px] font-bold transition-all ${
                     targetType === 'revenue' 
-                      ? 'bg-gradient-to-r from-amber-500 to-amber-600 dark:from-[#d4af37] dark:to-[#b8860b] text-white dark:text-black border-amber-600 dark:border-[#d4af37]' 
-                      : 'border-gray-200 dark:border-white/10 text-gray-700 dark:text-white hover:border-amber-500 dark:hover:border-[#d4af37]/50'
+                      ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black border-[#d4af37]' 
+                      : 'border-gray-200 dark:border-white/10 text-gray-700 dark:text-white hover:border-[#d4af37]/50'
                   }`}
                 >
                   REVENUE
@@ -2960,8 +3020,8 @@ export default function App() {
                   onClick={() => setTargetType('units')}
                   className={`p-1 rounded-lg border text-[9px] font-bold transition-all ${
                     targetType === 'units' 
-                      ? 'bg-gradient-to-r from-amber-500 to-amber-600 dark:from-[#d4af37] dark:to-[#b8860b] text-white dark:text-black border-amber-600 dark:border-[#d4af37]' 
-                      : 'border-gray-200 dark:border-white/10 text-gray-700 dark:text-white hover:border-amber-500 dark:hover:border-[#d4af37]/50'
+                      ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black border-[#d4af37]' 
+                      : 'border-gray-200 dark:border-white/10 text-gray-700 dark:text-white hover:border-[#d4af37]/50'
                   }`}
                 >
                   UNITS
@@ -2974,8 +3034,8 @@ export default function App() {
                   onClick={() => setTargetSpecific('total')}
                   className={`p-1 rounded-lg border text-[8px] font-bold transition-all ${
                     targetSpecific === 'total' 
-                      ? 'bg-gradient-to-r from-amber-500 to-amber-600 dark:from-[#d4af37] dark:to-[#b8860b] text-white dark:text-black border-amber-600 dark:border-[#d4af37]' 
-                      : 'border-gray-200 dark:border-white/10 text-gray-700 dark:text-white hover:border-amber-500 dark:hover:border-[#d4af37]/50'
+                      ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black border-[#d4af37]' 
+                      : 'border-gray-200 dark:border-white/10 text-gray-700 dark:text-white hover:border-[#d4af37]/50'
                   }`}
                 >
                   TOTAL
@@ -2985,8 +3045,8 @@ export default function App() {
                   onClick={() => setTargetSpecific('brand')}
                   className={`p-1 rounded-lg border text-[8px] font-bold transition-all ${
                     targetSpecific === 'brand' 
-                      ? 'bg-gradient-to-r from-amber-500 to-amber-600 dark:from-[#d4af37] dark:to-[#b8860b] text-white dark:text-black border-amber-600 dark:border-[#d4af37]' 
-                      : 'border-gray-200 dark:border-white/10 text-gray-700 dark:text-white hover:border-amber-500 dark:hover:border-[#d4af37]/50'
+                      ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black border-[#d4af37]' 
+                      : 'border-gray-200 dark:border-white/10 text-gray-700 dark:text-white hover:border-[#d4af37]/50'
                   }`}
                 >
                   BRAND
@@ -2997,7 +3057,7 @@ export default function App() {
                 <select
                   value={targetBrand}
                   onChange={(e) => setTargetBrand(e.target.value)}
-                  className="w-full p-2 rounded-lg border text-xs bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-amber-500 dark:focus:border-[#d4af37] transition-all"
+                  className="w-full p-2 rounded-lg border text-xs bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all"
                   required
                 >
                   <option value="">SELECT BRAND</option>
@@ -3012,13 +3072,13 @@ export default function App() {
                 value={targetAmount}
                 onChange={(e) => setTargetAmount(e.target.value)}
                 placeholder="AMOUNT"
-                className="w-full p-2 rounded-lg border text-xs bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-amber-500 dark:focus:border-[#d4af37] transition-all"
+                className="w-full p-2 rounded-lg border text-xs bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all"
                 required
               />
 
               <button
                 type="submit"
-                className="w-full py-2 bg-gradient-to-r from-amber-500 to-amber-600 dark:from-[#d4af37] dark:to-[#b8860b] text-white dark:text-black font-black rounded-lg text-xs hover:opacity-90 transition-all"
+                className="w-full py-2 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg text-xs hover:opacity-90 transition-all"
               >
                 {editingTarget ? 'UPDATE' : 'SAVE'}
               </button>
@@ -3036,9 +3096,7 @@ export default function App() {
               : 'bg-white border-gray-200'
           }`}>
             <div className="flex justify-between items-center mb-3">
-              <h3 className={`font-black text-sm ${
-                isDarkMode ? "text-[#d4af37]" : "text-amber-600"
-              }`}>CALCULATOR</h3>
+              <h3 className="font-black text-sm text-[#d4af37]">CALCULATOR</h3>
               <button onClick={() => { setShowCalculator(false); resetCalculator(); }} className="text-gray-400 dark:text-white/40 hover:text-gray-600 dark:hover:text-white/60 p-1 transition-all">
                 <X size={16}/>
               </button>
@@ -3049,7 +3107,7 @@ export default function App() {
               value={totalCalculation.subtotal || ''}
               onChange={(e) => setTotalCalculation({...totalCalculation, subtotal: parseFloat(e.target.value) || 0})}
               placeholder="SUBTOTAL"
-              className="w-full p-2 rounded-lg border text-sm mb-2 bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-amber-500 dark:focus:border-[#d4af37] transition-all"
+              className="w-full p-2 rounded-lg border text-sm mb-2 bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all"
             />
 
             <div className="flex gap-1 mb-2">
@@ -3057,7 +3115,7 @@ export default function App() {
                 onClick={() => setTotalCalculation({...totalCalculation, usePercentage: false})}
                 className={`flex-1 p-1 rounded-lg text-[9px] font-bold transition-all ${
                   !totalCalculation.usePercentage 
-                    ? 'bg-gradient-to-r from-amber-500 to-amber-600 dark:from-[#d4af37] dark:to-[#b8860b] text-white dark:text-black' 
+                    ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black' 
                     : 'bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-white hover:bg-gray-200 dark:hover:bg-white/20'
                 }`}
               >
@@ -3067,7 +3125,7 @@ export default function App() {
                 onClick={() => setTotalCalculation({...totalCalculation, usePercentage: true})}
                 className={`flex-1 p-1 rounded-lg text-[9px] font-bold transition-all ${
                   totalCalculation.usePercentage 
-                    ? 'bg-gradient-to-r from-amber-500 to-amber-600 dark:from-[#d4af37] dark:to-[#b8860b] text-white dark:text-black' 
+                    ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black' 
                     : 'bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-white hover:bg-gray-200 dark:hover:bg-white/20'
                 }`}
               >
@@ -3081,7 +3139,7 @@ export default function App() {
                 value={totalCalculation.discountPercent || ''}
                 onChange={(e) => setTotalCalculation({...totalCalculation, discountPercent: parseFloat(e.target.value) || 0})}
                 placeholder="DISCOUNT %"
-                className="w-full p-2 rounded-lg border text-sm mb-2 bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-amber-500 dark:focus:border-[#d4af37] transition-all"
+                className="w-full p-2 rounded-lg border text-sm mb-2 bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all"
               />
             ) : (
               <input
@@ -3089,7 +3147,7 @@ export default function App() {
                 value={totalCalculation.discount || ''}
                 onChange={(e) => setTotalCalculation({...totalCalculation, discount: parseFloat(e.target.value) || 0})}
                 placeholder="DISCOUNT"
-                className="w-full p-2 rounded-lg border text-sm mb-2 bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-amber-500 dark:focus:border-[#d4af37] transition-all"
+                className="w-full p-2 rounded-lg border text-sm mb-2 bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all"
               />
             )}
 
@@ -3098,14 +3156,12 @@ export default function App() {
               value={totalCalculation.tax || ''}
               onChange={(e) => setTotalCalculation({...totalCalculation, tax: parseFloat(e.target.value) || 0})}
               placeholder="TAX"
-              className="w-full p-2 rounded-lg border text-sm mb-3 bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-amber-500 dark:focus:border-[#d4af37] transition-all"
+              className="w-full p-2 rounded-lg border text-sm mb-3 bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all"
             />
 
             <div className="bg-gray-100 dark:bg-[#1a1a1a] p-2 rounded-lg mb-3 text-center border border-gray-200 dark:border-white/10">
               <p className="text-[9px] text-gray-600 dark:text-white/60 mb-1">GRAND TOTAL</p>
-              <p className={`text-base font-black ${
-                isDarkMode ? "text-[#d4af37]" : "text-amber-600"
-              }`}>
+              <p className="text-base font-black text-[#d4af37]">
                 Rs.{(
                   (totalCalculation.subtotal || 0) -
                   (totalCalculation.usePercentage
@@ -3118,7 +3174,7 @@ export default function App() {
 
             <button
               onClick={calculateTotal}
-              className="w-full py-2 bg-gradient-to-r from-amber-500 to-amber-600 dark:from-[#d4af37] dark:to-[#b8860b] text-white dark:text-black font-black rounded-lg text-xs mb-1 hover:opacity-90 transition-all"
+              className="w-full py-2 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg text-xs mb-1 hover:opacity-90 transition-all"
             >
               CALCULATE
             </button>
@@ -3314,9 +3370,7 @@ export default function App() {
               : 'bg-white border-gray-200'
           }`}>
             <div className="flex justify-between items-center mb-3">
-              <h3 className={`font-black text-sm ${
-                isDarkMode ? "text-[#d4af37]" : "text-amber-600"
-              }`}>NEW SHOP</h3>
+              <h3 className="font-black text-sm text-[#d4af37]">NEW SHOP</h3>
               <button onClick={() => setShowModal(null)} className="text-gray-400 dark:text-white/40 hover:text-gray-600 dark:hover:text-white/60 p-1 transition-all">
                 <X size={16}/>
               </button>
@@ -3333,14 +3387,14 @@ export default function App() {
               showToast("Shop added!");
               setShowModal(null);
             }} className="space-y-2">
-              <input name="name" placeholder="SHOP NAME" className="w-full p-2 rounded-lg border text-xs bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-amber-500 dark:focus:border-[#d4af37] transition-all" required />
-              <select name="area" className="w-full p-2 rounded-lg border text-xs bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-amber-500 dark:focus:border-[#d4af37] transition-all" required>
+              <input name="name" placeholder="SHOP NAME" className="w-full p-2 rounded-lg border text-xs bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all" required />
+              <select name="area" className="w-full p-2 rounded-lg border text-xs bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all" required>
                 <option value="">SELECT ROUTE</option>
                 {data.routes.map(r => (
                   <option key={r.id} value={r.name}>{r.name}</option>
                 ))}
               </select>
-              <button type="submit" className="w-full py-2 bg-gradient-to-r from-amber-500 to-amber-600 dark:from-[#d4af37] dark:to-[#b8860b] text-white dark:text-black font-black rounded-lg text-xs hover:opacity-90 transition-all">SAVE</button>
+              <button type="submit" className="w-full py-2 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg text-xs hover:opacity-90 transition-all">SAVE</button>
             </form>
           </div>
         </div>
@@ -3355,9 +3409,7 @@ export default function App() {
               : 'bg-white border-gray-200'
           }`}>
             <div className="flex justify-between items-center mb-3">
-              <h3 className={`font-black text-sm ${
-                isDarkMode ? "text-[#d4af37]" : "text-amber-600"
-              }`}>NEW ROUTE</h3>
+              <h3 className="font-black text-sm text-[#d4af37]">NEW ROUTE</h3>
               <button onClick={() => setShowModal(null)} className="text-gray-400 dark:text-white/40 hover:text-gray-600 dark:hover:text-white/60 p-1 transition-all">
                 <X size={16}/>
               </button>
@@ -3372,8 +3424,8 @@ export default function App() {
               showToast("Route added!");
               setShowModal(null);
             }} className="space-y-2">
-              <input name="name" placeholder="ROUTE NAME" className="w-full p-2 rounded-lg border text-xs bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-amber-500 dark:focus:border-[#d4af37] transition-all" required />
-              <button type="submit" className="w-full py-2 bg-gradient-to-r from-amber-500 to-amber-600 dark:from-[#d4af37] dark:to-[#b8860b] text-white dark:text-black font-black rounded-lg text-xs hover:opacity-90 transition-all">SAVE</button>
+              <input name="name" placeholder="ROUTE NAME" className="w-full p-2 rounded-lg border text-xs bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all" required />
+              <button type="submit" className="w-full py-2 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg text-xs hover:opacity-90 transition-all">SAVE</button>
             </form>
           </div>
         </div>
@@ -3388,18 +3440,16 @@ export default function App() {
               : 'bg-white border-gray-200'
           }`}>
             <div className="flex justify-between items-center mb-3">
-              <h3 className={`font-black text-sm ${
-                isDarkMode ? "text-[#d4af37]" : "text-amber-600"
-              }`}>NEW BRAND</h3>
+              <h3 className="font-black text-sm text-[#d4af37]">NEW BRAND</h3>
               <button onClick={() => setShowModal(null)} className="text-gray-400 dark:text-white/40 hover:text-gray-600 dark:hover:text-white/60 p-1 transition-all">
                 <X size={16}/>
               </button>
             </div>
             <form onSubmit={addBrandWithSequence} className="space-y-2">
-              <input name="name" placeholder="BRAND NAME" className="w-full p-2 rounded-lg border text-xs bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-amber-500 dark:focus:border-[#d4af37] transition-all" required />
-              <input name="size" placeholder="SIZE" className="w-full p-2 rounded-lg border text-xs bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-amber-500 dark:focus:border-[#d4af37] transition-all" required />
-              <input name="price" type="number" placeholder="PRICE" className="w-full p-2 rounded-lg border text-xs bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-amber-500 dark:focus:border-[#d4af37] transition-all" required />
-              <button type="submit" className="w-full py-2 bg-gradient-to-r from-amber-500 to-amber-600 dark:from-[#d4af37] dark:to-[#b8860b] text-white dark:text-black font-black rounded-lg text-xs hover:opacity-90 transition-all">SAVE</button>
+              <input name="name" placeholder="BRAND NAME" className="w-full p-2 rounded-lg border text-xs bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all" required />
+              <input name="size" placeholder="SIZE" className="w-full p-2 rounded-lg border text-xs bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all" required />
+              <input name="price" type="number" placeholder="PRICE" className="w-full p-2 rounded-lg border text-xs bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all" required />
+              <button type="submit" className="w-full py-2 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg text-xs hover:opacity-90 transition-all">SAVE</button>
             </form>
           </div>
         </div>
@@ -3408,11 +3458,9 @@ export default function App() {
       {/* SHOP PROFILE MODAL */}
       {showModal === 'shopProfile' && selectedShop && (
         <div className="fixed inset-0 bg-black/50 dark:bg-black/95 z-[100] flex items-center justify-center p-3">
-          <div className="w-full max-w-xs p-4 rounded-xl border border-amber-500/30 dark:border-[#d4af37]/30 bg-white dark:bg-gradient-to-br dark:from-[#0f0f0f] dark:to-[#1a1a1a]">
+          <div className="w-full max-w-xs p-4 rounded-xl border border-[#d4af37]/30 bg-white dark:bg-gradient-to-br dark:from-[#0f0f0f] dark:to-[#1a1a1a]">
             <div className="flex justify-between items-center mb-3">
-              <h3 className={`font-black text-sm ${
-                isDarkMode ? "text-[#d4af37]" : "text-amber-600"
-              }`}>SHOP PROFILE</h3>
+              <h3 className="font-black text-sm text-[#d4af37]">SHOP PROFILE</h3>
               <button onClick={() => { setShowModal(null); setEditingProfile(null); }} className="text-gray-400 dark:text-white/40 hover:text-gray-600 dark:hover:text-white/60 p-1 transition-all">
                 <X size={16}/>
               </button>
@@ -3422,21 +3470,21 @@ export default function App() {
                 placeholder="OWNER NAME"
                 value={shopProfileForm.ownerName}
                 onChange={(e) => setShopProfileForm({...shopProfileForm, ownerName: e.target.value})}
-                className="w-full p-2 rounded-lg border text-xs bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-amber-500 dark:focus:border-[#d4af37] transition-all"
+                className="w-full p-2 rounded-lg border text-xs bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all"
               />
               <input
                 placeholder="PHONE"
                 value={shopProfileForm.phone}
                 onChange={(e) => setShopProfileForm({...shopProfileForm, phone: e.target.value})}
-                className="w-full p-2 rounded-lg border text-xs bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-amber-500 dark:focus:border-[#d4af37] transition-all"
+                className="w-full p-2 rounded-lg border text-xs bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all"
               />
               <input
                 placeholder="ADDRESS"
                 value={shopProfileForm.address}
                 onChange={(e) => setShopProfileForm({...shopProfileForm, address: e.target.value})}
-                className="w-full p-2 rounded-lg border text-xs bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-amber-500 dark:focus:border-[#d4af37] transition-all"
+                className="w-full p-2 rounded-lg border text-xs bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all"
               />
-              <button type="submit" className="w-full py-2 bg-gradient-to-r from-amber-500 to-amber-600 dark:from-[#d4af37] dark:to-[#b8860b] text-white dark:text-black font-black rounded-lg text-xs hover:opacity-90 transition-all">SAVE</button>
+              <button type="submit" className="w-full py-2 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg text-xs hover:opacity-90 transition-all">SAVE</button>
             </form>
           </div>
         </div>
@@ -3451,9 +3499,7 @@ export default function App() {
               : 'bg-white border-gray-200'
           }`}>
             <div className="flex justify-between items-center mb-3">
-              <h3 className={`font-black text-sm ${
-                isDarkMode ? "text-[#d4af37]" : "text-amber-600"
-              }`}>ADD EXPENSE</h3>
+              <h3 className="font-black text-sm text-[#d4af37]">ADD EXPENSE</h3>
               <button onClick={() => setShowModal(null)} className="text-gray-400 dark:text-white/40 hover:text-gray-600 dark:hover:text-white/60 p-1 transition-all">
                 <X size={16}/>
               </button>
@@ -3466,8 +3512,8 @@ export default function App() {
                   onClick={() => setExpenseType(t)}
                   className={`p-2 rounded-lg border text-center text-[9px] font-bold uppercase transition-all ${
                     expenseType === t 
-                      ? 'border-amber-500 dark:border-[#d4af37] bg-amber-50 dark:bg-[#d4af37]/10 text-gray-900 dark:text-white' 
-                      : 'border-gray-200 dark:border-white/10 text-gray-700 dark:text-white hover:border-amber-500 dark:hover:border-[#d4af37]/50'
+                      ? 'border-[#d4af37] bg-[#d4af37]/10 text-gray-900 dark:text-white' 
+                      : 'border-gray-200 dark:border-white/10 text-gray-700 dark:text-white hover:border-[#d4af37]/50'
                   }`}
                 >
                   {t}
@@ -3480,17 +3526,17 @@ export default function App() {
               value={expenseAmount}
               onChange={(e) => setExpenseAmount(e.target.value)}
               placeholder="AMOUNT"
-              className="w-full p-2 rounded-lg border text-sm mb-2 bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-amber-500 dark:focus:border-[#d4af37] transition-all"
+              className="w-full p-2 rounded-lg border text-sm mb-2 bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all"
             />
             <textarea
               value={expenseNote}
               onChange={(e) => setExpenseNote(e.target.value)}
               placeholder="NOTE"
-              className="w-full p-2 rounded-lg border text-xs mb-3 bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-amber-500 dark:focus:border-[#d4af37] transition-all h-16"
+              className="w-full p-2 rounded-lg border text-xs mb-3 bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all h-16"
             />
             <button
               onClick={saveExpense}
-              className="w-full py-2 bg-gradient-to-r from-amber-500 to-amber-600 dark:from-[#d4af37] dark:to-[#b8860b] text-white dark:text-black font-black rounded-lg text-xs hover:opacity-90 transition-all"
+              className="w-full py-2 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg text-xs hover:opacity-90 transition-all"
             >
               SAVE
             </button>
@@ -3507,9 +3553,7 @@ export default function App() {
               : 'bg-white border-gray-200'
           }`}>
             <div className="flex justify-between items-center mb-3">
-              <h3 className={`font-black text-sm ${
-                isDarkMode ? "text-[#d4af37]" : "text-amber-600"
-              }`}>ADD NOTE</h3>
+              <h3 className="font-black text-sm text-[#d4af37]">ADD NOTE</h3>
               <button onClick={() => setShowModal(null)} className="text-gray-400 dark:text-white/40 hover:text-gray-600 dark:hover:text-white/60 p-1 transition-all">
                 <X size={16}/>
               </button>
@@ -3518,11 +3562,11 @@ export default function App() {
               value={repNote}
               onChange={(e) => setRepNote(e.target.value)}
               placeholder="TYPE NOTE HERE..."
-              className="w-full p-2 rounded-lg border text-xs mb-3 bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-amber-500 dark:focus:border-[#d4af37] transition-all h-24"
+              className="w-full p-2 rounded-lg border text-xs mb-3 bg-gray-50 dark:bg-black/40 border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#d4af37] transition-all h-24"
             />
             <button
               onClick={saveNote}
-              className="w-full py-2 bg-gradient-to-r from-amber-500 to-amber-600 dark:from-[#d4af37] dark:to-[#b8860b] text-white dark:text-black font-black rounded-lg text-xs hover:opacity-90 transition-all"
+              className="w-full py-2 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg text-xs hover:opacity-90 transition-all"
             >
               SAVE
             </button>
@@ -3559,7 +3603,7 @@ export default function App() {
 
             <button
               onClick={() => { handlePrint(printOrder); setShowPrintPreview(false); }}
-              className="w-full py-2 bg-gradient-to-r from-amber-500 to-amber-600 dark:from-[#d4af37] dark:to-[#b8860b] text-white dark:text-black font-black rounded-lg text-xs hover:opacity-90 transition-all"
+              className="w-full py-2 bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black font-black rounded-lg text-xs hover:opacity-90 transition-all"
             >
               PRINT
             </button>
@@ -3572,7 +3616,13 @@ export default function App() {
           0% { width: 0%; }
           100% { width: 100%; }
         }
+        @keyframes float {
+          0% { transform: translateY(0px) translateX(0px); }
+          50% { transform: translateY(-5px) translateX(2px); }
+          100% { transform: translateY(0px) translateX(0px); }
+        }
         .animate-progress { animation: progress 1.2s ease-in-out; }
+        .animate-float { animation: float 3s ease-in-out infinite; }
         input, select, textarea { font-size: 16px !important; }
         * { -webkit-text-size-adjust: 100%; -webkit-tap-highlight-color: transparent; }
         button { min-height: 36px; min-width: 36px; }
