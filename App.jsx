@@ -22,7 +22,7 @@ import {
   RotateCcw, Volume2, VolumeX, Trophy, Timer, Users, Shield, Heart,
   Sparkles, Flame, Star as StarIcon, Menu, MoreVertical, Home,
   ArrowUpDown, ArrowUp, ArrowDown, RefreshCw, Play, Pause,
-  Map, MapPin as MapPinIcon, XCircle, Target as TargetIcon
+  Map as MapIcon, MapPin as MapPinIcon, XCircle, Target as TargetIcon
 } from 'lucide-react';
 
 // --- FIREBASE CONFIG ---
@@ -85,7 +85,6 @@ export default function App() {
   const [editingBrand, setEditingBrand] = useState(null);
   const [editingBrandData, setEditingBrandData] = useState({ name: '', size: '', price: '' });
   const [movingBrandId, setMovingBrandId] = useState(null);
-  const [targetPosition, setTargetPosition] = useState(null);
 
   // Calculator State
   const [totalCalculation, setTotalCalculation] = useState({
@@ -127,9 +126,8 @@ export default function App() {
   const [targetAmount, setTargetAmount] = useState('');
   const [targetMonth, setTargetMonth] = useState(new Date().toISOString().slice(0, 7));
   const [targetType, setTargetType] = useState('revenue');
-  const [targetCase, setTargetCase] = useState('units');
-  const [targetBrand, setTargetBrand] = useState('');
   const [targetSpecific, setTargetSpecific] = useState('total');
+  const [targetBrand, setTargetBrand] = useState('');
   const [showTargetModal, setShowTargetModal] = useState(false);
   const [editingTarget, setEditingTarget] = useState(null);
 
@@ -579,12 +577,6 @@ export default function App() {
     showToast(`💰 Total: Rs.${grandTotal.toLocaleString()}`, "info");
   };
 
-  const handleInputFocus = (e) => {
-    if (e.target.value === '0') {
-      e.target.value = '';
-    }
-  };
-
   const resetCalculator = () => {
     setTotalCalculation({
       subtotal: 0,
@@ -755,7 +747,6 @@ export default function App() {
         type: targetType,
         specific: targetSpecific,
         brand: targetSpecific === 'brand' ? targetBrand : '',
-        case: targetCase,
         timestamp: Date.now()
       };
 
@@ -784,7 +775,6 @@ export default function App() {
     setTargetType(target.type || 'revenue');
     setTargetSpecific(target.specific || 'total');
     setTargetBrand(target.brand || '');
-    setTargetCase(target.case || 'units');
     setShowTargetModal(true);
   };
 
