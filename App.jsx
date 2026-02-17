@@ -123,12 +123,13 @@ export default function App() {
   const [shareWithLocation, setShareWithLocation] = useState(false);
   const [showAppInfo, setShowAppInfo] = useState(false);
 
-  // Target States
+  // Target States - Updated for size-specific targets
   const [targetAmount, setTargetAmount] = useState('');
   const [targetMonth, setTargetMonth] = useState(new Date().toISOString().slice(0, 7));
   const [targetType, setTargetType] = useState('revenue');
   const [targetCase, setTargetCase] = useState('units');
   const [targetBrand, setTargetBrand] = useState('');
+  const [targetBrandSize, setTargetBrandSize] = useState('');
   const [targetSpecific, setTargetSpecific] = useState('total');
   const [showTargetModal, setShowTargetModal] = useState(false);
   const [editingTarget, setEditingTarget] = useState(null);
@@ -755,6 +756,7 @@ export default function App() {
         type: targetType,
         specific: targetSpecific,
         brand: targetSpecific === 'brand' ? targetBrand : '',
+        brandSize: targetSpecific === 'brand' ? targetBrandSize : '', // Add size for brand-specific targets
         case: targetCase,
         timestamp: Date.now()
       };
@@ -771,6 +773,7 @@ export default function App() {
       setEditingTarget(null);
       setTargetAmount('');
       setTargetBrand('');
+      setTargetBrandSize('');
       setRefreshKey(prev => prev + 1);
     } catch (err) {
       showToast("Error: " + err.message, "error");
@@ -784,6 +787,7 @@ export default function App() {
     setTargetType(target.type || 'revenue');
     setTargetSpecific(target.specific || 'total');
     setTargetBrand(target.brand || '');
+    setTargetBrandSize(target.brandSize || '');
     setTargetCase(target.case || 'units');
     setShowTargetModal(true);
   };
@@ -875,11 +879,26 @@ export default function App() {
         achieved = monthlyOrders.reduce((sum, o) => {
           if (o.items) {
             o.items.forEach(i => {
-              if (i.name.includes(target.brand)) {
-                if (target.type === 'revenue') {
-                  sum += i.subtotal || 0;
-                } else {
-                  sum += i.qty || 0;
+              // Check if target has size specification
+              if (target.brandSize) {
+                // Match exact brand with size (e.g., "Brand (Size)")
+                const itemFullName = i.name;
+                const targetFullName = `${target.brand} (${target.brandSize})`;
+                if (itemFullName === targetFullName) {
+                  if (target.type === 'revenue') {
+                    sum += i.subtotal || 0;
+                  } else {
+                    sum += i.qty || 0;
+                  }
+                }
+              } else {
+                // Match brand only (any size)
+                if (i.name.includes(target.brand)) {
+                  if (target.type === 'revenue') {
+                    sum += i.subtotal || 0;
+                  } else {
+                    sum += i.qty || 0;
+                  }
                 }
               }
             });
@@ -1368,7 +1387,7 @@ export default function App() {
           </div>
 
           <h1 className="text-[#d4af37] text-4xl font-black tracking-[0.2em] mb-3">SALES MONARCH</h1>
-          <p className="text-white/70 text-lg font-light tracking-wider mb-8">FOR MY SOULMATE</p>
+          <p className="text-white/70 text-lg font-light tracking-wider mb-8">for my soulmate</p>
 
           <div className="w-64 h-1.5 bg-white/10 rounded-full mx-auto overflow-hidden">
             <div className="h-full bg-gradient-to-r from-[#d4af37] via-[#f5e7a3] to-[#b8860b] animate-progress"></div>
@@ -2219,7 +2238,7 @@ export default function App() {
                               {target.specific === 'brand' ? target.brand : 'Overall'}
                             </span>
                           </div>
-                          <div className="flex items-center gap-2 mt-1">
+                          <div className="flex items-center gap-2 mt-1 flex-wrap">
                             <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${
                               target.type === 'revenue'
                                 ? isDarkMode
@@ -2231,9 +2250,18 @@ export default function App() {
                             } border font-black`}>
                               {target.type === 'revenue' ? 'Rs' : 'Units'}
                             </span>
-                            {target.specific === 'brand' && (
+                            {target.specific === 'brand' && target.brandSize && (
+                              <span className={`text-[8px] px-1.5 py-0.5 rounded-full ${
+                                isDarkMode
+                                  ? 'bg-purple-500/10 text-purple-500 border-purple-500/20'
+                                  : 'bg-purple-50 text-purple-600 border-purple-200'
+                              } border font-black`}>
+                                {target.brandSize}
+                              </span>
+                            )}
+                            {target.specific === 'brand' && !target.brandSize && (
                               <span className={`text-[8px] ${isDarkMode ? 'text-white/40' : 'text-gray-500'} font-medium`}>
-                                {target.brand}
+                                All Sizes
                               </span>
                             )}
                           </div>
@@ -2256,7 +2284,7 @@ export default function App() {
 
                       <div className="flex justify-between items-center text-[9px] mb-2">
                         <span className={`${isDarkMode ? 'text-white/60' : 'text-gray-600'} font-medium`}>Progress:</span>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap justify-end">
                           <span className={`font-black ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
                             {target.type === 'revenue' 
                               ? `Rs.${target.achieved.toLocaleString()} / Rs.${target.amount.toLocaleString()}`
@@ -2439,7 +2467,26 @@ export default function App() {
                 />
               </div>
               <button
-                onClick={() => setShowModal('shop')}
+                onClick={async () => {
+                  // Manual shop add with custom name
+                  const customName = prompt("Enter shop name:", "");
+                  if (customName && customName.trim()) {
+                    const route = prompt("Enter route name (or select from existing):", "");
+                    if (route && route.trim()) {
+                      try {
+                        await addDoc(collection(db, 'shops'), {
+                          userId: user.uid,
+                          name: customName.toUpperCase(),
+                          area: route.toUpperCase(),
+                          timestamp: Date.now()
+                        });
+                        showToast(`✅ Shop "${customName}" added!`, "success");
+                      } catch (err) {
+                        showToast("Error adding shop: " + err.message, "error");
+                      }
+                    }
+                  }
+                }}
                 className={`px-3 py-2 rounded-xl border font-black text-xs flex items-center gap-1 transition-all ${
                   isDarkMode 
                     ? 'bg-[#1a1a1a] border-[#d4af37]/20 text-[#d4af37] hover:bg-[#d4af37]/10' 
@@ -3195,21 +3242,45 @@ export default function App() {
               </div>
 
               {targetSpecific === 'brand' && (
-                <select
-                  value={targetBrand}
-                  onChange={(e) => setTargetBrand(e.target.value)}
-                  className={`w-full p-2 rounded-lg border text-xs ${
-                    isDarkMode 
-                      ? 'bg-black border-[#d4af37]/20 text-white' 
-                      : 'bg-amber-50 border-amber-200 text-gray-800'
-                  } outline-none focus:border-[#d4af37] transition-all font-medium`}
-                  required
-                >
-                  <option value="">SELECT BRAND</option>
-                  {data.brands.map(b => (
-                    <option key={b.id} value={b.name}>{b.name} ({b.size})</option>
-                  ))}
-                </select>
+                <>
+                  <select
+                    value={targetBrand}
+                    onChange={(e) => {
+                      setTargetBrand(e.target.value);
+                      setTargetBrandSize(''); // Reset size when brand changes
+                    }}
+                    className={`w-full p-2 rounded-lg border text-xs ${
+                      isDarkMode 
+                        ? 'bg-black border-[#d4af37]/20 text-white' 
+                        : 'bg-amber-50 border-amber-200 text-gray-800'
+                    } outline-none focus:border-[#d4af37] transition-all font-medium`}
+                    required
+                  >
+                    <option value="">SELECT BRAND</option>
+                    {[...new Set(data.brands.map(b => b.name))].map(brandName => (
+                      <option key={brandName} value={brandName}>{brandName}</option>
+                    ))}
+                  </select>
+
+                  {targetBrand && (
+                    <select
+                      value={targetBrandSize}
+                      onChange={(e) => setTargetBrandSize(e.target.value)}
+                      className={`w-full p-2 rounded-lg border text-xs ${
+                        isDarkMode 
+                          ? 'bg-black border-[#d4af37]/20 text-white' 
+                          : 'bg-amber-50 border-amber-200 text-gray-800'
+                      } outline-none focus:border-[#d4af37] transition-all font-medium`}
+                    >
+                      <option value="">ALL SIZES</option>
+                      {data.brands
+                        .filter(b => b.name === targetBrand)
+                        .map(b => (
+                          <option key={b.id} value={b.size}>{b.size}</option>
+                        ))}
+                    </select>
+                  )}
+                </>
               )}
 
               <input
