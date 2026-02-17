@@ -22,7 +22,7 @@ import {
   RotateCcw, Volume2, VolumeX, Trophy, Timer, Users, Shield, Heart,
   Sparkles, Flame, Star as StarIcon, Menu, MoreVertical, Home,
   ArrowUpDown, ArrowUp, ArrowDown, RefreshCw, Play, Pause,
-  Map as MapIcon, MapPin as MapPinIcon, XCircle, Target as TargetIcon
+  Map, MapPin as MapPinIcon, XCircle, Target as TargetIcon
 } from 'lucide-react';
 
 // --- FIREBASE CONFIG ---
@@ -85,6 +85,7 @@ export default function App() {
   const [editingBrand, setEditingBrand] = useState(null);
   const [editingBrandData, setEditingBrandData] = useState({ name: '', size: '', price: '' });
   const [movingBrandId, setMovingBrandId] = useState(null);
+  const [targetPosition, setTargetPosition] = useState(null);
 
   // Calculator State
   const [totalCalculation, setTotalCalculation] = useState({
@@ -126,8 +127,9 @@ export default function App() {
   const [targetAmount, setTargetAmount] = useState('');
   const [targetMonth, setTargetMonth] = useState(new Date().toISOString().slice(0, 7));
   const [targetType, setTargetType] = useState('revenue');
-  const [targetSpecific, setTargetSpecific] = useState('total');
+  const [targetCase, setTargetCase] = useState('units');
   const [targetBrand, setTargetBrand] = useState('');
+  const [targetSpecific, setTargetSpecific] = useState('total');
   const [showTargetModal, setShowTargetModal] = useState(false);
   const [editingTarget, setEditingTarget] = useState(null);
 
@@ -577,6 +579,12 @@ export default function App() {
     showToast(`💰 Total: Rs.${grandTotal.toLocaleString()}`, "info");
   };
 
+  const handleInputFocus = (e) => {
+    if (e.target.value === '0') {
+      e.target.value = '';
+    }
+  };
+
   const resetCalculator = () => {
     setTotalCalculation({
       subtotal: 0,
@@ -747,6 +755,7 @@ export default function App() {
         type: targetType,
         specific: targetSpecific,
         brand: targetSpecific === 'brand' ? targetBrand : '',
+        case: targetCase,
         timestamp: Date.now()
       };
 
@@ -775,6 +784,7 @@ export default function App() {
     setTargetType(target.type || 'revenue');
     setTargetSpecific(target.specific || 'total');
     setTargetBrand(target.brand || '');
+    setTargetCase(target.case || 'units');
     setShowTargetModal(true);
   };
 
@@ -2712,11 +2722,11 @@ export default function App() {
               </div>
             </form>
 
-            {/* Quick Add */}
-            <div className="grid grid-cols-3 gap-2">
+            {/* Quick Add - Now with 4 buttons including TARGET */}
+            <div className="grid grid-cols-4 gap-2">
               <button
                 onClick={() => setShowModal('route')}
-                className={`py-2 rounded-xl border font-black text-[9px] flex flex-col items-center transition-all ${
+                className={`py-2 rounded-xl border font-black text-[8px] flex flex-col items-center transition-all ${
                   isDarkMode 
                     ? 'bg-[#1a1a1a] border-[#d4af37]/20 text-[#d4af37] hover:bg-[#d4af37]/10' 
                     : 'bg-white border-amber-200 text-amber-600 hover:bg-amber-50'
@@ -2726,7 +2736,7 @@ export default function App() {
               </button>
               <button
                 onClick={() => setShowModal('brand')}
-                className={`py-2 rounded-xl border font-black text-[9px] flex flex-col items-center transition-all ${
+                className={`py-2 rounded-xl border font-black text-[8px] flex flex-col items-center transition-all ${
                   isDarkMode 
                     ? 'bg-[#1a1a1a] border-[#d4af37]/20 text-[#d4af37] hover:bg-[#d4af37]/10' 
                     : 'bg-white border-amber-200 text-amber-600 hover:bg-amber-50'
@@ -2736,13 +2746,23 @@ export default function App() {
               </button>
               <button
                 onClick={() => setShowModal('manual')}
-                className={`py-2 rounded-xl border font-black text-[9px] flex flex-col items-center transition-all ${
+                className={`py-2 rounded-xl border font-black text-[8px] flex flex-col items-center transition-all ${
                   isDarkMode 
                     ? 'bg-[#1a1a1a] border-[#d4af37]/20 text-[#d4af37] hover:bg-[#d4af37]/10' 
                     : 'bg-white border-amber-200 text-amber-600 hover:bg-amber-50'
                 }`}
               >
                 <ShoppingBag size={14}/> MANUAL
+              </button>
+              <button
+                onClick={() => setShowTargetModal(true)}
+                className={`py-2 rounded-xl border font-black text-[8px] flex flex-col items-center transition-all ${
+                  isDarkMode 
+                    ? 'bg-[#1a1a1a] border-[#d4af37]/20 text-[#d4af37] hover:bg-[#d4af37]/10' 
+                    : 'bg-white border-amber-200 text-amber-600 hover:bg-amber-50'
+                }`}
+              >
+                <Target size={14}/> TARGET
               </button>
             </div>
 
