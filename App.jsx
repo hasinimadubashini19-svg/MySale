@@ -1368,7 +1368,7 @@ export default function App() {
           </div>
 
           <h1 className="text-[#d4af37] text-4xl font-black tracking-[0.2em] mb-3">SALES MONARCH</h1>
-          <p className="text-white/70 text-lg font-light tracking-wider mb-8">for my soul</p>
+          <p className="text-white/70 text-lg font-light tracking-wider mb-8">FOR MY SOULMATE</p>
 
           <div className="w-64 h-1.5 bg-white/10 rounded-full mx-auto overflow-hidden">
             <div className="h-full bg-gradient-to-r from-[#d4af37] via-[#f5e7a3] to-[#b8860b] animate-progress"></div>
