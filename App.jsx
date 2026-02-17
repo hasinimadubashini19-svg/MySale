@@ -2167,80 +2167,164 @@ export default function App() {
               </div>
             </div>
 
-            {/* Monthly Targets */}
-            {stats.targets.length > 0 && (
-              <div className={`p-4 rounded-xl border shadow-lg ${
-                isDarkMode 
-                  ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/30" 
-                  : "bg-white border-amber-300"
-              }`}>
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <div className={`p-1.5 rounded-lg border ${
-                      isDarkMode 
-                        ? "bg-[#d4af37]/10 border-[#d4af37]/20" 
-                        : "bg-amber-100 border-amber-300"
-                    }`}>
-                      <Target size={14} className={`${isDarkMode ? 'text-[#d4af37]' : 'text-amber-700'}`} />
-                    </div>
-                    <h3 className={`text-sm font-black uppercase tracking-wider ${isDarkMode ? 'text-[#d4af37]' : 'text-amber-700'}`}>Targets ({stats.targets.length})</h3>
+            {/* Monthly Targets - Full Display */}
+            <div className={`p-4 rounded-xl border shadow-lg ${
+              isDarkMode 
+                ? "bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] border-[#d4af37]/30" 
+                : "bg-white border-amber-300"
+            }`}>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div className={`p-1.5 rounded-lg border ${
+                    isDarkMode 
+                      ? "bg-[#d4af37]/10 border-[#d4af37]/20" 
+                      : "bg-amber-100 border-amber-300"
+                  }`}>
+                    <Target size={14} className={`${isDarkMode ? 'text-[#d4af37]' : 'text-amber-700'}`} />
                   </div>
-                  <button
-                    onClick={() => setShowTargetModal(true)}
-                    className={`px-2 py-1 rounded-lg text-[8px] font-black transition-all ${
-                      isDarkMode 
-                        ? "bg-[#d4af37]/20 text-[#d4af37] hover:bg-[#d4af37]/30" 
-                        : "bg-amber-100 text-amber-700 hover:bg-amber-200"
-                    }`}
-                  >
-                    + ADD
-                  </button>
+                  <h3 className={`text-sm font-black uppercase tracking-wider ${isDarkMode ? 'text-[#d4af37]' : 'text-amber-700'}`}>
+                    Monthly Targets ({stats.targets.length})
+                  </h3>
                 </div>
+                <button
+                  onClick={() => setShowTargetModal(true)}
+                  className={`px-2 py-1 rounded-lg text-[8px] font-black transition-all ${
+                    isDarkMode 
+                      ? "bg-[#d4af37]/20 text-[#d4af37] hover:bg-[#d4af37]/30" 
+                      : "bg-amber-100 text-amber-700 hover:bg-amber-200"
+                  }`}
+                >
+                  + ADD
+                </button>
+              </div>
 
-                <div className="space-y-3 max-h-40 overflow-y-auto">
+              {stats.targets.length > 0 ? (
+                <div className="space-y-4 max-h-60 overflow-y-auto">
                   {stats.targets.map((target, idx) => (
                     <div key={idx} className={`${isDarkMode 
                       ? 'bg-[#d4af37]/5 border-[#d4af37]/10' 
                       : 'bg-amber-50 border-amber-200'
-                    } p-2 rounded-lg border`}>
-                      <div className="flex justify-between items-center mb-1">
-                        <span className={`text-[9px] font-black ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
-                          {target.specific === 'brand' ? target.brand : 'Total'}
-                          ({target.type === 'revenue' ? 'Rs' : 'Units'})
-                        </span>
+                    } p-3 rounded-lg border`}>
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            {target.progress >= 100 ? (
+                              <Trophy size={14} className={isDarkMode ? 'text-[#d4af37]' : 'text-amber-600'} />
+                            ) : target.progress >= 50 ? (
+                              <TrendingUp size={14} className={isDarkMode ? 'text-green-500' : 'text-green-600'} />
+                            ) : (
+                              <Target size={14} className={isDarkMode ? 'text-blue-500' : 'text-blue-600'} />
+                            )}
+                            <span className={`text-xs font-black ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+                              {target.specific === 'brand' ? target.brand : 'Overall'}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${
+                              target.type === 'revenue'
+                                ? isDarkMode
+                                  ? 'bg-[#d4af37]/10 text-[#d4af37] border-[#d4af37]/20'
+                                  : 'bg-amber-100 text-amber-700 border-amber-200'
+                                : isDarkMode
+                                  ? 'bg-blue-500/10 text-blue-500 border-blue-500/20'
+                                  : 'bg-blue-50 text-blue-600 border-blue-200'
+                            } border font-black`}>
+                              {target.type === 'revenue' ? 'Rs' : 'Units'}
+                            </span>
+                            {target.specific === 'brand' && (
+                              <span className={`text-[8px] ${isDarkMode ? 'text-white/40' : 'text-gray-500'} font-medium`}>
+                                {target.brand}
+                              </span>
+                            )}
+                          </div>
+                        </div>
                         <div className="flex gap-1">
                           <button
                             onClick={() => editTarget(target)}
-                            className={`p-0.5 ${isDarkMode ? 'text-blue-500 hover:bg-blue-500/10' : 'text-blue-600 hover:bg-blue-50'} rounded`}
+                            className={`p-1 ${isDarkMode ? 'text-blue-500 hover:bg-blue-500/10' : 'text-blue-600 hover:bg-blue-50'} rounded transition-all`}
                           >
-                            <Edit2 size={8} />
+                            <Edit2 size={12} />
                           </button>
                           <button
                             onClick={() => confirmDelete(target.id, 'target', target.brand || 'Target')}
-                            className={`p-0.5 ${isDarkMode ? 'text-red-500 hover:bg-red-500/10' : 'text-red-600 hover:bg-red-50'} rounded`}
+                            className={`p-1 ${isDarkMode ? 'text-red-500 hover:bg-red-500/10' : 'text-red-600 hover:bg-red-50'} rounded transition-all`}
                           >
-                            <Trash2 size={8} />
+                            <Trash2 size={12} />
                           </button>
                         </div>
                       </div>
-                      <div className="flex justify-between items-center text-[8px] mb-1">
-                        <span className={`${isDarkMode ? 'text-white/40' : 'text-gray-500'} font-medium`}>Progress:</span>
-                        <span className={`font-black ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>{target.achieved.toLocaleString()} / {target.amount.toLocaleString()}</span>
+
+                      <div className="flex justify-between items-center text-[9px] mb-2">
+                        <span className={`${isDarkMode ? 'text-white/60' : 'text-gray-600'} font-medium`}>Progress:</span>
+                        <div className="flex items-center gap-2">
+                          <span className={`font-black ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+                            {target.type === 'revenue' 
+                              ? `Rs.${target.achieved.toLocaleString()} / Rs.${target.amount.toLocaleString()}`
+                              : `${target.achieved.toLocaleString()} / ${target.amount.toLocaleString()} units`
+                            }
+                          </span>
+                          <span className={`text-[8px] font-black px-1.5 py-0.5 rounded ${
+                            target.progress >= 100
+                              ? isDarkMode
+                                ? 'bg-green-500/20 text-green-500'
+                                : 'bg-green-100 text-green-700'
+                              : target.progress >= 50
+                                ? isDarkMode
+                                  ? 'bg-[#d4af37]/20 text-[#d4af37]'
+                                  : 'bg-amber-100 text-amber-700'
+                                : isDarkMode
+                                  ? 'bg-red-500/20 text-red-500'
+                                  : 'bg-red-100 text-red-700'
+                          }`}>
+                            {target.progress.toFixed(1)}%
+                          </span>
+                        </div>
                       </div>
-                      <div className={`w-full h-1.5 ${isDarkMode ? 'bg-[#d4af37]/10' : 'bg-amber-100'} rounded-full overflow-hidden`}>
+
+                      <div className={`w-full h-2 ${isDarkMode ? 'bg-[#d4af37]/10' : 'bg-amber-100'} rounded-full overflow-hidden`}>
                         <div
-                          className={`h-full ${isDarkMode 
-                            ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b]' 
-                            : 'bg-gradient-to-r from-amber-600 to-orange-600'
+                          className={`h-full transition-all duration-500 ${
+                            target.progress >= 100
+                              ? isDarkMode
+                                ? 'bg-gradient-to-r from-green-500 to-green-600'
+                                : 'bg-gradient-to-r from-green-600 to-green-700'
+                              : target.progress >= 50
+                                ? isDarkMode
+                                  ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b]'
+                                  : 'bg-gradient-to-r from-amber-600 to-orange-600'
+                                : isDarkMode
+                                  ? 'bg-gradient-to-r from-red-500 to-red-600'
+                                  : 'bg-gradient-to-r from-red-600 to-red-700'
                           }`}
                           style={{ width: `${Math.min(target.progress, 100)}%` }}
                         ></div>
                       </div>
+
+                      {target.progress >= 100 && (
+                        <div className={`mt-2 text-[8px] font-black ${isDarkMode ? 'text-green-500' : 'text-green-600'} flex items-center gap-1`}>
+                          <CheckCircle2 size={10} />
+                          Target Achieved! 🎉
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
-              </div>
-            )}
+              ) : (
+                <div className="text-center py-6">
+                  <Target size={40} className={`mx-auto ${isDarkMode ? 'text-[#d4af37]/20' : 'text-amber-200'} mb-2`} />
+                  <p className={`text-xs ${isDarkMode ? 'text-white/30' : 'text-gray-400'} italic font-medium`}>No targets set for this month</p>
+                  <button
+                    onClick={() => setShowTargetModal(true)}
+                    className={`mt-3 px-3 py-1.5 ${isDarkMode 
+                      ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black' 
+                      : 'bg-gradient-to-r from-amber-600 to-orange-600 text-white'
+                    } font-black rounded-lg text-[9px] inline-flex items-center gap-1 hover:opacity-90 transition-all`}
+                  >
+                    <Plus size={12} /> Set Your First Target
+                  </button>
+                </div>
+              )}
+            </div>
 
             {/* Monthly Performance */}
             <div className={`p-4 rounded-xl border shadow-lg ${
