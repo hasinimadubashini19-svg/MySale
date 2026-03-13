@@ -86,6 +86,9 @@ export default function App() {
   const [editingBrandData, setEditingBrandData] = useState({ name: '', size: '', price: '' });
   const [movingBrandId, setMovingBrandId] = useState(null);
   const [targetPosition, setTargetPosition] = useState(null);
+  
+  // NEW: Manual shop name input for manual orders
+  const [manualShopName, setManualShopName] = useState('');
 
   // Calculator State
   const [totalCalculation, setTotalCalculation] = useState({
@@ -513,14 +516,15 @@ export default function App() {
       return;
     }
 
-    if (!selectedShop) {
-      showToast("Please select a shop first!", "error");
+    // MODIFIED: Check for manual shop name instead of selected shop
+    if (!manualShopName.trim()) {
+      showToast("Please enter shop name!", "error");
       return;
     }
 
     const orderData = {
-      shopName: selectedShop.name,
-      shopId: selectedShop.id,
+      shopName: manualShopName.toUpperCase(),
+      shopId: 'manual_' + Date.now(), // Generate a temporary ID for manual orders
       companyName: data.settings.company || "SALES MONARCH",
       items: validItems.map(item => ({
         name: item.name,
@@ -544,11 +548,13 @@ export default function App() {
         setLastOrder(orderData);
         setShowModal('preview');
         setManualItems([{ name: '', qty: 1, price: 0, subtotal: 0 }]);
+        setManualShopName(''); // Clear shop name
       } else {
         const docRef = await addDoc(collection(db, 'orders'), orderData);
         setLastOrder({ ...orderData, id: docRef.id });
         setShowModal('preview');
         setManualItems([{ name: '', qty: 1, price: 0, subtotal: 0 }]);
+        setManualShopName(''); // Clear shop name
         showToast("✅ Order saved!", "success");
       }
 
@@ -1369,6 +1375,32 @@ export default function App() {
 
   const cancelMove = () => {
     setMovingBrandId(null);
+  };
+
+  // ========== ADD SHOP WITH ROUTE SELECTION ==========
+  const handleAddShop = async (e) => {
+    e.preventDefault();
+    const form = e.target;
+    const name = form.name.value.toUpperCase();
+    const route = form.route.value;
+
+    if (!name || !route) {
+      showToast("Please fill all fields", "error");
+      return;
+    }
+
+    try {
+      await addDoc(collection(db, 'shops'), {
+        userId: user.uid,
+        name: name,
+        area: route,
+        timestamp: Date.now()
+      });
+      showToast(`✅ Shop "${name}" added to ${route}!`, "success");
+      setShowModal(null);
+    } catch (err) {
+      showToast("Error adding shop: " + err.message, "error");
+    }
   };
 
   // ========== RENDER ==========
@@ -2467,26 +2499,7 @@ export default function App() {
                 />
               </div>
               <button
-                onClick={async () => {
-                  // Manual shop add with custom name
-                  const customName = prompt("Enter shop name:", "");
-                  if (customName && customName.trim()) {
-                    const route = prompt("Enter route name (or select from existing):", "");
-                    if (route && route.trim()) {
-                      try {
-                        await addDoc(collection(db, 'shops'), {
-                          userId: user.uid,
-                          name: customName.toUpperCase(),
-                          area: route.toUpperCase(),
-                          timestamp: Date.now()
-                        });
-                        showToast(`✅ Shop "${customName}" added!`, "success");
-                      } catch (err) {
-                        showToast("Error adding shop: " + err.message, "error");
-                      }
-                    }
-                  }
-                }}
+                onClick={() => setShowModal('shop')}
                 className={`px-3 py-2 rounded-xl border font-black text-xs flex items-center gap-1 transition-all ${
                   isDarkMode 
                     ? 'bg-[#1a1a1a] border-[#d4af37]/20 text-[#d4af37] hover:bg-[#d4af37]/10' 
@@ -3512,7 +3525,7 @@ export default function App() {
         </div>
       )}
 
-      {/* MANUAL ORDER MODAL */}
+      {/* MANUAL ORDER MODAL - MODIFIED: Now with shop name input instead of dropdown */}
       {showModal === 'manual' && (
         <div className="fixed inset-0 bg-black z-[100] overflow-y-auto">
           <div className={`min-h-screen p-3 max-w-lg mx-auto pb-28 ${isDarkMode ? 'bg-black' : 'bg-amber-50'}`}>
@@ -3522,6 +3535,7 @@ export default function App() {
                 onClick={() => {
                   setShowModal(null);
                   setManualItems([{ name: '', qty: 1, price: 0, subtotal: 0 }]);
+                  setManualShopName('');
                 }}
                 className={`p-1 ${isDarkMode ? 'bg-[#d4af37]/10 hover:bg-[#d4af37]/20' : 'bg-amber-100 hover:bg-amber-200'} rounded-full transition-all`}
               >
@@ -3529,22 +3543,20 @@ export default function App() {
               </button>
             </div>
 
-            <select
-              className={`w-full p-2 rounded-lg border ${
-                isDarkMode 
-                  ? 'bg-[#d4af37]/5 border-[#d4af37]/20 text-white' 
-                  : 'bg-white border-amber-200 text-gray-800'
-              } text-xs mb-3 outline-none focus:border-[#d4af37] transition-all font-bold`}
-              onChange={(e) => {
-                const shopId = e.target.value;
-                setSelectedShop(data.shops.find(s => s.id === shopId));
-              }}
-            >
-              <option value="">SELECT SHOP</option>
-              {data.shops.map(s => (
-                <option key={s.id} value={s.id}>{s.name}</option>
-              ))}
-            </select>
+            {/* Shop Name Input */}
+            <div className={`mb-3 ${isDarkMode ? 'bg-[#d4af37]/5' : 'bg-white'} p-2 rounded-lg border ${isDarkMode ? 'border-[#d4af37]/20' : 'border-amber-200'}`}>
+              <label className={`text-[8px] font-black uppercase ${isDarkMode ? 'text-[#d4af37]' : 'text-amber-600'} block mb-1`}>Shop Name</label>
+              <input
+                value={manualShopName}
+                onChange={(e) => setManualShopName(e.target.value.toUpperCase())}
+                placeholder="ENTER SHOP NAME"
+                className={`w-full p-2 rounded-lg border text-xs ${
+                  isDarkMode 
+                    ? 'bg-black border-[#d4af37]/20 text-white placeholder-white/30' 
+                    : 'bg-amber-50 border-amber-200 text-gray-800 placeholder-gray-400'
+                } outline-none focus:border-[#d4af37] transition-all font-bold`}
+              />
+            </div>
 
             {manualItems.map((item, index) => (
               <div key={index} className={`${isDarkMode 
@@ -3605,8 +3617,8 @@ export default function App() {
             <div className={`fixed bottom-0 inset-x-0 p-2 ${isDarkMode ? 'bg-black border-[#d4af37]/20' : 'bg-amber-50 border-amber-200'} border-t`}>
               <button
                 onClick={saveManualOrder}
-                disabled={!selectedShop}
-                className={`w-full py-2 font-black rounded-lg text-xs transition-all ${selectedShop 
+                disabled={!manualShopName.trim()}
+                className={`w-full py-2 font-black rounded-lg text-xs transition-all ${manualShopName.trim() 
                   ? isDarkMode 
                     ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black hover:opacity-90' 
                     : 'bg-gradient-to-r from-amber-600 to-orange-600 text-white hover:opacity-90'
@@ -3615,7 +3627,7 @@ export default function App() {
                     : 'bg-amber-100 text-amber-300'
                 }`}
               >
-                {selectedShop ? 'SAVE ORDER' : 'SELECT SHOP FIRST'}
+                {manualShopName.trim() ? 'SAVE ORDER' : 'ENTER SHOP NAME FIRST'}
               </button>
             </div>
           </div>
@@ -3658,7 +3670,7 @@ export default function App() {
         </div>
       )}
 
-      {/* SHOP MODAL */}
+      {/* SHOP MODAL - MODIFIED: Now with route selection from existing routes */}
       {showModal === 'shop' && (
         <div className="fixed inset-0 bg-black/50 dark:bg-black/95 z-[100] flex items-center justify-center p-3">
           <div className={`w-full max-w-xs p-4 rounded-xl border ${
@@ -3672,37 +3684,45 @@ export default function App() {
                 <X size={16}/>
               </button>
             </div>
-            <form onSubmit={async (e) => {
-              e.preventDefault();
-              const f = e.target;
-              await addDoc(collection(db, 'shops'), {
-                userId: user.uid,
-                name: f.name.value.toUpperCase(),
-                area: f.area.value,
-                timestamp: Date.now()
-              });
-              showToast("Shop added!");
-              setShowModal(null);
-            }} className="space-y-2">
-              <input name="name" placeholder="SHOP NAME" className={`w-full p-2 rounded-lg border text-xs ${
-                isDarkMode 
-                  ? 'bg-black border-[#d4af37]/20 text-white' 
-                  : 'bg-amber-50 border-amber-200 text-gray-800'
-              } outline-none focus:border-[#d4af37] transition-all font-bold`} required />
-              <select name="area" className={`w-full p-2 rounded-lg border text-xs ${
-                isDarkMode 
-                  ? 'bg-black border-[#d4af37]/20 text-white' 
-                  : 'bg-amber-50 border-amber-200 text-gray-800'
-              } outline-none focus:border-[#d4af37] transition-all font-bold`} required>
+            <form onSubmit={handleAddShop} className="space-y-2">
+              <input 
+                name="name" 
+                placeholder="SHOP NAME" 
+                className={`w-full p-2 rounded-lg border text-xs ${
+                  isDarkMode 
+                    ? 'bg-black border-[#d4af37]/20 text-white' 
+                    : 'bg-amber-50 border-amber-200 text-gray-800'
+                } outline-none focus:border-[#d4af37] transition-all font-bold`} 
+                required 
+              />
+              <select 
+                name="route" 
+                className={`w-full p-2 rounded-lg border text-xs ${
+                  isDarkMode 
+                    ? 'bg-black border-[#d4af37]/20 text-white' 
+                    : 'bg-amber-50 border-amber-200 text-gray-800'
+                } outline-none focus:border-[#d4af37] transition-all font-bold`} 
+                required
+              >
                 <option value="">SELECT ROUTE</option>
                 {data.routes.map(r => (
                   <option key={r.id} value={r.name}>{r.name}</option>
                 ))}
               </select>
-              <button type="submit" className={`w-full py-2 ${isDarkMode 
-                ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black' 
-                : 'bg-gradient-to-r from-amber-600 to-orange-600 text-white'
-              } font-black rounded-lg text-xs hover:opacity-90 transition-all`}>SAVE</button>
+              {data.routes.length === 0 && (
+                <p className={`text-[8px] ${isDarkMode ? 'text-yellow-500' : 'text-amber-600'} text-center font-bold`}>
+                  No routes found. Please add a route first in Settings.
+                </p>
+              )}
+              <button 
+                type="submit" 
+                className={`w-full py-2 ${isDarkMode 
+                  ? 'bg-gradient-to-r from-[#d4af37] to-[#b8860b] text-black' 
+                  : 'bg-gradient-to-r from-amber-600 to-orange-600 text-white'
+                } font-black rounded-lg text-xs hover:opacity-90 transition-all`}
+              >
+                SAVE
+              </button>
             </form>
           </div>
         </div>
